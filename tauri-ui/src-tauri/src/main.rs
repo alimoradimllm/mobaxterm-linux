@@ -63,6 +63,34 @@ fn delete_session(name: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn export_sessions(path: String) -> Result<usize, String> {
+    if path.trim().is_empty() { return Err("export path cannot be empty".into()); }
+    let db_path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let store = SessionStore::open(db_path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
+    let sessions = store.list().map_err(|e| e.to_string())?;
+    let sanitized: Vec<_> = sessions.into_iter().map(sanitize_session).collect();
+    fs::write(&path, serde_json::to_vec_pretty(&sanitized).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    Ok(sanitized.len())
+}
+
+#[tauri::command]
+fn import_backup(path: String) -> Result<usize, String> {
+    let data = fs::read(&path).map_err(|e| e.to_string())?;
+    let sessions: Vec<moraxterm_core::Session> = serde_json::from_slice(&data).map_err(|e| format!("invalid session backup: {e}"))?;
+    let db_path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let store = SessionStore::open(db_path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
+    for session in &sessions { if session.name.trim().is_empty() { continue; } let clean = sanitize_session(session.clone()); store.upsert(&clean).map_err(|e| e.to_string())?; }
+    Ok(sessions.iter().filter(|s| !s.name.trim().is_empty()).count())
+}
+
+fn sanitize_session(mut session: moraxterm_core::Session) -> moraxterm_core::Session {
+    session.environment.retain(|key, _| !["password", "passphrase", "secret", "token", "key", "private"].iter().any(|word| key.to_ascii_lowercase().contains(word)));
+    let startup = session.startup_command.to_ascii_lowercase();
+    if ["password", "passphrase", "secret", "token", "private_key", "apikey"].iter().any(|word| startup.contains(word)) { session.startup_command.clear(); }
+    session
+}
+
+#[tauri::command]
 fn start_tunnel(state: State<'_, TunnelManager>, host: String, username: String, ssh_port: u16, mode: String, bind: String, target: String) -> Result<String, String> {
     if host.trim().is_empty() || bind.trim().is_empty() || ssh_port == 0 { return Err("tunnel host, bind address, and a valid SSH port are required".into()); }
     let mode = mode.to_ascii_lowercase();
@@ -270,7 +298,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

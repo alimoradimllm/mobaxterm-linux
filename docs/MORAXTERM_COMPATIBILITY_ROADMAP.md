@@ -46,6 +46,7 @@ observed behavior, public protocol tooling, and independent code.
 - Session records now support non-secret environment variables and startup commands; Tauri applies the environment to the PTY and sends the startup command after launch.
 - Tauri settings now persist terminal font size, cursor blink, and dark/amber theme preferences locally and apply changes to existing and new terminals.
 - Sessions now persist favorite flags and bookmark-group names; the tree supports custom group headings, favorite-first sorting, and one-click favorite toggling.
+- Tauri now supports sanitized JSON session export and restore; sensitive-looking environment keys and startup commands are excluded before export and again before restore.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
