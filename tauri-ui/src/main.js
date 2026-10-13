@@ -4,6 +4,7 @@ import '@xterm/xterm/css/xterm.css';
 import './style.css';
 
 const invoke = window.__TAURI__?.core?.invoke;
+const listen = window.__TAURI__?.event?.listen;
 const app = document.querySelector('#app');
 app.innerHTML = `
 <header class="titlebar"><span class="brand">Moraxterm</span><nav class="menus"><button data-action="new-shell">Terminal</button><button data-action="sessions">Sessions</button><button data-action="view">View</button><button data-action="xserver">X server</button><button data-action="tools">Tools</button><button data-action="settings">Settings</button><button data-action="macros">Macros</button><button data-action="help">Help</button></nav><div class="window-actions">— □ ×</div></header>
@@ -94,33 +95,22 @@ function openTab(session) {
   terminal.open(terminalHost);
   fit.fit();
   terminal.writeln(`\x1b[36mMoraxterm\x1b[0m — ${session.session_type} ${session.host || ''}`);
-  terminal.writeln('Ready. Type a command and press Enter.');
+  terminal.writeln('Persistent terminal ready.');
   terminal.write('\r\n$ ');
-  let line = '';
   terminal.onData(async data => {
-    if (data === '\r') {
-      terminal.write('\r\n');
-      if (line.trim() && invoke) {
-        try {
-          const out = await invoke('run_terminal_command', { command: line });
-          terminal.write(out.replaceAll('\n', '\r\n'));
-        } catch (error) {
-          terminal.write(`\r\n\x1b[31m${error}\x1b[0m`);
-        }
-      }
-      line = '';
-      terminal.write('\r\n$ ');
-    } else if (data === '\u007f') {
-      if (line) { line = line.slice(0, -1); terminal.write('\b \b'); }
-    } else if (data >= ' ') {
-      line += data;
-      terminal.write(data);
+    if (invoke) {
+      try { await invoke('write_terminal', { id, data }); }
+      catch (error) { status(`Terminal input failed: ${error}`, true); }
     }
   });
   tabs.set(id, { pane, terminal, fit });
+  if (invoke) {
+    invoke('start_terminal', { id, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
+  }
   button.querySelector('b').onclick = event => {
     event.stopPropagation();
     tabs.get(id).terminal.dispose();
+    if (invoke) invoke('close_terminal', { id }).catch(error => status(`Terminal close failed: ${error}`, true));
     pane.remove();
     button.remove();
     tabs.delete(id);
@@ -169,4 +159,16 @@ document.addEventListener('keydown', event => {
   if (event.key.toLowerCase() === 'l') { event.preventDefault(); document.querySelector('#quick').focus(); }
   if (event.key.toLowerCase() === 'f') { event.preventDefault(); document.querySelector('#search').focus(); }
 });
+
+if (listen) {
+  listen('terminal-output', event => {
+    const tab = tabs.get(event.payload.id);
+    if (tab) tab.terminal.write(event.payload.data);
+  });
+  listen('terminal-exit', event => {
+    const tab = tabs.get(event.payload.id);
+    if (tab) tab.terminal.writeln('\r\n\x1b[33m[terminal exited]\x1b[0m');
+  });
+}
+
 loadSessions();

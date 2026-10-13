@@ -27,6 +27,8 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri toolbar actions now have handlers and status feedback.
 - Tauri keyboard shortcuts are wired for new shell, close tab, quick connect, and search.
 - Tauri frontend and Rust bridge both pass production checks.
+- Tauri terminal tabs now use persistent Rust PTY processes with streamed output, input forwarding, and close/kill commands.
+- Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
 

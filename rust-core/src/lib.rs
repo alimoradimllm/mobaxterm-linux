@@ -29,6 +29,17 @@ impl TerminalProcess {
         Ok(output)
     }
 
+    pub fn read_chunk(&mut self) -> anyhow::Result<Vec<u8>> {
+        let mut buffer = [0_u8; 8192];
+        let count = self.reader.read(&mut buffer)?;
+        Ok(buffer[..count].to_vec())
+    }
+
+    pub fn kill(&mut self) -> anyhow::Result<()> {
+        self.child.kill()?;
+        Ok(())
+    }
+
     pub fn write(&mut self, data: &[u8]) -> anyhow::Result<()> {
         self.writer.write_all(data)?;
         self.writer.flush()?;
