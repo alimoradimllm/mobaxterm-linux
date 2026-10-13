@@ -1,10 +1,11 @@
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::fmt;
 use std::io::{Read, Write};
 
 pub struct TerminalProcess {
+    master: Box<dyn MasterPty + Send>,
     reader: Box<dyn Read + Send>,
     writer: Box<dyn Write + Send>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
@@ -22,9 +23,10 @@ impl TerminalProcess {
         command.args(args.iter().copied());
         for (key, value) in environment { command.env(key, value); }
         let child = pair.slave.spawn_command(command)?;
-        let reader = pair.master.try_clone_reader()?;
-        let writer = pair.master.take_writer()?;
-        Ok(Self { reader, writer, child })
+        let master = pair.master;
+        let reader = master.try_clone_reader()?;
+        let writer = master.take_writer()?;
+        Ok(Self { master, reader, writer, child })
     }
 
     pub fn read_to_end(&mut self) -> anyhow::Result<Vec<u8>> {
@@ -38,6 +40,12 @@ impl TerminalProcess {
         let mut buffer = [0_u8; 8192];
         let count = self.reader.read(&mut buffer)?;
         Ok(buffer[..count].to_vec())
+    }
+
+    pub fn resize(&self, cols: u16, rows: u16) -> anyhow::Result<()> {
+        if cols == 0 || rows == 0 { anyhow::bail!("terminal dimensions must be non-zero"); }
+        self.master.resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })?;
+        Ok(())
     }
 
     pub fn kill(&mut self) -> anyhow::Result<()> {

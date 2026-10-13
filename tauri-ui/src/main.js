@@ -195,6 +195,10 @@ function openTab(session) {
   terminal.loadAddon(fit);
   terminal.open(terminalHost);
   fit.fit();
+  terminal.onResize(({ cols, rows }) => {
+    if (invoke) invoke('resize_terminal', { id, cols, rows }).catch(error => status(`Terminal resize failed: ${error}`, true));
+  });
+  new ResizeObserver(() => fit.fit()).observe(terminalHost);
   terminal.writeln(`\x1b[36mMoraxterm\x1b[0m — ${session.session_type} ${session.host || ''}`);
   terminal.writeln('Persistent terminal ready.');
   terminal.write('\r\n$ ');

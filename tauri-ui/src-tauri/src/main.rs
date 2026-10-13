@@ -271,6 +271,13 @@ fn write_terminal(state: State<'_, TerminalManager>, id: String, data: String) -
 }
 
 #[tauri::command]
+fn resize_terminal(state: State<'_, TerminalManager>, id: String, cols: u16, rows: u16) -> Result<(), String> {
+    let process = state.processes.lock().map_err(|_| "terminal manager poisoned")?.get(&id).cloned().ok_or("terminal not found")?;
+    let result = process.lock().map_err(|_| "terminal poisoned")?.resize(cols, rows).map_err(|e| e.to_string());
+    result
+}
+
+#[tauri::command]
 fn close_terminal(state: State<'_, TerminalManager>, id: String) -> Result<(), String> {
     let process = state.processes.lock().map_err(|_| "terminal manager poisoned")?.remove(&id);
     if let Some(process) = process {
@@ -298,7 +305,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, resize_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }
