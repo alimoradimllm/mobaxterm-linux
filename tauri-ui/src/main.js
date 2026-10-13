@@ -175,12 +175,26 @@ function terminalTheme() {
   return { background: '#101113', foreground: '#d7d7d7', cursor: '#00d084', black: '#101113', green: '#00d084', cyan: '#00c8d7', blue: '#4d9cff', yellow: '#e6d85a', red: '#ff5c57' };
 }
 
+function launchTerminal(id, session) {
+  if (!invoke) return;
+  invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
+}
+
+function reconnectTab(id) {
+  const tab = tabs.get(id);
+  if (!tab || !invoke) return;
+  tab.exited = false;
+  tab.terminal.options.disableStdin = false;
+  tab.terminal.writeln('\\r\\n\\x1b[36m[reconnecting...]\\x1b[0m');
+  launchTerminal(id, tab.session);
+}
+
 function openTab(session) {
   rememberRecent(session);
   const id = `tab-${Date.now()}-${tabs.size}`;
   const button = document.createElement('button');
   button.dataset.id = id;
-  button.innerHTML = `<span class="tab-icon">${iconFor(session.session_type)}</span>${session.name}<b>×</b>`;
+  button.innerHTML = `<span class="tab-icon">${iconFor(session.session_type)}</span>${session.name}<i title="Reconnect">↻</i><b>×</b>`;
   button.onclick = () => activate(id);
   tabsEl.appendChild(button);
   const pane = document.createElement('div');
@@ -211,10 +225,9 @@ function openTab(session) {
       catch (error) { status(`Terminal input failed: ${error}`, true); }
     }));
   });
-  tabs.set(id, { pane, terminal, fit });
-  if (invoke) {
-    invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
-  }
+  tabs.set(id, { pane, terminal, fit, session, exited: false });
+  button.querySelector('i').onclick = event => { event.stopPropagation(); reconnectTab(id); };
+  launchTerminal(id, session);
   button.querySelector('b').onclick = event => {
     event.stopPropagation();
     tabs.get(id).terminal.dispose();
