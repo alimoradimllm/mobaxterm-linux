@@ -11,7 +11,7 @@ observed behavior, public protocol tooling, and independent code.
 
 - Repository: `alimoradimllm/moraxterm`
 - Branch: `main`
-- Current published release: `v0.1.3`
+- Current published release: `v0.1.4`
 - Rust core tests: passed.
 - Python suite: 54 tests; 52 pass on Windows, with two platform-specific tests requiring guards or WSL fixtures.
 - Tauri frontend build and Rust bridge check: passed.
@@ -50,7 +50,7 @@ observed behavior, public protocol tooling, and independent code.
 - The optimized native Linux Tauri build completed successfully.
 - Native Linux Tauri packaging now produces verified `.deb` and `.rpm` bundles with the Moraxterm executable, desktop entry, and icon. AppImage remains disabled by default because the installed `linuxdeploy` plugin fails in this environment.
 - Native Windows Tauri builds now produce a verified optimized `moraxterm-linux-ui.exe` and NSIS installer through `build-tauri-windows.cmd`; the Windows build uses the MSVC toolchain and the Moraxterm ICO asset.
-- Release `v0.1.3` is prepared with native Tauri Linux `.deb`/`.rpm` and Windows NSIS artifacts; SHA-256 hashes were verified before publication.
+- Release `v0.1.4` is prepared with native Tauri Linux `.deb`/`.rpm` and Windows NSIS artifacts; SHA-256 hashes were verified before publication.
 - PTY resize now propagates from xterm.js pane dimensions through the Tauri bridge into `portable-pty`; zero dimensions are rejected and Linux regression coverage verifies resize behavior.
 - Exited PTYs now remove themselves from the Rust process/recording maps and the UI disables input for exited tabs, preventing stale terminal state.
 - Terminal tabs now retain their sanitized session and provide a reconnect control that starts a fresh PTY under the same tab after exit.

@@ -93,9 +93,8 @@ Published assets include:
 - `moraxterm-linux-ui.exe`
 - `Moraxterm-v0.1.4-SHA256SUMS.txt`
 
-The Windows database-path correction and Unix terminal-resume control were
-pushed after that release in commit `5f0dd72`. A new release should be created
-only after rebuilding and repeating the full verification matrix.
+The Windows database-path correction and Unix terminal-resume control are
+included in this release.
 
 ## Build from source
 
