@@ -54,6 +54,7 @@ observed behavior, public protocol tooling, and independent code.
 - PTY resize now propagates from xterm.js pane dimensions through the Tauri bridge into `portable-pty`; zero dimensions are rejected and Linux regression coverage verifies resize behavior.
 - Exited PTYs now remove themselves from the Rust process/recording maps and the UI disables input for exited tabs, preventing stale terminal state.
 - Terminal tabs now retain their sanitized session and provide a reconnect control that starts a fresh PTY under the same tab after exit.
+- Linux PTY regression coverage now verifies resize, output capture, and Ctrl+C terminal-interrupt processing.
 
 ## Priority definition
 
