@@ -91,6 +91,21 @@ fn stop_tunnel(state: State<'_, TunnelManager>, id: String) -> Result<bool, Stri
 }
 
 #[tauri::command]
+fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
+    if host.trim().is_empty() || username.trim().is_empty() || port == 0 { return Err("SFTP requires host, username, and a valid port".into()); }
+    if path.trim().is_empty() || path.chars().any(|c| c.is_control() || c == '\n' || c == '\r') { return Err("invalid SFTP path".into()); }
+    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
+    command.args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-P", &port.to_string(), "-b", "-", &format!("{}@{}", username, host)]);
+    command.stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    let mut child = command.spawn().map_err(|e| format!("cannot start sftp: {e}"))?;
+    if let Some(mut input) = child.stdin.take() { input.write_all(format!("ls -la {}\nbye\n", path).as_bytes()).map_err(|e| e.to_string())?; }
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    if text.is_empty() { text = String::from_utf8_lossy(&output.stderr).into_owned(); }
+    Ok(text)
+}
+
+#[tauri::command]
 fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<String, String> {
     if target.trim().is_empty() { return Err("network target cannot be empty".into()); }
     let tool = tool.to_ascii_lowercase();
@@ -214,7 +229,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, sftp_list, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

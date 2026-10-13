@@ -37,6 +37,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri now has an SSH tunneling manager for local (`-L`), remote (`-R`), and dynamic SOCKS (`-D`) forwarding, with tracked child processes and explicit stop support; secrets are never accepted.
 - Tauri terminal recording can capture each tab's streamed PTY output to an explicitly chosen file and stop recording without placing secrets in command arguments.
 - Tauri Tools now supports fixed-operation ping, traceroute, DNS lookup, and TCP port checks with bounded port timeouts and structured platform-specific arguments.
+- Tauri now provides an SFTP listing action using batch mode, `BatchMode=yes`, an eight-second connection timeout, and no password injection; results appear in the active terminal.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
