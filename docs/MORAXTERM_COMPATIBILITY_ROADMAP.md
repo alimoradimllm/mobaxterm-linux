@@ -47,6 +47,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri settings now persist terminal font size, cursor blink, and dark/amber theme preferences locally and apply changes to existing and new terminals.
 - Sessions now persist favorite flags and bookmark-group names; the tree supports custom group headings, favorite-first sorting, and one-click favorite toggling.
 - Tauri now supports sanitized JSON session export and restore; sensitive-looking environment keys and startup commands are excluded before export and again before restore.
+- The session tree now keeps a persistent recent-session list and provides right-click Open, Edit, Favorite, and Delete actions.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition

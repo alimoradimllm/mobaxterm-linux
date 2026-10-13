@@ -24,6 +24,7 @@ const recordings = new Set();
 let multiExec = false;
 let macroRecording = false;
 let macroBuffer = [];
+let recentSessionNames = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-recent-sessions') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
 let terminalSettings = (() => { try { return { fontSize: 13, cursorBlink: true, theme: 'dark', ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return { fontSize: 13, cursorBlink: true, theme: 'dark' }; } })();
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
@@ -39,11 +40,20 @@ function iconFor(type) {
   return { SSH: '🔑', Rdp: '▣', Vnc: '◉', WSL: '▸', Shell: '⌂', Serial: '⌁' }[type] || '▸';
 }
 
+function rememberRecent(session) {
+  recentSessionNames = [session.name, ...recentSessionNames.filter(name => name !== session.name)].slice(0, 8);
+  localStorage.setItem('moraxterm-recent-sessions', JSON.stringify(recentSessionNames));
+}
+
 function renderSessions() {
   const query = document.querySelector('#search').value.toLowerCase().trim();
   sessionsEl.innerHTML = '';
   const groups = new Map();
-  sessions.filter(s => JSON.stringify(s).toLowerCase().includes(query)).sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name)).forEach(session => {
+  const visible = sessions.filter(s => JSON.stringify(s).toLowerCase().includes(query)).sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name));
+  const recent = recentSessionNames.map(name => visible.find(session => session.name === name)).filter(Boolean);
+  const recentSet = new Set(recent.map(session => session.name));
+  if (recent.length) groups.set('Recent', recent);
+  visible.filter(session => !recentSet.has(session.name)).forEach(session => {
     const group = session.group || session.session_type || 'Other';
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(session);
@@ -64,6 +74,7 @@ function renderSessions() {
         renderSessions();
       };
       li.onclick = () => openTab(session);
+      li.oncontextmenu = event => showSessionMenu(event, session);
       li.ondblclick = event => { event.stopPropagation(); showEditor(session); };
       sessionsEl.appendChild(li);
     });
@@ -74,6 +85,23 @@ function renderSessions() {
     empty.textContent = 'No saved sessions. Import or create one.';
     sessionsEl.appendChild(empty);
   }
+}
+
+function showSessionMenu(event, session) {
+  event.preventDefault();
+  document.querySelector('.session-context-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'session-context-menu';
+  menu.innerHTML = `<button data-open>Open</button><button data-edit>Edit</button><button data-favorite>${session.favorite ? 'Remove favorite' : 'Add favorite'}</button><button data-delete>Delete</button>`;
+  menu.style.left = `${event.clientX}px`;
+  menu.style.top = `${event.clientY}px`;
+  document.body.appendChild(menu);
+  const close = () => { menu.remove(); document.removeEventListener('click', close); };
+  document.addEventListener('click', close);
+  menu.querySelector('[data-open]').onclick = () => { close(); openTab(session); };
+  menu.querySelector('[data-edit]').onclick = () => { close(); showEditor(session); };
+  menu.querySelector('[data-favorite]').onclick = async () => { close(); session.favorite = !session.favorite; if (invoke) await invoke('save_session', { session }); renderSessions(); };
+  menu.querySelector('[data-delete]').onclick = async () => { close(); if (invoke) await invoke('delete_session', { name: session.name }); sessions = sessions.filter(item => item.name !== session.name); recentSessionNames = recentSessionNames.filter(name => name !== session.name); localStorage.setItem('moraxterm-recent-sessions', JSON.stringify(recentSessionNames)); renderSessions(); };
 }
 
 async function loadSessions() {
@@ -148,6 +176,7 @@ function terminalTheme() {
 }
 
 function openTab(session) {
+  rememberRecent(session);
   const id = `tab-${Date.now()}-${tabs.size}`;
   const button = document.createElement('button');
   button.dataset.id = id;
