@@ -1,0 +1,128 @@
+# Moraxterm remaining work and verification status
+
+_Last reviewed: 2026-10-13. Repository: `alimoradimllm/moraxterm`._
+
+This document separates verified behavior from planned work. It is not a claim
+of full MobaXterm parity.
+
+## Verified in the current source tree
+
+- Native Tauri desktop builds exist for Windows and Linux.
+- Linux `.deb` and `.rpm` packages include the executable, desktop entry, and
+  icon.
+- Windows NSIS installer builds and installs a per-user copy.
+- Windows session storage now uses `%APPDATA%\Moraxterm` instead of the Linux
+  `~/.local/share/moraxterm-linux` path. This fix is commit `5f0dd72`.
+- The installed Windows build loaded two persisted sessions during a live test.
+- Rust core tests pass, including session validation, import, SQLite, PTY output,
+  resize, Ctrl+C, and Ctrl+D/EOF behavior.
+- Frontend production build and Tauri bridge `cargo check` pass.
+- Python suite contains 54 tests. On Windows, 52 pass; two tests depend on a
+  WSL-only research file or a POSIX shell assumption and need platform guards.
+- A native WebView interactive smoke test was attempted. The application opened,
+  but the desktop UI automation provider became unresponsive after WebView
+  interaction. This is an automation limitation until a more reliable test
+  harness is added; it is not recorded as a successful full terminal test.
+
+## P0: daily terminal and SSH workflow
+
+### Windows terminal runtime
+
+- Replace the current Windows process path with verified ConPTY behavior where
+  `portable-pty` does not provide full-screen compatibility.
+- Test persistent input and output with PowerShell, `cmd.exe`, Bash, `vim`,
+  `top`, `mc`, alternate-screen buffers, mouse reporting, and resize.
+- Verify Ctrl+C, Ctrl+D, Ctrl+Z, Ctrl+Break, paste, Unicode, and long output.
+- Add automated tests that run on a real Windows desktop session rather than
+  relying only on UI Automation tree inspection.
+
+### SSH trust and credentials
+
+- Add an explicit host-key prompt before first connection.
+- Read and update `known_hosts` without exposing fingerprints in logs.
+- Warn when a host key changes and require an explicit user decision.
+- Connect Linux Secret Service and Windows Credential Manager adapters.
+- Add password prompts that never persist or place values in command arguments.
+- Add SSH-agent selection and status.
+- Add ProxyJump/gateway fields to the session editor.
+- Add connection state, retry, latency, and clear failure messages.
+
+### SFTP
+
+- Add a local file browser beside the remote browser.
+- Add rename, delete, mkdir, permissions, and file metadata.
+- Add transfer queue, progress, cancellation, retry, and resume.
+- Add drag-and-drop transfers.
+- Add safe preview/editor behavior for text files.
+- Add SCP fallback when SFTP is unavailable.
+- Add integration tests with a disposable local SSH/SFTP server.
+
+## P1: workspace and protocol parity
+
+### Session manager
+
+- Add nested folders and drag-and-drop movement.
+- Add rename and duplicate operations.
+- Add protocol-specific editors for SSH, RDP, VNC, WSL, Telnet, and Serial.
+- Add connection-state indicators and complete duplicate handling during import.
+- Add migration tests for older SQLite records.
+
+### Workspace
+
+- Add horizontal panes and draggable pane boundaries.
+- Add tab movement, duplication, and detachment into a separate window.
+- Add close confirmation for active connections.
+- Add selective MultiExec targets, per-session output, status, and stop controls.
+- Add multiple tunnel profiles and concurrent tunnel status/logs.
+- Persist macro libraries with explicit import/export and secure content handling.
+
+### Remote protocols
+
+- Add embedded or tightly integrated RDP/VNC windows where platform support
+  allows it.
+- Add Serial device discovery and baud/data/parity/flow-control configuration.
+- Add Telnet options, break signal, and file transfer controls.
+- Add WSL distribution, user, working-directory, and shell-profile selectors.
+
+## P2: advanced tools and operations
+
+- Manage X-server lifecycle, tray state, XDMCP, and access control.
+- Add network scanner and real bandwidth/latency panels.
+- Add local/remote process, service, and disk-usage viewers.
+- Add text and hex editor workflows with safe file boundaries.
+- Replace placeholder status values with measured CPU, memory, throughput,
+  uptime, load, process count, latency, and per-session bandwidth.
+- Add ARM64 packages, AppImage/Flatpak where tooling is reproducible, an
+  uninstaller, Start Menu registration, Add/Remove Programs metadata, and
+  automatic update support.
+- Add code signing, dependency scanning, secret scanning, reproducible builds,
+  and signed release verification.
+- Run installation tests in clean Windows and Linux virtual machines.
+
+## P3: deferred
+
+Android remains deferred until Windows and Linux desktop behavior is stable.
+
+## Release gate
+
+Do not publish a new release until all of the following are true:
+
+1. Rust tests, Python tests with platform guards, frontend build, Tauri bridge
+   check, and `git diff --check` pass.
+2. Windows installer and Linux packages are rebuilt from the same commit.
+3. Installed Windows and Linux smoke tests verify startup, session loading,
+   local terminal input/output, close, reconnect, and database persistence.
+4. SSH/SFTP tests use disposable local infrastructure and never include real
+   credentials.
+5. The release assets and SHA-256 list are generated from the final binaries.
+6. The GitHub release assets are read back after upload.
+
+## Documentation maintenance rules
+
+- Record completed work only when a command, test, installed artifact, or remote
+  read-back provides evidence.
+- Mark platform-specific test failures as platform limitations instead of
+  changing behavior to satisfy the wrong operating system.
+- Never put passwords, private keys, tokens, host fingerprints, license values,
+  or connection strings in documentation, fixtures, screenshots, or commits.
+- Update this document and the main roadmap together when a priority changes.

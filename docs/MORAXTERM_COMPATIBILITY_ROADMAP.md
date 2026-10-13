@@ -11,13 +11,12 @@ observed behavior, public protocol tooling, and independent code.
 
 - Repository: `alimoradimllm/moraxterm`
 - Branch: `main`
-- Current release: `v0.1.3`
-- Python tests: 54 passed
-- Rust core tests: passed
-- Windows GUI launches from the portable executable.
-- Windows local shell input/output works.
-- Linux `.deb` installs CLI, GUI, desktop entry, and icon.
-- Windows portable ZIP includes a desktop-shortcut installer.
+- Current published release: `v0.1.3`
+- Rust core tests: passed.
+- Python suite: 54 tests; 52 pass on Windows, with two platform-specific tests requiring guards or WSL fixtures.
+- Tauri frontend build and Rust bridge check: passed.
+- Windows native installer: built, installed per-user, launched, and loaded persisted sessions.
+- Linux `.deb` and `.rpm` packages: built and verified.
 - Secret values are excluded from imported session data and command plans.
 
 ## Completed in the current milestone
@@ -58,6 +57,9 @@ observed behavior, public protocol tooling, and independent code.
 - Linux PTY regression coverage now verifies resize, output capture, and Ctrl+C terminal-interrupt processing.
 - Linux PTY regression coverage also verifies Ctrl+D/EOF delivery to an interactive child process.
 - SSH tabs now use structured `ConnectTimeout=10`, `ServerAliveInterval=30`, and `ServerAliveCountMax=3` options to improve failure detection and reconnect behavior without handling secrets.
+- The Windows Tauri bridge now stores SQLite data under `%APPDATA%\\Moraxterm`, while Linux keeps its XDG-style data path; the platform-specific path was verified by installing the corrected Windows build and loading persisted sessions.
+- Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
+- The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).
 
 ## Priority definition
 
@@ -72,8 +74,9 @@ observed behavior, public protocol tooling, and independent code.
 
 ### P0.1 Use one production UI
 
-**Current gap:** The release GUI is Python/Tkinter while the Tauri UI is a
-separate partial implementation.
+**Current gap:** The native Tauri UI is now the production direction, but the
+Python/Tkinter fallback still exists and the two implementations are not yet
+feature-identical.
 
 Tasks:
 
@@ -91,9 +94,9 @@ Acceptance criteria:
 
 ### P0.2 Persistent interactive terminal tabs
 
-**Current gap:** Linux has a PTY; Windows currently executes entered lines
-through `cmd.exe /C` because ordinary redirected `cmd.exe` does not provide a
-full console PTY.
+**Current gap:** Linux PTY behavior is covered by Rust regression tests. Windows
+still needs full ConPTY/full-screen runtime validation; the current native
+process path must not be treated as complete terminal parity.
 
 Tasks:
 
@@ -207,7 +210,9 @@ Tasks:
 
 ### P1.2 MultiExec
 
-**Current gap:** The current action displays an informational message only.
+**Current gap:** Broadcast mode works across open tabs and panes, but a
+selectable MultiExec workspace with per-session status and output is not yet
+complete.
 
 Tasks:
 
@@ -221,7 +226,9 @@ Tasks:
 
 ### P1.3 Tunneling manager
 
-**Current gap:** Tunnel command planning exists, but no tunnel manager UI.
+**Current gap:** Local, remote, and SOCKS tunnel commands plus start/stop
+tracking exist; profile editing, multiple concurrent tunnels, startup
+policies, and richer status/log UI remain.
 
 Tasks:
 

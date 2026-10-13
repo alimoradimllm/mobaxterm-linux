@@ -1,82 +1,242 @@
-# Moraxterm Linux compatibility work
+# Moraxterm
 
-This is a clean-room compatibility project based on observed behavior and
-static analysis of an authorized Moraxterm 25.4 / build 5418 installation.
-It does not contain Moraxterm proprietary code.
+**A clean-room, cross-platform terminal workspace for Windows and Linux.**
 
-## Current module
+Moraxterm is an independent desktop application inspired by the workflow of
+MobaXterm: one place for local terminals, SSH, SFTP, remote sessions, saved
+connections, split panes, tunnels, and operator tools. It does not copy
+proprietary MobaXterm source or assets.
 
-`moraxterm_config.py` provides read-only inventory for:
+> Compatibility target: observed behavior from MobaXterm 25.4 build 5418.
+> Moraxterm is not a pixel-perfect clone and does not claim full feature parity.
 
-- INI-style configuration/session files
-- `.mxtpro` ZIP metadata
+[![Latest release](https://img.shields.io/github/v/release/alimoradimllm/moraxterm?display_name=tag&sort=semver)](https://github.com/alimoradimllm/moraxterm/releases)
+[![Repository](https://img.shields.io/badge/repository-private-111827)](https://github.com/alimoradimllm/moraxterm)
 
-`session_store.py` provides a native SQLite database under
-`~/.local/share/moraxterm-linux/sessions.sqlite3`. It stores sanitized session
-metadata only. `credential_store.py` integrates with the Linux Secret Service
-through `secret-tool`; secret values are never stored in SQLite or command
-arguments.
+## What Moraxterm does today
 
-`separams_schema.py` parses the decoded Moraxterm session schema, and
-`session_model.py` provides validated backend-neutral session objects. It never
-stores password values; sessions refer to credential-store identifiers instead.
+- Native Tauri 2 desktop UI with xterm.js terminal rendering.
+- Rust core with persistent PTY-backed terminal tabs.
+- Windows native executable and NSIS installer.
+- Linux native `.deb` and `.rpm` packages.
+- Session tree backed by SQLite, favorites, recent sessions, groups, import,
+  sanitized JSON backup, restore, and session editing.
+- SSH, SFTP, WSL, RDP, VNC, Telnet, and Linux Serial launch paths through
+  structured native-process arguments.
+- Split panes, MultiExec broadcast mode, SSH tunnels, terminal recording,
+  macros, network tools, X11 status, startup commands, and terminal settings.
+- Secret-free configuration import. Passwords, private keys, tokens, license
+  values, and host fingerprints are not exported or committed.
 
-`ssh_backend.py` builds safe OpenSSH, SFTP, and Mosh command plans from those
-session objects without launching network connections.
+## Architecture
 
-`terminal_backend.py` provides local Shell/Terminal/WSL command plans and a
-POSIX PTY process wrapper for interactive terminal sessions.
-
-`moraxterm_cli.py` provides JSON session listing, local command capture, and
-interactive PTY launching.
-
-`moraxterm_importer.py` converts recognized Moraxterm INI session sections and
-encoded `Bookmarks*` records into validated Session objects. It excludes
-secret-like fields during import and recognizes SSH, RDP, and WSL bookmark
-records.
-
-`connect` generates OpenSSH/SFTP/SCP/Mosh, FreeRDP, VNC, Telnet, Serial, and
-WSL plans without connecting or handling passwords. It is dry-run by default;
-`--execute` is required to launch a plan, and the executable is checked first.
-
-`moraxterm_gui.py` provides a Tk/WSLg session browser with PTY-backed tabs.
-The GUI is intentionally a Linux-native compatibility layer, not a copy of
-Moraxterm's proprietary terminal renderer.
-
-## Ubuntu UI preview
-
-The Tauri frontend uses a clean-room Moraxterm-style workspace with a dark
-layout, toolbar, session sidebar, terminal tabs, ANSI terminal rendering,
-split-pane-ready content area, and status bar.
-
-![Moraxterm Linux UI preview](docs/screenshots/moraxterm-linux-ui-preview.svg)
-
-This is a project UI preview, not a screenshot of proprietary Moraxterm code.
-
-For large imports, use `--search` and `--type` to narrow sessions before
-connecting. Ambiguous search results are rejected rather than guessed.
-
-Credential-like values are redacted in summaries. The module never decrypts,
-exports, or modifies secrets.
-
-The complete missing-feature audit and implementation order are tracked in
-[`docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`](docs/MORAXTERM_COMPATIBILITY_ROADMAP.md).
-
-## Verify
-
-```bash
-moraxterm --help
-moraxterm-gui
+```text
+Tauri 2 + Vite + xterm.js
+              |
+              v
+       Rust Tauri bridge
+              |
+              v
+      Rust compatibility core
+       |       |        |
+     PTY    SQLite   command planners
+              |
+              v
+ Windows/Linux native tools
+ OpenSSH, SFTP, WSL, FreeRDP, VNC,
+ Telnet, socat, ping, traceroute, DNS
 ```
 
-To build a Debian package:
+### Code map
+
+| Area | Main files | Language | Role |
+|---|---|---:|---|
+| Production UI | `tauri-ui/src/main.js`, `tauri-ui/src/style.css` | JavaScript, CSS | Sessions, tabs, panes, SFTP browser, settings, tools |
+| Tauri bridge | `tauri-ui/src-tauri/src/main.rs` | Rust | Commands, PTY lifecycle, native clients, tunnels, recording |
+| Core model | `rust-core/src/lib.rs` | Rust | Sessions, validation, SQLite, import, command planning, PTY |
+| Rust tests | `rust-core/tests/` | Rust | PTY, importer, session model, SQLite regression coverage |
+| Python reference | `session_model.py`, `ssh_backend.py`, `terminal_backend.py` | Python | Behavioral reference and compatibility fallback |
+| Python GUI | `moraxterm_gui.py` | Python/Tkinter | Fallback GUI for older environments |
+| CLI | `moraxterm_cli.py`, `rust-core/src/main.rs` | Python, Rust | Dry-run plans, listing, local command workflows |
+| Packaging | `build-deb.sh`, `build-tauri-windows.cmd`, `packaging/` | Shell, CMD, desktop files | Linux and Windows packaging |
+| Documentation | `docs/` | Markdown | Roadmap, remaining work, evidence, screenshots |
+
+The Python implementation remains useful as a behavioral reference. The
+production desktop direction is the Rust/Tauri application.
+
+## Security model
+
+Moraxterm deliberately separates connection metadata from credentials:
+
+- Imports are read-only and sanitize secret-looking fields.
+- SQLite stores session metadata, not passwords or private keys.
+- Command plans never place passwords in arguments.
+- Linux credentials are intended for Secret Service/keyring adapters.
+- Windows credentials are intended for Windows Credential Manager adapters.
+- Backups remove sensitive environment keys and credential-like startup commands.
+- Host fingerprints and public-key material from research are represented as
+  `[REDACTED]` and are not included in this repository.
+
+Review the security and open-work details in
+[`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md).
+
+## Current release
+
+The latest published release is **v0.1.3**:
+
+<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.3>
+
+Published assets include:
+
+- `Moraxterm_0.1.3_amd64.deb`
+- `Moraxterm-0.1.3-1.x86_64.rpm`
+- `Moraxterm_0.1.3_x64-setup.exe`
+- `moraxterm-linux-ui.exe`
+- `Moraxterm-v0.1.3-SHA256SUMS.txt`
+
+The Windows database-path correction and Unix terminal-resume control were
+pushed after that release in commit `5f0dd72`. A new release should be created
+only after rebuilding and repeating the full verification matrix.
+
+## Build from source
+
+### Linux / WSL Debian
 
 ```bash
-./build-deb.sh
-sudo apt install ./dist/moraxterm_0.1.2_amd64.deb
+cd /mnt/c/Users/alimo/OneDrive/Documents/HermesWorkspace/mobaxterm-linux
+
+# Rust core
+cd rust-core
+cargo test
+
+# Tauri frontend
+cd ../tauri-ui
+npm ci
+npm run build
+
+# Tauri bridge
+cd src-tauri
+cargo check
 ```
 
-The Debian package installs the `moraxterm-gui` application, desktop menu entry,
-and Moraxterm icon. On Windows, extract the portable ZIP and run
-`install-windows.ps1` to create a `Moraxterm` desktop shortcut.
+Native Linux packaging requires the Tauri system dependencies documented by
+Tauri for GTK/WebKitGTK. The verified package commands are:
 
+```bash
+cd tauri-ui
+npm run tauri build -- --bundles deb,rpm
+```
+
+### Windows
+
+Open a Visual Studio Developer Command Prompt or run the repository helper:
+
+```cmd
+C:\Users\alimo\OneDrive\Documents\HermesWorkspace\mobaxterm-linux\build-tauri-windows.cmd --bundles nsis
+```
+
+The helper initializes the MSVC environment and builds the Windows executable
+and NSIS installer.
+
+## Install
+
+### Ubuntu/Debian
+
+```bash
+sudo apt install ./tauri-ui/src-tauri/target/release/bundle/deb/Moraxterm_0.1.3_amd64.deb
+```
+
+The package installs the application, desktop entry, and icon.
+
+### Windows
+
+Run the NSIS installer:
+
+```text
+tauri-ui/src-tauri/target/release/bundle/nsis/Moraxterm_0.1.3_x64-setup.exe
+```
+
+For a per-user test installation, the installer can be directed to a user
+folder such as `%LOCALAPPDATA%\Moraxterm`. The installed executable is named
+`moraxterm-linux-ui.exe` for compatibility with the existing build pipeline.
+
+## Verification
+
+Recommended checks before publishing a build:
+
+```bash
+# Rust core
+cd rust-core && cargo test
+
+# Frontend
+cd ../tauri-ui && npm run build
+
+# Tauri bridge
+cd src-tauri && cargo check
+
+# Repository hygiene
+cd ../.. && git diff --check
+```
+
+The current Rust suite covers session validation, sanitized import/export,
+SQLite persistence, PTY output, resize, Ctrl+C, and Ctrl+D/EOF. Windows native
+interactive WebView automation still needs stronger coverage for full-screen
+applications and keyboard control behavior.
+
+## Project status
+
+Moraxterm is usable for development work, but practical MobaXterm parity is not
+finished. The current gaps include SSH host-key and credential workflows,
+complete SFTP file management, richer session hierarchy, native Windows ConPTY
+coverage, RDP/VNC embedding, serial configuration, X-server lifecycle, and
+release-quality automation.
+
+- Detailed remaining work: [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md)
+- Compatibility roadmap: [`docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`](docs/MORAXTERM_COMPATIBILITY_ROADMAP.md)
+- UI preview: [`docs/screenshots/moraxterm-linux-ui-preview.svg`](docs/screenshots/moraxterm-linux-ui-preview.svg)
+
+## زبان فارسی
+
+### Moraxterm چیست؟
+
+Moraxterm یک محیط دسکتاپ مستقل برای کار با ترمینال و نشست‌های راه دور در
+Windows و Linux است. هدف پروژه این است که workflow ابزارهایی مانند MobaXterm
+را با کد مستقل و بدون کپی‌کردن کد یا دارایی‌های اختصاصی پیاده‌سازی کند.
+
+فناوری‌های اصلی پروژه:
+
+- رابط دسکتاپ با Tauri 2، Vite و xterm.js
+- هسته Rust برای مدیریت نشست، PTY، SQLite و اجرای ابزارهای native
+- نسخه مرجع Python برای تست رفتار و سازگاری
+- پشتیبانی فعلی از SSH، SFTP، WSL، RDP، VNC، Telnet و Serial در Linux
+- بسته‌های native برای Linux و installer برای Windows
+
+### ساختار کد
+
+- `tauri-ui/src/`: رابط کاربری، تب‌ها، پنل‌ها، تنظیمات و SFTP browser
+- `tauri-ui/src-tauri/src/main.rs`: bridge بین رابط کاربری و هسته Rust
+- `rust-core/src/lib.rs`: مدل نشست، import، SQLite، command planner و PTY
+- `rust-core/tests/`: تست‌های regression برای PTY، SQLite و import
+- فایل‌های Python: مرجع رفتاری، CLI و GUI پشتیبان
+- `docs/`: roadmap، فهرست کارهای باقی‌مانده و مدارک بررسی
+
+### وضعیت امنیت
+
+اطلاعات محرمانه در import، SQLite، log، backup و command argument نگهداری
+نمی‌شود. رمز عبور، private key، token، license key و fingerprint با مقدار واقعی
+در repository قرار نمی‌گیرد. اتصال credentialها باید از keyring سیستم‌عامل استفاده
+کند.
+
+### کارهای باقی‌مانده
+
+مهم‌ترین کارهای باقی‌مانده شامل تأیید host key در SSH، اتصال به Credential
+Manager، مدیریت کامل فایل‌های SFTP، تست واقعی ConPTY در Windows، پوشه‌بندی کامل
+نشست‌ها، integration بهتر RDP/VNC، تنظیمات Serial، مدیریت X server و تست نصب در
+ماشین مجازی تمیز است. فهرست دقیق در
+[`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) قرار دارد.
+
+## License and clean-room note
+
+Moraxterm is an independent implementation. It is not affiliated with or
+endorsed by MobaXterm or its publisher. The repository's license and notices
+are maintained in the GitHub repository metadata.
