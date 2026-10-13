@@ -1,3 +1,6 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+
 use moraxterm_core::{SessionStore, TerminalProcess};
 use serde::Serialize;
 use std::collections::HashMap;
