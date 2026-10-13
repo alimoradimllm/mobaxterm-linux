@@ -14,5 +14,11 @@ fn imports_ssh_bookmark_mode_zero() {
 fn imports_rdp_and_wsl_modes() {
     let text = "[Bookmarks]\nrdp-box=#91#4%10.0.0.5%3389%administrator%0\nwsl-box=#149#14%2%";
     let sessions = import_bookmarks(text).unwrap();
-    assert_eq!(sessions.iter().map(|s| s.session_type.as_str()).collect::<Vec<_>>(), ["Rdp", "WSL"]);
+    assert_eq!(
+        sessions
+            .iter()
+            .map(|s| s.session_type.as_str())
+            .collect::<Vec<_>>(),
+        ["Rdp", "WSL"]
+    );
 }

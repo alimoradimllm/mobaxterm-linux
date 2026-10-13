@@ -8,7 +8,7 @@ const listen = window.__TAURI__?.event?.listen;
 const app = document.querySelector('#app');
 app.innerHTML = `
 <div class="menu-row"><strong>Moraxterm</strong><button data-action="terminal-menu">Terminal</button><button data-action="sessions">Sessions</button><button data-action="view">View</button><button data-action="xserver">X server</button><button data-action="tools">Tools</button><button data-action="settings">Settings</button><button data-action="macros">Macros</button><button data-action="help">Help</button></div>
-<div class="toolbar"><button class="tool primary" data-action="new-shell"><span>▣</span><small>Session</small></button><button class="tool" data-action="sessions"><span>✣</span><small>Servers</small></button><button class="tool" data-action="tools"><span>⚒</span><small>Tools</small></button><button class="tool" data-action="load-sessions"><span>★</span><small>Sessions</small></button><button class="tool" data-action="view"><span>▣</span><small>View</small></button><button class="tool" data-action="split"><span>▤</span><small>Split</small></button><button class="tool" data-action="multiexec"><span>⇄</span><small>MultiExec</small></button><button class="tool" data-action="tunnel"><span>⇆</span><small>Tunneling</small></button><button class="tool" data-action="sftp"><span>⇅</span><small>Packages</small></button><button class="tool" data-action="settings"><span>⚙</span><small>Settings</small></button><button class="tool" data-action="help"><span>?</span><small>Help</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="xserver"><span>⚔</span><small>X server</small></button><button class="tool" data-action="close-app"><span>⏻</span><small>Exit</small></button></div>
+<div class="toolbar"><button class="tool primary" data-action="new-shell"><span>▣</span><small>Session</small></button><button class="tool" data-action="sessions"><span>✣</span><small>Servers</small></button><button class="tool" data-action="tools"><span>⚒</span><small>Tools</small></button><button class="tool" data-action="load-sessions"><span>★</span><small>Sessions</small></button><button class="tool" data-action="view"><span>▣</span><small>View</small></button><button class="tool" data-action="split"><span>▤</span><small>Split</small></button><button class="tool" data-action="duplicate"><span>⧉</span><small>Duplicate</small></button><button class="tool" data-action="multiexec"><span>⇄</span><small>MultiExec</small></button><button class="tool" data-action="tunnel"><span>⇆</span><small>Tunneling</small></button><button class="tool" data-action="sftp"><span>⇅</span><small>Packages</small></button><button class="tool" data-action="settings"><span>⚙</span><small>Settings</small></button><button class="tool" data-action="help"><span>?</span><small>Help</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="xserver"><span>⚔</span><small>X server</small></button><button class="tool" data-action="close-app"><span>⏻</span><small>Exit</small></button></div>
 <div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
 <main><nav class="rail"><button class="rail-button active" title="Sessions" data-rail="sessions">★</button><button class="rail-button" title="Tools" data-rail="tools" data-action="tools">⚒</button><button class="rail-button" title="Macros" data-rail="macros" data-action="macros">➤</button><button class="rail-button" title="Favorites" data-rail="favorites">◆</button></nav><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Quick find sessions"/></div><div class="tree-header"><span>★ User sessions</span><button id="import-backup" title="Restore backup">⇩</button><button id="export-sessions" title="Export backup">⇧</button><button id="import-sessions" title="Import sessions">⇩</button><button id="new-session" title="New session">＋</button><button id="reload" title="Reload sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer"><span>▣ Remote monitoring</span><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
 <section class="workspace"><div id="home-screen" class="home-screen"><div class="welcome-mark">▣</div><h1>Moraxterm</h1><p class="welcome-subtitle">Your terminal workspace</p><div class="welcome-actions"><button data-action="new-shell">＋ Start local terminal</button><button data-action="load-sessions">↻ Recover previous sessions</button></div><input id="home-search" placeholder="Find existing session or server name..."/><h2>Recent sessions</h2><div id="recent-cards" class="recent-cards"></div></div><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
@@ -20,8 +20,10 @@ const statusEl = document.querySelector('#status-message');
 let sessions = [];
 const tabs = new Map();
 const tunnels = new Set();
+let tunnelProfiles = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-tunnel-profiles') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
 const recordings = new Set();
 let multiExec = false;
+let multiExecTargets = new Set();
 let macroRecording = false;
 let macroBuffer = [];
 let recentSessionNames = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-recent-sessions') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
@@ -54,7 +56,7 @@ function renderSessions() {
   const recentSet = new Set(recent.map(session => session.name));
   if (recent.length) groups.set('Recent', recent);
   visible.filter(session => !recentSet.has(session.name)).forEach(session => {
-    const group = session.group || session.session_type || 'Other';
+    const group = session.folder || session.group || session.session_type || 'Other';
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(session);
   });
@@ -92,7 +94,7 @@ function showSessionMenu(event, session) {
   document.querySelector('.session-context-menu')?.remove();
   const menu = document.createElement('div');
   menu.className = 'session-context-menu';
-  menu.innerHTML = `<button data-open>Open</button><button data-edit>Edit</button><button data-favorite>${session.favorite ? 'Remove favorite' : 'Add favorite'}</button><button data-delete>Delete</button>`;
+  menu.innerHTML = `<button data-open>Open</button><button data-edit>Edit</button><button data-duplicate>Duplicate</button><button data-favorite>${session.favorite ? 'Remove favorite' : 'Add favorite'}</button><button data-delete>Delete</button>`;
   menu.style.left = `${event.clientX}px`;
   menu.style.top = `${event.clientY}px`;
   document.body.appendChild(menu);
@@ -100,6 +102,7 @@ function showSessionMenu(event, session) {
   document.addEventListener('click', close);
   menu.querySelector('[data-open]').onclick = () => { close(); openTab(session); };
   menu.querySelector('[data-edit]').onclick = () => { close(); showEditor(session); };
+  menu.querySelector('[data-duplicate]').onclick = () => { close(); showEditor({ ...session, name: `${session.name} copy`, favorite: false }); };
   menu.querySelector('[data-favorite]').onclick = async () => { close(); session.favorite = !session.favorite; if (invoke) await invoke('save_session', { session }); renderSessions(); };
   menu.querySelector('[data-delete]').onclick = async () => { close(); if (invoke) await invoke('delete_session', { name: session.name }); sessions = sessions.filter(item => item.name !== session.name); recentSessionNames = recentSessionNames.filter(name => name !== session.name); localStorage.setItem('moraxterm-recent-sessions', JSON.stringify(recentSessionNames)); renderSessions(); };
 }
@@ -156,10 +159,14 @@ async function importSessions() {
 function showEditor(session = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<form class="session-editor"><h2>${session.name ? 'Edit session' : 'New session'}</h2><label>Name<input name="name" required value="${session.name || ''}"></label><label>Type<select name="session_type"><option>SSH</option><option>Rdp</option><option>Vnc</option><option>WSL</option><option>Shell</option><option>Telnet</option><option>Serial</option></select></label><label>Host<input name="host" value="${session.host || ''}"></label><label>Username<input name="username" value="${session.username || ''}"></label><label>Port<input name="port" type="number" min="0" max="65535" value="${session.port || 22}"></label><label>Environment (non-secret KEY=VALUE, one per line)<textarea name="environment" rows="3">${Object.entries(session.environment || {}).map(([key, value]) => `${key}=${value}`).join('\\n')}</textarea></label><label>Startup command (non-secret)<input name="startup_command" value="${session.startup_command || ''}"></label><label>Bookmark group<input name="group" value="${session.group || ''}"></label><label><input name="favorite" type="checkbox" ${session.favorite ? 'checked' : ''}> Favorite</label><div class="editor-actions"><button type="button" data-cancel>Cancel</button>${session.name ? '<button type="button" data-delete>Delete</button>' : ''}<button type="submit">Save</button></div></form>`;
+  overlay.innerHTML = `<form class="session-editor"><h2>${session.name ? 'Edit session' : 'New session'}</h2><label>Name<input name="name" required value="${session.name || ''}"></label><label>Type<select name="session_type"><option>SSH</option><option>Rdp</option><option>Vnc</option><option>WSL</option><option>Shell</option><option>Telnet</option><option>Serial</option></select></label><label>Host<input name="host" value="${session.host || ''}"></label><label>Username<input name="username" value="${session.username || ''}"></label><label>Port<input name="port" type="number" min="0" max="65535" value="${session.port || 22}"></label><label>Folder<input name="folder" value="${session.folder || ''}" placeholder="Servers/Linux/Production"></label><label>Working directory<input name="working_directory" value="${session.working_directory || ''}"></label><label>Shell<input name="shell" value="${session.shell || ''}" placeholder="Auto / bash / PowerShell"></label><label>SSH gateway / ProxyJump<input name="proxy_jump" value="${session.proxy_jump || ''}" placeholder="user@gateway:22"></label><label>Host-key policy<select name="host_key_policy"><option value="ask">Ask before accepting</option><option value="strict">Strict known-hosts only</option><option value="accept-new">Accept new, reject changed</option></select></label><label>Keepalive seconds<input name="keepalive_seconds" type="number" min="0" max="3600" value="${session.keepalive_seconds ?? 30}"></label><label>Serial baud<input name="serial_baud" type="number" min="0" value="${session.serial_baud || 115200}"></label><label>Serial data bits<input name="serial_data_bits" type="number" min="5" max="8" value="${session.serial_data_bits || 8}"></label><label>Serial parity<input name="serial_parity" value="${session.serial_parity || 'none'}"></label><label>Serial stop bits<input name="serial_stop_bits" type="number" min="1" max="2" value="${session.serial_stop_bits || 1}"></label><label>Serial flow control<input name="serial_flow_control" value="${session.serial_flow_control || 'none'}"></label><label>Environment (non-secret KEY=VALUE, one per line)<textarea name="environment" rows="3">${Object.entries(session.environment || {}).map(([key, value]) => `${key}=${value}`).join('\\n')}</textarea></label><label>Startup command (non-secret)<input name="startup_command" value="${session.startup_command || ''}"></label><label>Bookmark group<input name="group" value="${session.group || ''}"></label><label><input name="favorite" type="checkbox" ${session.favorite ? 'checked' : ''}> Favorite</label><div class="editor-actions"><button type="button" data-cancel>Cancel</button>${session.name ? '<button type="button" data-delete>Delete</button>' : ''}<button type="submit">Save</button></div></form>`;
   document.body.appendChild(overlay);
   const form = overlay.querySelector('form');
+  const protocolFields = [['wsl_user', 'WSL user', session.wsl_user || '', 'Optional Linux user'], ['wsl_command', 'WSL command', session.wsl_command || '', 'Optional command'], ['telnet_mode', 'Telnet mode', session.telnet_mode || '', 'Raw / line']];
+  const serialField = form.querySelector('[name="serial_flow_control"]');
+  protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
   form.session_type.value = session.session_type || 'SSH';
+  form.host_key_policy.value = session.host_key_policy || 'ask';
   overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();
   overlay.querySelector('[data-delete]')?.addEventListener('click', async () => {
     if (invoke) await invoke('delete_session', { name: session.name });
@@ -170,7 +177,7 @@ function showEditor(session = {}) {
     event.preventDefault();
     const values = new FormData(form);
     const environment = Object.fromEntries(String(values.get('environment') || '').split('\\n').map(line => line.trim()).filter(line => line && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1)]; }));
-    const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
+    const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), folder: values.get('folder') || '', working_directory: values.get('working_directory') || '', shell: values.get('shell') || '', proxy_jump: values.get('proxy_jump') || '', host_key_policy: values.get('host_key_policy') || 'ask', keepalive_seconds: Number(values.get('keepalive_seconds') || 0), serial_baud: Number(values.get('serial_baud') || 0), serial_data_bits: Number(values.get('serial_data_bits') || 0), serial_parity: values.get('serial_parity') || '', serial_stop_bits: Number(values.get('serial_stop_bits') || 0), serial_flow_control: values.get('serial_flow_control') || '', wsl_user: values.get('wsl_user') || '', wsl_command: values.get('wsl_command') || '', telnet_mode: values.get('telnet_mode') || '', environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
     try {
       if (invoke) await invoke('save_session', { session: record });
       overlay.remove();
@@ -235,7 +242,7 @@ function openTab(session) {
   terminal.onData(async data => {
     if (macroRecording) macroBuffer.push(data);
     if (!invoke) return;
-    const destinations = multiExec ? [...tabs.keys()] : [id];
+    const destinations = multiExec ? [...(multiExecTargets.size ? multiExecTargets : tabs.keys())] : [id];
     await Promise.all(destinations.map(async target => {
       try { await invoke('write_terminal', { id: target, data }); }
       catch (error) { status(`Terminal input failed: ${error}`, true); }
@@ -252,6 +259,7 @@ function openTab(session) {
     pane.remove();
     button.remove();
     tabs.delete(id);
+    multiExecTargets.delete(id);
     if (tabs.size < 2) panesEl.classList.remove('split-view');
   };
   activate(id);
@@ -288,7 +296,7 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button></div><pre data-output>Loading…</pre></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button></div><pre data-output>Loading…</pre></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
@@ -314,6 +322,15 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'download', localPath, remotePath }); status('SFTP download completed'); }
     catch (error) { output.textContent = String(error); status(`SFTP download failed: ${error}`, true); }
   };
+  overlay.querySelector('[data-mkdir]').onclick = () => runSftpOperation('mkdir', window.prompt('Remote folder name:', `${pathInput.value.replace(/\/+$/, '')}/new-folder`));
+  overlay.querySelector('[data-rename]').onclick = () => { const source = window.prompt('Remote source path:', pathInput.value); const target = source && window.prompt('New remote path:', source); return runSftpOperation('rename', source, target); };
+  overlay.querySelector('[data-delete]').onclick = () => { const source = window.prompt('Remote file or empty folder path:', pathInput.value); return runSftpOperation('delete', source); };
+  overlay.querySelector('[data-chmod]').onclick = () => { const source = window.prompt('Remote path:', pathInput.value); const mode = source && window.prompt('Unix mode (for example 0644):', '0644'); return runSftpOperation('chmod', source, undefined, mode); };
+  async function runSftpOperation(operation, path, target = '', mode = '') {
+    if (!path) return;
+    try { output.textContent = await invoke('sftp_operation', { host, username, port, operation, path, target, mode }); status(`SFTP ${operation} completed`); await invokeList(); }
+    catch (error) { output.textContent = String(error); status(`SFTP ${operation} failed: ${error}`, true); }
+  }
   await invokeList();
 }
 
@@ -403,15 +420,19 @@ async function toggleTunnel() {
     return;
   }
   const mode = (window.prompt('Tunnel mode: local, remote, or dynamic', 'local') || '').trim().toLowerCase();
-  if (!mode) return;
+  if (![ 'local', 'remote', 'dynamic' ].includes(mode)) { status('Tunnel mode must be local, remote, or dynamic', true); return; }
   const host = (window.prompt('SSH gateway host:') || '').trim();
   const username = (window.prompt('SSH username (optional):') || '').trim();
   const sshPort = Number(window.prompt('SSH port:', '22') || '22');
   const bind = (window.prompt(mode === 'dynamic' ? 'SOCKS bind address, e.g. 127.0.0.1:1080:' : 'Bind address, e.g. 127.0.0.1:8080:') || '').trim();
   const target = mode === 'dynamic' ? '' : (window.prompt('Target, e.g. 127.0.0.1:80:') || '').trim();
+  if (!host || !Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535 || !bind || (mode !== 'dynamic' && !target)) { status('Tunnel host, valid SSH port, bind address, and target are required', true); return; }
+  if (/[\s"'\\]/.test(bind) || /[\s"'\\]/.test(target)) { status('Tunnel bind and target values contain invalid characters', true); return; }
   try {
     const id = await invoke('start_tunnel', { host, username, sshPort, mode, bind, target });
     tunnels.add(id);
+    tunnelProfiles = [{ host, username, sshPort, mode, bind, target }, ...tunnelProfiles.filter(profile => JSON.stringify(profile) !== JSON.stringify({ host, username, sshPort, mode, bind, target }))].slice(0, 20);
+    localStorage.setItem('moraxterm-tunnel-profiles', JSON.stringify(tunnelProfiles));
     status(`SSH ${mode} tunnel started; click Tunneling to stop`);
   } catch (error) { status(`Tunnel failed: ${error}`, true); }
 }
@@ -460,15 +481,33 @@ async function macroAction() {
   status('Macro recording started');
 }
 
+function duplicateActive() {
+  const id = activeTab();
+  const source = id && tabs.get(id)?.session;
+  if (!source) { status('Select a terminal tab first', true); return; }
+  openTab({ ...source, name: `${source.name} copy` });
+  status(`Duplicated ${source.name}`);
+}
+
 function toggleMultiExec() {
   multiExec = !multiExec;
   const button = document.querySelector('[data-action="multiexec"]');
   button?.classList.toggle('active', multiExec);
-  status(multiExec ? `MultiExec enabled for ${tabs.size} terminals` : 'MultiExec disabled');
+  if (multiExec) {
+    const choices = [...tabs.entries()].map(([id, tab], index) => `${index + 1}: ${tab.session.name} [${id}]`).join('\n');
+    const selected = window.prompt(`Select terminal numbers separated by commas, or leave blank for all:\n${choices}`, '');
+    const indexes = String(selected || '').split(',').map(value => Number(value.trim()) - 1).filter(Number.isInteger);
+    multiExecTargets = new Set(indexes.map(index => [...tabs.keys()][index]).filter(Boolean));
+    status(multiExecTargets.size ? `MultiExec enabled for ${multiExecTargets.size} selected terminals` : `MultiExec enabled for ${tabs.size} terminals`);
+  } else {
+    multiExecTargets.clear();
+    status('MultiExec disabled');
+  }
 }
 
 function actionMessage(action) {
   if (action === 'split') { splitActive(); return; }
+  if (action === 'duplicate') { duplicateActive(); return; }
   if (action === 'multiexec') { toggleMultiExec(); return; }
   if (action === 'tunnel') { toggleTunnel(); return; }
   if (action === 'record') { toggleRecording(); return; }

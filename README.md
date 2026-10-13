@@ -81,17 +81,17 @@ Review the security and open-work details in
 
 ## Current release
 
-The latest published release is **v0.1.7**:
+The latest published release is **v0.1.8**:
 
-<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.7>
+<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.8>
 
 Published assets include:
 
-- `Moraxterm_0.1.7_amd64.deb`
-- `Moraxterm-0.1.7-1.x86_64.rpm`
-- `Moraxterm_0.1.7_x64-setup.exe`
+- `Moraxterm_0.1.8_amd64.deb`
+- `Moraxterm-0.1.8-1.x86_64.rpm`
+- `Moraxterm_0.1.8_x64-setup.exe`
 - `moraxterm-linux-ui.exe`
-- `Moraxterm-v0.1.7-SHA256SUMS.txt`
+- `Moraxterm-v0.1.8-SHA256SUMS.txt`
 
 The Windows database-path correction and Unix terminal-resume control are
 included in this release.
@@ -141,7 +141,7 @@ and NSIS installer.
 ### Ubuntu/Debian
 
 ```bash
-sudo apt install ./tauri-ui/src-tauri/target/release/bundle/deb/Moraxterm_0.1.7_amd64.deb
+sudo apt install ./tauri-ui/src-tauri/target/release/bundle/deb/Moraxterm_0.1.8_amd64.deb
 ```
 
 The package installs the application, desktop entry, and icon.
@@ -151,7 +151,7 @@ The package installs the application, desktop entry, and icon.
 Run the NSIS installer:
 
 ```text
-tauri-ui/src-tauri/target/release/bundle/nsis/Moraxterm_0.1.7_x64-setup.exe
+tauri-ui/src-tauri/target/release/bundle/nsis/Moraxterm_0.1.8_x64-setup.exe
 ```
 
 For a per-user test installation, the installer can be directed to a user

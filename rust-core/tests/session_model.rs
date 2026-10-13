@@ -4,7 +4,21 @@ use moraxterm_core::{CommandPlan, Session};
 fn ssh_plan_uses_default_port_without_password() {
     let session = Session::ssh("prod", "31.70.116.241", "root");
     let plan = session.ssh_plan().unwrap();
-    assert_eq!(plan.argv, vec!["ssh", "-p", "22", "root@31.70.116.241"]);
+    assert_eq!(
+        plan.argv,
+        vec![
+            "ssh",
+            "-p",
+            "22",
+            "-o",
+            "StrictHostKeyChecking=ask",
+            "-o",
+            "ServerAliveInterval=30",
+            "-o",
+            "ServerAliveCountMax=3",
+            "root@31.70.116.241",
+        ]
+    );
     assert!(!plan.shell_command().contains("password"));
 }
 
@@ -16,6 +30,13 @@ fn empty_host_is_rejected() {
 
 #[test]
 fn shell_command_quotes_arguments() {
-    let plan = CommandPlan::new(vec!["ssh".into(), "root@example.test".into(), "printf hi; exit".into()]);
-    assert_eq!(plan.shell_command(), "ssh root@example.test 'printf hi; exit'");
+    let plan = CommandPlan::new(vec![
+        "ssh".into(),
+        "root@example.test".into(),
+        "printf hi; exit".into(),
+    ]);
+    assert_eq!(
+        plan.shell_command(),
+        "ssh root@example.test 'printf hi; exit'"
+    );
 }

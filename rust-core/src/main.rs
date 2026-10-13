@@ -28,7 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let store = SessionStore::open(&db)?;
             println!("{}", serde_json::to_string_pretty(&store.list()?)?);
         }
-        _ => { usage(); std::process::exit(2); }
+        _ => {
+            usage();
+            std::process::exit(2);
+        }
     }
     Ok(())
 }

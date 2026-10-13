@@ -108,6 +108,7 @@ fn sanitize_session(mut session: moraxterm_core::Session) -> moraxterm_core::Ses
 fn start_tunnel(state: State<'_, TunnelManager>, host: String, username: String, ssh_port: u16, mode: String, bind: String, target: String) -> Result<String, String> {
     if host.trim().is_empty() || bind.trim().is_empty() || ssh_port == 0 { return Err("tunnel host, bind address, and a valid SSH port are required".into()); }
     let mode = mode.to_ascii_lowercase();
+    if host.chars().any(|c| c.is_control() || c == '"' || c == '\'') || bind.chars().any(|c| c.is_control() || c == '"' || c == '\'') || target.chars().any(|c| c.is_control() || c == '"' || c == '\'') { return Err("tunnel values contain invalid characters".into()); }
     if !["local", "remote", "dynamic"].contains(&mode.as_str()) { return Err("tunnel mode must be local, remote, or dynamic".into()); }
     if mode != "dynamic" && target.trim().is_empty() { return Err("local and remote tunnels require a target".into()); }
     let forward = match mode.as_str() {
@@ -179,6 +180,33 @@ fn sftp_transfer(host: String, username: String, port: u16, direction: String, l
 }
 
 #[tauri::command]
+fn sftp_operation(host: String, username: String, port: u16, operation: String, path: String, target: String, mode: String) -> Result<String, String> {
+    if host.trim().is_empty() || username.trim().is_empty() || port == 0 { return Err("SFTP requires host, username, and a valid port".into()); }
+    let operation = operation.to_ascii_lowercase();
+    if !["mkdir", "rename", "delete", "chmod"].contains(&operation.as_str()) { return Err("unsupported SFTP operation".into()); }
+    for value in [&path, &target, &mode] {
+        if value.trim().is_empty() || value.chars().any(|c| c.is_control() || c == '"') { return Err("invalid SFTP operation path or mode".into()); }
+    }
+    let command_line = match operation.as_str() {
+        "mkdir" => format!("mkdir \"{}\"\n", path),
+        "rename" => format!("rename \"{}\" \"{}\"\n", path, target),
+        "delete" => format!("rm \"{}\"\nrmdir \"{}\"\n", path, path),
+        "chmod" => format!("chmod {} \"{}\"\n", mode, path),
+        _ => unreachable!(),
+    };
+    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
+    command.args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-P", &port.to_string(), "-b", "-", &format!("{}@{}", username, host)]);
+    command.stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    let mut child = command.spawn().map_err(|e| format!("cannot start sftp: {e}"))?;
+    if let Some(mut input) = child.stdin.take() { input.write_all(format!("{}bye\n", command_line).as_bytes()).map_err(|e| e.to_string())?; }
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    if text.is_empty() { text = String::from_utf8_lossy(&output.stderr).into_owned(); }
+    if !output.status.success() { return Err(text.trim().to_string()); }
+    Ok(text)
+}
+
+#[tauri::command]
 fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<String, String> {
     if target.trim().is_empty() { return Err("network target cannot be empty".into()); }
     let tool = tool.to_ascii_lowercase();
@@ -224,11 +252,14 @@ fn stop_recording(state: State<'_, TerminalManager>, id: String) -> Result<bool,
 fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, session: Option<moraxterm_core::Session>, program: Option<String>) -> Result<(), String> {
     let environment = session.as_ref().map(|value| value.environment.clone()).unwrap_or_default();
     let startup_command = session.as_ref().map(|value| value.startup_command.clone()).unwrap_or_default();
+    let working_directory = session.as_ref().map(|value| value.working_directory.clone()).unwrap_or_default();
     let (program_name, args): (String, Vec<String>) = if let Some(program) = program {
         (program, Vec::new())
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
         if session.host.trim().is_empty() || session.username.trim().is_empty() || session.port == 0 { return Err("SSH session requires host, username, and a valid port".into()); }
-        ("ssh".into(), vec!["-X".into(), "-o".into(), "ConnectTimeout=10".into(), "-o".into(), "ServerAliveInterval=30".into(), "-o".into(), "ServerAliveCountMax=3".into(), "-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
+        let mut ssh_args = session.ssh_plan().map_err(|error| error.to_string())?.argv;
+        ssh_args.insert(0, "-X".into());
+        ("ssh".into(), ssh_args)
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Rdp")) {
         if session.host.trim().is_empty() || session.port == 0 { return Err("RDP session requires host and a valid port".into()); }
         let mut args = vec![format!("/v:{}:{}", session.host, session.port)];
@@ -239,21 +270,30 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
         (if cfg!(windows) { "vncviewer.exe".into() } else { "vncviewer".into() }, vec![format!("{}:{}", session.host, session.port)])
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("WSL")) {
         if session.host.trim().is_empty() { return Err("WSL session requires a distribution name".into()); }
-        (if cfg!(windows) { "wsl.exe".into() } else { "wsl".into() }, vec!["-d".into(), session.host.clone()])
+        let mut args = vec!["-d".into(), session.host.clone()];
+        if !session.wsl_user.trim().is_empty() { args.extend(["-u".into(), session.wsl_user.clone()]); }
+        if !session.wsl_command.trim().is_empty() { args.extend(["--".into(), session.wsl_command.clone()]); }
+        (if cfg!(windows) { "wsl.exe".into() } else { "wsl".into() }, args)
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Telnet")) {
         if session.host.trim().is_empty() || session.port == 0 { return Err("Telnet session requires host and a valid port".into()); }
         (if cfg!(windows) { "telnet.exe".into() } else { "telnet".into() }, vec![session.host.clone(), session.port.to_string()])
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Serial")) {
         if session.host.trim().is_empty() { return Err("Serial session requires a device path".into()); }
         if cfg!(windows) { return Err("Serial Tauri sessions currently require a Linux socat environment".into()); }
-        ("socat".into(), vec!["-".into(), "raw,echo=0".into(), format!("{},b115200,cs8", session.host)])
+        let baud = if session.serial_baud == 0 { 115200 } else { session.serial_baud };
+        let data_bits = if session.serial_data_bits == 0 { 8 } else { session.serial_data_bits };
+        let parity = match session.serial_parity.to_ascii_lowercase().as_str() { "even" => "even=1", "odd" => "odd=1", _ => "parenb=0" };
+        let flow = if session.serial_flow_control.eq_ignore_ascii_case("hardware") { ",crtscts=1" } else { "" };
+        ("socat".into(), vec!["-".into(), "raw,echo=0".into(), format!("{},b{},cs{},{}{}", session.host, baud, data_bits, parity, flow)])
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Shell") && !value.shell.trim().is_empty()) {
+        (session.shell.clone(), Vec::new())
     } else if cfg!(windows) {
         ("cmd.exe".into(), vec!["/Q".into(), "/K".into()])
     } else {
         ("/bin/sh".into(), vec!["-l".into()])
     };
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let process = TerminalProcess::spawn_with_env(&program_name, &arg_refs, &environment).map_err(|e| e.to_string())?;
+    let process = TerminalProcess::spawn_with_env_and_cwd(&program_name, &arg_refs, &environment, Some(&working_directory)).map_err(|e| e.to_string())?;
     let shared = Arc::new(Mutex::new(process));
     state.processes.lock().map_err(|_| "terminal manager poisoned")?.insert(id.clone(), Arc::clone(&shared));
     if !startup_command.trim().is_empty() { shared.lock().map_err(|_| "terminal poisoned")?.write(format!("{}\n", startup_command).as_bytes()).map_err(|e| e.to_string())?; }
@@ -329,7 +369,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, resize_terminal, resume_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, sftp_operation, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, resize_terminal, resume_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }
