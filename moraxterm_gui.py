@@ -98,11 +98,35 @@ class Moraxterm(tk.Tk):
 
         menu = tk.Frame(self, bg='#11161b', height=34)
         menu.pack(fill='x')
-        for label in ('Terminal', 'Sessions', 'View', 'X server', 'Tools', 'Settings', 'Macros', 'Help'):
-            tk.Label(menu, text=label, bg='#11161b', fg='#c9d2d9', padx=13,
-                     font=('Segoe UI', 9)).pack(side='left', pady=8)
+        menus = {
+            'Terminal': [('New local shell', self.open_local_shell), ('Close tab', self.close_tab), ('Exit', self.shutdown)],
+            'Sessions': [('Import INI', self.import_file), ('Open selected', self.open_selected)],
+            'View': [('Focus quick connect', lambda: self.quick.focus_set()), ('Focus session search', lambda: self.search.focus_set()), ('Toggle fullscreen', self.toggle_fullscreen)],
+            'X server': [('X server information', lambda: self.info('X server', 'X server integration is available through the Linux display environment.'))],
+            'Tools': [('Split pane', self.split_pane), ('MultiExec', self.multi_exec), ('Tunneling', self.tunneling), ('Packages', self.packages)],
+            'Settings': [('Keyboard shortcuts', self.show_shortcuts)],
+            'Macros': [('Record macro', lambda: self.info('Macros', 'Macro recording will be connected to terminal tabs next.'))],
+            'Help': [('About Moraxterm', lambda: self.info('About Moraxterm', 'Moraxterm 0.1.2\nClean-room SSH client and terminal workspace.'))],
+        }
+        for label, items in menus.items():
+            button = tk.Menubutton(menu, text=label, bg='#11161b', fg='#c9d2d9',
+                                   activebackground='#26323b', activeforeground='white',
+                                   relief='flat', bd=0, padx=11, font=('Segoe UI', 9))
+            popup = tk.Menu(button, tearoff=False, bg='#20272e', fg=TEXT,
+                            activebackground='#3c8dbd', activeforeground='white')
+            for item, command in items:
+                popup.add_command(label=item, command=command)
+            button.configure(menu=popup)
+            button.pack(side='left', pady=3)
         for icon in ('⌂', '✦', '⚙', '⇄', '▣', '▤'):
             tk.Label(menu, text=icon, bg='#11161b', fg='#63b3ed', font=('Segoe UI', 15)).pack(side='right', padx=9)
+
+        self.bind_all('<Control-n>', lambda _event: self.open_local_shell())
+        self.bind_all('<Control-o>', lambda _event: self.import_file())
+        self.bind_all('<Control-w>', lambda _event: self.close_tab())
+        self.bind_all('<Control-l>', lambda _event: self.quick.focus_set())
+        self.bind_all('<Control-f>', lambda _event: self.search.focus_set())
+        self.bind_all('<F11>', lambda _event: self.toggle_fullscreen())
 
         toolbar = tk.Frame(self, bg=PANEL, height=43)
         toolbar.pack(fill='x')
@@ -111,8 +135,8 @@ class Moraxterm(tk.Tk):
         self.quick.insert(0, 'Quick connect...')
         self.quick.pack(side='left', padx=12, pady=8, ipady=5, ipadx=8)
         for label, command in (('New session', self.import_file), ('Open', self.open_selected),
-                               ('Split', lambda: None), ('MultiExec', lambda: None), ('Tunneling', lambda: None),
-                               ('Packages', lambda: None)):
+                               ('Split', self.split_pane), ('MultiExec', self.multi_exec), ('Tunneling', self.tunneling),
+                               ('Packages', self.packages), ('Close tab', self.close_tab)):
             self._button(toolbar, label, command).pack(side='left', padx=2, pady=5)
 
         body = tk.Frame(self, bg=BG)
@@ -199,6 +223,53 @@ class Moraxterm(tk.Tk):
             self.notebook.select(tab)
         except Exception as exc:
             messagebox.showerror('Cannot open session', str(exc))
+
+    def open_local_shell(self):
+        session = Session(name='Local shell', session_type='Shell')
+        try:
+            tab = TerminalTab(self.notebook, session, build_local_command(session).argv)
+            self.tabs[str(tab)] = tab
+            self.notebook.add(tab, text='  Local shell  ×  ')
+            self.notebook.select(tab)
+        except Exception as exc:
+            messagebox.showerror('Cannot open local shell', str(exc))
+
+    def close_tab(self):
+        current = self.notebook.select()
+        if not current:
+            return
+        tab = self.nametowidget(current)
+        if isinstance(tab, TerminalTab):
+            tab.close()
+            self.tabs.pop(str(tab), None)
+            self.notebook.forget(current)
+        else:
+            self.info('Welcome', 'The welcome tab cannot be closed.')
+
+    def toggle_fullscreen(self):
+        self.attributes('-fullscreen', not bool(self.attributes('-fullscreen')))
+
+    def info(self, title, message):
+        messagebox.showinfo(title, message)
+
+    def split_pane(self):
+        current = self.notebook.select()
+        if current and isinstance(self.nametowidget(current), TerminalTab):
+            self.info('Split pane', 'The selected terminal is ready for split-pane support. Persistent split PTYs are the next terminal milestone.')
+        else:
+            self.info('Split pane', 'Open a terminal session first.')
+
+    def multi_exec(self):
+        self.info('MultiExec', 'Open multiple terminal tabs, then use this command to broadcast input in the next terminal mode.')
+
+    def tunneling(self):
+        self.info('Tunneling', 'SSH tunneling is available through imported SSH session plans.')
+
+    def packages(self):
+        self.info('Packages', 'Package management is available through the connected terminal session.')
+
+    def show_shortcuts(self):
+        self.info('Keyboard shortcuts', 'Ctrl+N  New local shell\nCtrl+O  Import INI\nCtrl+W  Close tab\nCtrl+L  Focus quick connect\nCtrl+F  Focus session search\nF11  Toggle fullscreen')
 
     def shutdown(self):
         for tab in list(self.tabs.values()):
