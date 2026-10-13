@@ -192,17 +192,28 @@ function closeActiveTab() {
 
 async function runSftpList() {
   if (!invoke) { status('SFTP is available in the native Tauri app', true); return; }
+  const operation = (window.prompt('SFTP operation: list, upload, or download', 'list') || '').trim().toLowerCase();
+  if (!['list', 'upload', 'download'].includes(operation)) return;
   const host = (window.prompt('SFTP host:') || '').trim();
   const username = (window.prompt('SFTP username:') || '').trim();
   const port = Number(window.prompt('SFTP port:', '22') || '0');
-  const path = (window.prompt('Remote path:', '.') || '').trim();
-  if (!host || !username || !path) return;
+  if (!host || !username) return;
   try {
-    const result = await invoke('sftp_list', { host, username, port, path });
+    let result;
+    if (operation === 'list') {
+      const path = (window.prompt('Remote path:', '.') || '').trim();
+      if (!path) return;
+      result = await invoke('sftp_list', { host, username, port, path });
+    } else {
+      const localPath = (window.prompt(operation === 'upload' ? 'Local file path:' : 'Local destination path:') || '').trim();
+      const remotePath = (window.prompt(operation === 'upload' ? 'Remote destination path:' : 'Remote source path:') || '').trim();
+      if (!localPath || !remotePath) return;
+      result = await invoke('sftp_transfer', { host, username, port, direction: operation, localPath, remotePath });
+    }
     const id = activeTab();
     const tab = id && tabs.get(id);
-    if (tab) { tab.terminal.writeln(`\\r\\n\\x1b[36m[SFTP ${host}:${path}]\\x1b[0m`); tab.terminal.write(result.replaceAll('\\n', '\\r\\n')); }
-    status(`SFTP listing completed for ${host}`);
+    if (tab) { tab.terminal.writeln(`\\r\\n\\x1b[36m[SFTP ${operation} ${host}]\\x1b[0m`); tab.terminal.write(result.replaceAll('\\n', '\\r\\n')); }
+    status(`SFTP ${operation} completed for ${host}`);
   } catch (error) { status(`SFTP failed: ${error}`, true); }
 }
 
