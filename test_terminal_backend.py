@@ -13,7 +13,10 @@ class TerminalBackendTests(unittest.TestCase):
 
     def test_terminal_session_defaults_to_user_shell(self):
         plan = build_local_command(Session(name='terminal', session_type='Terminal'))
-        self.assertEqual(plan.argv, (os.environ.get('SHELL') or '/bin/sh',))
+        if os.name == 'nt':
+            self.assertEqual(plan.argv, (os.environ.get('COMSPEC') or 'cmd.exe', '/Q', '/K'))
+        else:
+            self.assertEqual(plan.argv, (os.environ.get('SHELL') or '/bin/sh',))
 
     def test_command_arguments_are_preserved(self):
         plan = build_local_command(Session(name='shell', session_type='Shell', command=['/bin/echo', 'hello']))
