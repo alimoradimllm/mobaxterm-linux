@@ -152,8 +152,20 @@ function openTab(session) {
     pane.remove();
     button.remove();
     tabs.delete(id);
+    if (tabs.size < 2) panesEl.classList.remove('split-view');
   };
   activate(id);
+  return id;
+}
+
+function splitActive() {
+  if (tabs.size >= 2) { status('Split view already has two panes'); return; }
+  const current = activeTab();
+  const id = openTab({ name: 'Split Shell', session_type: 'Shell', host: '' });
+  panesEl.classList.add('split-view');
+  if (current && tabs.has(current)) document.querySelector(`.pane[data-id="${current}"]`)?.classList.add('active');
+  document.querySelector(`.pane[data-id="${id}"]`)?.classList.add('active');
+  status('Split view enabled');
 }
 
 function activate(id) {
@@ -174,7 +186,8 @@ function closeActiveTab() {
 }
 
 function actionMessage(action) {
-  const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', split: 'Split panes are the next terminal-layout milestone.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
+  if (action === 'split') { splitActive(); return; }
+  const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }
 

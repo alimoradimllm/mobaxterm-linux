@@ -32,6 +32,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri can import a user-selected INI file read-only, merge basic sessions and encoded bookmarks, deduplicate by name, and persist only sanitized metadata.
 - Saved SSH sessions now launch `ssh` through their persistent PTY with structured port and user/host arguments; non-SSH sessions retain the local-shell fallback until their native backends are connected.
 - Saved WSL, RDP, and VNC sessions now select native clients (`wsl`, `xfreerdp`, and `vncviewer`) with structured arguments and no password injection; availability still depends on the client being installed.
+- The Tauri toolbar Split action now creates a two-pane layout with independent persistent PTYs, input routing, terminal tabs, and pane cleanup when closed.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
