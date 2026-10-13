@@ -50,6 +50,7 @@ observed behavior, public protocol tooling, and independent code.
 - The session tree now keeps a persistent recent-session list and provides right-click Open, Edit, Favorite, and Delete actions.
 - The optimized native Linux Tauri build completed successfully.
 - Native Linux Tauri packaging now produces verified `.deb` and `.rpm` bundles with the Moraxterm executable, desktop entry, and icon. AppImage remains disabled by default because the installed `linuxdeploy` plugin fails in this environment.
+- Native Windows Tauri builds now produce a verified optimized `moraxterm-linux-ui.exe` and NSIS installer through `build-tauri-windows.cmd`; the Windows build uses the MSVC toolchain and the Moraxterm ICO asset.
 
 ## Priority definition
 
