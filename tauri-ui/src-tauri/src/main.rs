@@ -214,7 +214,7 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
         (program, Vec::new())
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
         if session.host.trim().is_empty() || session.username.trim().is_empty() || session.port == 0 { return Err("SSH session requires host, username, and a valid port".into()); }
-        ("ssh".into(), vec!["-X".into(), "-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
+        ("ssh".into(), vec!["-X".into(), "-o".into(), "ConnectTimeout=10".into(), "-o".into(), "ServerAliveInterval=30".into(), "-o".into(), "ServerAliveCountMax=3".into(), "-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Rdp")) {
         if session.host.trim().is_empty() || session.port == 0 { return Err("RDP session requires host and a valid port".into()); }
         let mut args = vec![format!("/v:{}:{}", session.host, session.port)];

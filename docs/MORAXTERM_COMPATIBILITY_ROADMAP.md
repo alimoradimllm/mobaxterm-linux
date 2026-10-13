@@ -56,6 +56,7 @@ observed behavior, public protocol tooling, and independent code.
 - Terminal tabs now retain their sanitized session and provide a reconnect control that starts a fresh PTY under the same tab after exit.
 - Linux PTY regression coverage now verifies resize, output capture, and Ctrl+C terminal-interrupt processing.
 - Linux PTY regression coverage also verifies Ctrl+D/EOF delivery to an interactive child process.
+- SSH tabs now use structured `ConnectTimeout=10`, `ServerAliveInterval=30`, and `ServerAliveCountMax=3` options to improve failure detection and reconnect behavior without handling secrets.
 
 ## Priority definition
 
