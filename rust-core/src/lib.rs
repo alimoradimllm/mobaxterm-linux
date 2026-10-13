@@ -129,6 +129,19 @@ impl SessionStore {
         })?;
         rows.collect()
     }
+
+    pub fn upsert(&self, session: &Session) -> rusqlite::Result<()> {
+        let payload = serde_json::to_string(session).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        self.connection.execute(
+            "INSERT INTO sessions(name, payload) VALUES (?1, ?2) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload",
+            params![session.name, payload],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete(&self, name: &str) -> rusqlite::Result<bool> {
+        Ok(self.connection.execute("DELETE FROM sessions WHERE name = ?1", params![name])? > 0)
+    }
 }
 
 #[derive(Debug)]

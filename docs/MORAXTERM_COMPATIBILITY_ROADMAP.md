@@ -28,6 +28,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri keyboard shortcuts are wired for new shell, close tab, quick connect, and search.
 - Tauri frontend and Rust bridge both pass production checks.
 - Tauri terminal tabs now use persistent Rust PTY processes with streamed output, input forwarding, and close/kill commands.
+- Tauri now provides a SQLite-backed session editor: create, edit, delete, and reload sanitized session metadata from the UI.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition

@@ -23,6 +23,21 @@ fn list_sessions() -> Result<Vec<moraxterm_core::Session>, String> {
 }
 
 #[tauri::command]
+fn save_session(session: moraxterm_core::Session) -> Result<(), String> {
+    if session.name.trim().is_empty() { return Err("session name cannot be empty".into()); }
+    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
+    store.upsert(&session).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_session(name: String) -> Result<bool, String> {
+    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
+    store.delete(&name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, program: Option<String>) -> Result<(), String> {
     let (program_name, args): (String, Vec<String>) = if let Some(program) = program {
         (program, Vec::new())
@@ -84,7 +99,7 @@ fn run_terminal_command(command: String) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, save_session, delete_session, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }
