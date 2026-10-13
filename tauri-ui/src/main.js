@@ -190,6 +190,38 @@ function closeActiveTab() {
   button?.querySelector('b')?.click();
 }
 
+async function showSftpBrowser(host, username, port, initialPath = '.') {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button></div><pre data-output>Loading…</pre></section>`;
+  document.body.appendChild(overlay);
+  const pathInput = overlay.querySelector('[data-path]');
+  const output = overlay.querySelector('[data-output]');
+  const invokeList = async () => {
+    const path = pathInput.value.trim() || '.';
+    try { output.textContent = await invoke('sftp_list', { host, username, port, path }); status(`SFTP listing: ${path}`); }
+    catch (error) { output.textContent = String(error); status(`SFTP failed: ${error}`, true); }
+  };
+  overlay.querySelector('[data-close]').onclick = () => overlay.remove();
+  overlay.querySelector('[data-refresh]').onclick = invokeList;
+  overlay.querySelector('[data-up]').onclick = () => { pathInput.value = pathInput.value.replace(/\/+$/, '').split('/').slice(0, -1).join('/') || '.'; invokeList(); };
+  overlay.querySelector('[data-upload]').onclick = async () => {
+    const localPath = (window.prompt('Local file path:') || '').trim();
+    const remotePath = (window.prompt('Remote destination path:', `${pathInput.value}/`) || '').trim();
+    if (!localPath || !remotePath) return;
+    try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'upload', localPath, remotePath }); status('SFTP upload completed'); invokeList(); }
+    catch (error) { output.textContent = String(error); status(`SFTP upload failed: ${error}`, true); }
+  };
+  overlay.querySelector('[data-download]').onclick = async () => {
+    const remotePath = (window.prompt('Remote source path:', pathInput.value) || '').trim();
+    const localPath = (window.prompt('Local destination path:') || '').trim();
+    if (!localPath || !remotePath) return;
+    try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'download', localPath, remotePath }); status('SFTP download completed'); }
+    catch (error) { output.textContent = String(error); status(`SFTP download failed: ${error}`, true); }
+  };
+  await invokeList();
+}
+
 async function runSftpList() {
   if (!invoke) { status('SFTP is available in the native Tauri app', true); return; }
   const operation = (window.prompt('SFTP operation: list, upload, or download', 'list') || '').trim().toLowerCase();
@@ -203,7 +235,8 @@ async function runSftpList() {
     if (operation === 'list') {
       const path = (window.prompt('Remote path:', '.') || '').trim();
       if (!path) return;
-      result = await invoke('sftp_list', { host, username, port, path });
+      await showSftpBrowser(host, username, port, path);
+      return;
     } else {
       const localPath = (window.prompt(operation === 'upload' ? 'Local file path:' : 'Local destination path:') || '').trim();
       const remotePath = (window.prompt(operation === 'upload' ? 'Remote destination path:' : 'Remote source path:') || '').trim();

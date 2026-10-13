@@ -39,6 +39,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri Tools now supports fixed-operation ping, traceroute, DNS lookup, and TCP port checks with bounded port timeouts and structured platform-specific arguments.
 - Tauri now provides an SFTP listing action using batch mode, `BatchMode=yes`, an eight-second connection timeout, and no password injection; results appear in the active terminal.
 - The SFTP action now supports upload and download through validated batch transfers, with local and remote paths kept out of shell interpolation.
+- The Tauri SFTP browser now supports remote path navigation, refresh, parent-directory movement, upload, and download from a dedicated modal.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
