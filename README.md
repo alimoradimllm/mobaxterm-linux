@@ -43,6 +43,16 @@ WSL plans without connecting or handling passwords. It is dry-run by default;
 The GUI is intentionally a Linux-native compatibility layer, not a copy of
 MobaXterm's proprietary terminal renderer.
 
+## Ubuntu UI preview
+
+The Tauri frontend uses a clean-room MobaXterm-style workspace with a dark
+layout, toolbar, session sidebar, terminal tabs, ANSI terminal rendering,
+split-pane-ready content area, and status bar.
+
+![MobaXterm Linux UI preview](docs/screenshots/mobaxterm-linux-ui-preview.svg)
+
+This is a project UI preview, not a screenshot of proprietary MobaXterm code.
+
 For large imports, use `--search` and `--type` to narrow sessions before
 connecting. Ambiguous search results are rejected rather than guessed.
 
