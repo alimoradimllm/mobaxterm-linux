@@ -3,11 +3,18 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
+use std::process::Child;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Default)]
 struct TerminalManager {
     processes: Mutex<HashMap<String, Arc<Mutex<TerminalProcess>>>>,
+}
+
+#[derive(Default)]
+struct TunnelManager {
+    processes: Mutex<HashMap<String, Child>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -49,6 +56,34 @@ fn delete_session(name: String) -> Result<bool, String> {
     let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
     let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     store.delete(&name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn start_tunnel(state: State<'_, TunnelManager>, host: String, username: String, ssh_port: u16, mode: String, bind: String, target: String) -> Result<String, String> {
+    if host.trim().is_empty() || bind.trim().is_empty() || ssh_port == 0 { return Err("tunnel host, bind address, and a valid SSH port are required".into()); }
+    let mode = mode.to_ascii_lowercase();
+    if !["local", "remote", "dynamic"].contains(&mode.as_str()) { return Err("tunnel mode must be local, remote, or dynamic".into()); }
+    if mode != "dynamic" && target.trim().is_empty() { return Err("local and remote tunnels require a target".into()); }
+    let forward = match mode.as_str() {
+        "local" => format!("{}:{}", bind, target),
+        "remote" => format!("{}:{}", bind, target),
+        _ => bind.clone(),
+    };
+    let mut command = std::process::Command::new(if cfg!(windows) { "ssh.exe" } else { "ssh" });
+    command.arg("-N").arg("-p").arg(ssh_port.to_string());
+    command.arg(if mode == "local" { "-L" } else if mode == "remote" { "-R" } else { "-D" }).arg(forward);
+    command.arg(if username.trim().is_empty() { host.clone() } else { format!("{}@{}", username, host) });
+    let child = command.spawn().map_err(|e| format!("cannot start ssh tunnel: {e}"))?;
+    let id = format!("tunnel-{}", SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_millis());
+    state.processes.lock().map_err(|_| "tunnel manager poisoned")?.insert(id.clone(), child);
+    Ok(id)
+}
+
+#[tauri::command]
+fn stop_tunnel(state: State<'_, TunnelManager>, id: String) -> Result<bool, String> {
+    let child = state.processes.lock().map_err(|_| "tunnel manager poisoned")?.remove(&id);
+    if let Some(mut child) = child { child.kill().map_err(|e| e.to_string())?; let _ = child.wait(); return Ok(true); }
+    Ok(false)
 }
 
 #[tauri::command]
@@ -127,7 +162,8 @@ fn run_terminal_command(command: String) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .manage(TunnelManager::default())
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

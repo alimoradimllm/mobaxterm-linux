@@ -34,6 +34,7 @@ observed behavior, public protocol tooling, and independent code.
 - Saved WSL, RDP, and VNC sessions now select native clients (`wsl`, `xfreerdp`, and `vncviewer`) with structured arguments and no password injection; availability still depends on the client being installed.
 - The Tauri toolbar Split action now creates a two-pane layout with independent persistent PTYs, input routing, terminal tabs, and pane cleanup when closed.
 - Tauri MultiExec mode now broadcasts typed input to every open persistent terminal and visibly toggles on/off from the toolbar.
+- Tauri now has an SSH tunneling manager for local (`-L`), remote (`-R`), and dynamic SOCKS (`-D`) forwarding, with tracked child processes and explicit stop support; secrets are never accepted.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition

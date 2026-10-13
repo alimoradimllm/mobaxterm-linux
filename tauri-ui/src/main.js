@@ -19,6 +19,7 @@ const panesEl = document.querySelector('#panes');
 const statusEl = document.querySelector('#status-message');
 let sessions = [];
 const tabs = new Map();
+const tunnels = new Set();
 let multiExec = false;
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
@@ -188,6 +189,29 @@ function closeActiveTab() {
   button?.querySelector('b')?.click();
 }
 
+async function toggleTunnel() {
+  if (!invoke) { status('Tunneling is available in the native Tauri app', true); return; }
+  if (tunnels.size) {
+    const id = [...tunnels][0];
+    await invoke('stop_tunnel', { id });
+    tunnels.delete(id);
+    status('SSH tunnel stopped');
+    return;
+  }
+  const mode = (window.prompt('Tunnel mode: local, remote, or dynamic', 'local') || '').trim().toLowerCase();
+  if (!mode) return;
+  const host = (window.prompt('SSH gateway host:') || '').trim();
+  const username = (window.prompt('SSH username (optional):') || '').trim();
+  const sshPort = Number(window.prompt('SSH port:', '22') || '22');
+  const bind = (window.prompt(mode === 'dynamic' ? 'SOCKS bind address, e.g. 127.0.0.1:1080:' : 'Bind address, e.g. 127.0.0.1:8080:') || '').trim();
+  const target = mode === 'dynamic' ? '' : (window.prompt('Target, e.g. 127.0.0.1:80:') || '').trim();
+  try {
+    const id = await invoke('start_tunnel', { host, username, sshPort, mode, bind, target });
+    tunnels.add(id);
+    status(`SSH ${mode} tunnel started; click Tunneling to stop`);
+  } catch (error) { status(`Tunnel failed: ${error}`, true); }
+}
+
 function toggleMultiExec() {
   multiExec = !multiExec;
   const button = document.querySelector('[data-action="multiexec"]');
@@ -198,6 +222,7 @@ function toggleMultiExec() {
 function actionMessage(action) {
   if (action === 'split') { splitActive(); return; }
   if (action === 'multiexec') { toggleMultiExec(); return; }
+  if (action === 'tunnel') { toggleTunnel(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }
