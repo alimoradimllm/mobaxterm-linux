@@ -29,7 +29,7 @@ class CaptureResult:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog='mobaxterm-linux')
+    parser = argparse.ArgumentParser(prog='moraxterm')
     commands = parser.add_subparsers(dest='action', required=True)
 
     listing = commands.add_parser('list', help='list sessions from a JSON file')

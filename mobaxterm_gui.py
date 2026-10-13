@@ -46,7 +46,7 @@ class TerminalTab(ttk.Frame):
 class SessionBrowser(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title('MobaXterm Linux')
+        self.title('Moraxterm')
         self.geometry('1100x700')
         self.sessions: list[Session] = []
         self.notebook = ttk.Notebook(self)
