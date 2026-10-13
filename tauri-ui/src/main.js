@@ -148,7 +148,7 @@ function openTab(session) {
   });
   tabs.set(id, { pane, terminal, fit });
   if (invoke) {
-    invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL'].includes(session.session_type) ? session : null, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
+    invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
   }
   button.querySelector('b').onclick = event => {
     event.stopPropagation();

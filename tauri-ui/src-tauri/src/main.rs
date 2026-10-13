@@ -183,6 +183,13 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("WSL")) {
         if session.host.trim().is_empty() { return Err("WSL session requires a distribution name".into()); }
         (if cfg!(windows) { "wsl.exe".into() } else { "wsl".into() }, vec!["-d".into(), session.host.clone()])
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Telnet")) {
+        if session.host.trim().is_empty() || session.port == 0 { return Err("Telnet session requires host and a valid port".into()); }
+        (if cfg!(windows) { "telnet.exe".into() } else { "telnet".into() }, vec![session.host.clone(), session.port.to_string()])
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Serial")) {
+        if session.host.trim().is_empty() { return Err("Serial session requires a device path".into()); }
+        if cfg!(windows) { return Err("Serial Tauri sessions currently require a Linux socat environment".into()); }
+        ("socat".into(), vec!["-".into(), "raw,echo=0".into(), format!("{},b115200,cs8", session.host)])
     } else if cfg!(windows) {
         ("cmd.exe".into(), vec!["/Q".into(), "/K".into()])
     } else {
