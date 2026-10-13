@@ -1,0 +1,190 @@
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use std::fmt;
+use std::io::{Read, Write};
+
+pub struct TerminalProcess {
+    reader: Box<dyn Read + Send>,
+    writer: Box<dyn Write + Send>,
+    child: Box<dyn portable_pty::Child + Send + Sync>,
+}
+
+impl TerminalProcess {
+    pub fn spawn(program: &str, args: &[&str]) -> anyhow::Result<Self> {
+        let system = native_pty_system();
+        let pair = system.openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })?;
+        let mut command = CommandBuilder::new(program);
+        command.args(args.iter().copied());
+        let child = pair.slave.spawn_command(command)?;
+        let reader = pair.master.try_clone_reader()?;
+        let writer = pair.master.take_writer()?;
+        Ok(Self { reader, writer, child })
+    }
+
+    pub fn read_to_end(&mut self) -> anyhow::Result<Vec<u8>> {
+        let mut output = Vec::new();
+        self.reader.read_to_end(&mut output)?;
+        let _ = self.child.wait();
+        Ok(output)
+    }
+
+    pub fn write(&mut self, data: &[u8]) -> anyhow::Result<()> {
+        self.writer.write_all(data)?;
+        self.writer.flush()?;
+        Ok(())
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Session {
+    pub name: String,
+    pub session_type: String,
+    pub host: String,
+    pub username: String,
+    pub port: u16,
+}
+
+impl Session {
+    pub fn ssh(name: impl Into<String>, host: impl Into<String>, username: impl Into<String>) -> Self {
+        Self { name: name.into(), session_type: "SSH".into(), host: host.into(), username: username.into(), port: 22 }
+    }
+
+    pub fn ssh_plan(&self) -> Result<CommandPlan, ValidationError> {
+        if self.host.trim().is_empty() { return Err(ValidationError::EmptyHost); }
+        if self.username.trim().is_empty() { return Err(ValidationError::EmptyUsername); }
+        if self.port == 0 { return Err(ValidationError::InvalidPort); }
+        Ok(CommandPlan::new(vec![
+            "ssh".into(), "-p".into(), self.port.to_string().into(),
+            format!("{}@{}", self.username, self.host),
+        ]))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandPlan { pub argv: Vec<String> }
+
+impl CommandPlan {
+    pub fn new(argv: Vec<String>) -> Self { Self { argv } }
+
+    pub fn shell_command(&self) -> String {
+        self.argv.iter().map(|arg| shell_quote(arg)).collect::<Vec<_>>().join(" ")
+    }
+}
+
+fn shell_quote(value: &str) -> String {
+    if !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric() || "@%_+=:,./-".contains(c)) {
+        return value.to_string();
+    }
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationError { EmptyHost, EmptyUsername, InvalidPort }
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self { Self::EmptyHost => write!(f, "host cannot be empty"), Self::EmptyUsername => write!(f, "username cannot be empty"), Self::InvalidPort => write!(f, "port must be non-zero") }
+    }
+}
+
+impl std::error::Error for ValidationError {}
+
+pub struct SessionStore { connection: Connection }
+
+impl SessionStore {
+    pub fn open(path: &str) -> rusqlite::Result<Self> {
+        let connection = Connection::open(path)?;
+        connection.execute("CREATE TABLE IF NOT EXISTS sessions (name TEXT PRIMARY KEY, payload TEXT NOT NULL)", [])?;
+        Ok(Self { connection })
+    }
+
+    pub fn replace_all(&self, sessions: &[Session]) -> rusqlite::Result<()> {
+        let transaction = self.connection.unchecked_transaction()?;
+        transaction.execute("DELETE FROM sessions", [])?;
+        for session in sessions {
+            let payload = serde_json::to_string(session).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+            transaction.execute("INSERT INTO sessions(name, payload) VALUES (?1, ?2)", params![session.name, payload])?;
+        }
+        transaction.commit()
+    }
+
+    pub fn list(&self) -> rusqlite::Result<Vec<Session>> {
+        let mut statement = self.connection.prepare("SELECT payload FROM sessions ORDER BY name")?;
+        let rows = statement.query_map([], |row| {
+            let payload: String = row.get(0)?;
+            serde_json::from_str(&payload).map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))
+        })?;
+        rows.collect()
+    }
+}
+
+#[derive(Debug)]
+pub enum ImportError { InvalidPort(String) }
+
+impl fmt::Display for ImportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self { Self::InvalidPort(value) => write!(f, "invalid port: {value}") }
+    }
+}
+
+impl std::error::Error for ImportError {}
+
+pub fn import_ini(text: &str) -> Result<Vec<Session>, ImportError> {
+    let mut result = Vec::new();
+    let mut section: Option<String> = None;
+    let mut fields = std::collections::HashMap::new();
+    let flush = |section: &Option<String>, fields: &mut std::collections::HashMap<String, String>, result: &mut Vec<Session>| -> Result<(), ImportError> {
+        let Some(raw_name) = section else { return Ok(()); };
+        if !raw_name.to_ascii_lowercase().starts_with("session") { return Ok(()); }
+        let kind = fields.get("type").map(String::as_str).unwrap_or("SSH");
+        let session_type = match kind.to_ascii_lowercase().as_str() { "ssh" | "sftp" | "scp" => "SSH", "rdp" => "Rdp", "wsl" => "WSL", _ => return Ok(()) };
+        let name = raw_name.strip_prefix("Session ").unwrap_or(raw_name).trim().to_string();
+        let host = fields.get("host").cloned().unwrap_or_default();
+        let username = fields.get("user").or_else(|| fields.get("username")).cloned().unwrap_or_default();
+        let port = match fields.get("port") { Some(value) if !value.is_empty() => value.parse().map_err(|_| ImportError::InvalidPort(value.clone()))?, _ => if session_type == "Rdp" { 3389 } else { 22 } };
+        if !host.is_empty() { result.push(Session { name, session_type: session_type.into(), host, username, port }); }
+        Ok(())
+    };
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            flush(&section, &mut fields, &mut result)?;
+            section = Some(line[1..line.len()-1].to_string()); fields.clear(); continue;
+        }
+        if let Some((key, value)) = line.split_once('=') {
+            let key = key.trim().to_ascii_lowercase();
+            if !["password", "passphrase", "privatekey", "private_key", "token", "credential"].contains(&key.as_str()) { fields.insert(key, value.trim().to_string()); }
+        }
+    }
+    flush(&section, &mut fields, &mut result)?;
+    Ok(result)
+}
+
+pub fn import_bookmarks(text: &str) -> Result<Vec<Session>, ImportError> {
+    let mut result = Vec::new();
+    let mut in_bookmarks = false;
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.starts_with('[') && line.ends_with(']') { in_bookmarks = line[1..line.len()-1].eq_ignore_ascii_case("Bookmarks") || line[1..line.len()-1].starts_with("Bookmarks_"); continue; }
+        if !in_bookmarks { continue; }
+        let Some((name, encoded)) = line.split_once('=') else { continue; };
+        if !encoded.starts_with('#') { continue; }
+        let Some(first_hash) = encoded[1..].find('#') else { continue; };
+        let mode_start = first_hash + 2;
+        let Some(mode_end_rel) = encoded[mode_start..].find('%') else { continue; };
+        let mode = &encoded[mode_start..mode_start + mode_end_rel];
+        let fields: Vec<&str> = encoded[mode_start + mode_end_rel + 1..].split('%').collect();
+        let session_type = match mode { "0" | "7" => "SSH", "4" => "Rdp", "14" => "WSL", _ => continue };
+        if session_type == "WSL" {
+            let distribution = fields.first().copied().unwrap_or_default();
+            result.push(Session { name: name.to_string(), session_type: "WSL".into(), host: distribution.to_string(), username: String::new(), port: 0 });
+            continue;
+        }
+        if fields.len() < 3 || fields[0].is_empty() || fields[1].is_empty() { continue; }
+        let port = match fields[1].parse() { Ok(port) => port, Err(_) => continue };
+        result.push(Session { name: name.to_string(), session_type: session_type.into(), host: fields[0].to_string(), username: fields[2].to_string(), port });
+    }
+    Ok(result)
+}

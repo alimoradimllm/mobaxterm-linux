@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mobaxterm-linux"
+version = "0.1.1"
+description = "Clean-room Linux compatibility layer for sanitized MobaXterm sessions"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Hermes Workspace"}]
+dependencies = []
+
+[project.scripts]
+mobaxterm-linux = "mobaxterm_cli:main"
+mobaxterm-linux-gui = "mobaxterm_gui:main"
+
+[tool.setuptools]
+py-modules = [
+  "mobaxterm_cli",
+  "mobaxterm_config",
+  "mobaxterm_importer",
+  "credential_store",
+  "mobaxterm_gui",
+  "rdp_backend",
+  "session_model",
+  "session_store",
+  "separams_schema",
+  "ssh_backend",
+  "telnet_serial_backend",
+  "terminal_backend",
+  "vnc_backend",
+  "wsl_backend",
+]

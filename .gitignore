@@ -1,0 +1,33 @@
+# Generated and machine-specific data
+imported-sessions.json
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Node/Tauri
+node_modules/
+tauri-ui/dist/
+tauri-ui/src-tauri/target/
+
+# Rust
+rust-core/target/
+target/
+
+# Local research and logs
+*.log
+.tmp/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

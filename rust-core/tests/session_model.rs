@@ -1,0 +1,21 @@
+use mobaxterm_core::{CommandPlan, Session};
+
+#[test]
+fn ssh_plan_uses_default_port_without_password() {
+    let session = Session::ssh("prod", "31.70.116.241", "root");
+    let plan = session.ssh_plan().unwrap();
+    assert_eq!(plan.argv, vec!["ssh", "-p", "22", "root@31.70.116.241"]);
+    assert!(!plan.shell_command().contains("password"));
+}
+
+#[test]
+fn empty_host_is_rejected() {
+    let session = Session::ssh("bad", "", "root");
+    assert!(session.ssh_plan().is_err());
+}
+
+#[test]
+fn shell_command_quotes_arguments() {
+    let plan = CommandPlan::new(vec!["ssh".into(), "root@example.test".into(), "printf hi; exit".into()]);
+    assert_eq!(plan.shell_command(), "ssh root@example.test 'printf hi; exit'");
+}
