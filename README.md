@@ -59,6 +59,9 @@ connecting. Ambiguous search results are rejected rather than guessed.
 Credential-like values are redacted in summaries. The module never decrypts,
 exports, or modifies secrets.
 
+The complete missing-feature audit and implementation order are tracked in
+[`docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`](docs/MORAXTERM_COMPATIBILITY_ROADMAP.md).
+
 ## Verify
 
 ```bash
