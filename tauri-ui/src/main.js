@@ -225,6 +225,17 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
   await invokeList();
 }
 
+async function showXserverStatus() {
+  if (!invoke) { status('X server integration is available in the native Tauri app', true); return; }
+  try {
+    const result = await invoke('xserver_status');
+    const id = activeTab();
+    const tab = id && tabs.get(id);
+    if (tab) { tab.terminal.writeln('\\r\\n\\x1b[36m[X server status]\\x1b[0m'); tab.terminal.write(result.replaceAll('\\n', '\\r\\n')); }
+    status('X server status checked');
+  } catch (error) { status(`X server check failed: ${error}`, true); }
+}
+
 async function runSftpList() {
   if (!invoke) { status('SFTP is available in the native Tauri app', true); return; }
   const operation = (window.prompt('SFTP operation: list, upload, or download', 'list') || '').trim().toLowerCase();
@@ -347,6 +358,7 @@ function actionMessage(action) {
   if (action === 'tunnel') { toggleTunnel(); return; }
   if (action === 'record') { toggleRecording(); return; }
   if (action === 'tools') { runNetworkTool(); return; }
+  if (action === 'xserver') { showXserverStatus(); return; }
   if (action === 'sftp') { runSftpList(); return; }
   if (action === 'macros') { macroAction(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };

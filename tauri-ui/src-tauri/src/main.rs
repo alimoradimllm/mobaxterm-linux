@@ -91,6 +91,19 @@ fn stop_tunnel(state: State<'_, TunnelManager>, id: String) -> Result<bool, Stri
 }
 
 #[tauri::command]
+fn xserver_status() -> Result<String, String> {
+    let display = std::env::var("DISPLAY").unwrap_or_else(|_| "not set".into());
+    let session = std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "unknown".into());
+    let probe = if cfg!(windows) {
+        std::process::Command::new("where.exe").args(["vcxsrv.exe", "Xming.exe"]).output()
+    } else {
+        std::process::Command::new("sh").args(["-lc", "command -v Xwayland || command -v Xorg || command -v Xvfb"]).output()
+    }.map_err(|e| e.to_string())?;
+    let binaries = String::from_utf8_lossy(&probe.stdout).trim().to_string();
+    Ok(format!("DISPLAY={display}\nSession={session}\nX server binary={} ", if binaries.is_empty() { "not found" } else { &binaries }))
+}
+
+#[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 { return Err("SFTP requires host, username, and a valid port".into()); }
     if path.trim().is_empty() || path.chars().any(|c| c.is_control() || c == '\n' || c == '\r') { return Err("invalid SFTP path".into()); }
@@ -171,7 +184,7 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
         (program, Vec::new())
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
         if session.host.trim().is_empty() || session.username.trim().is_empty() || session.port == 0 { return Err("SSH session requires host, username, and a valid port".into()); }
-        ("ssh".into(), vec!["-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
+        ("ssh".into(), vec!["-X".into(), "-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Rdp")) {
         if session.host.trim().is_empty() || session.port == 0 { return Err("RDP session requires host and a valid port".into()); }
         let mut args = vec![format!("/v:{}:{}", session.host, session.port)];
@@ -254,7 +267,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }
