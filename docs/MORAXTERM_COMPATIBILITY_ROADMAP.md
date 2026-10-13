@@ -36,6 +36,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri MultiExec mode now broadcasts typed input to every open persistent terminal and visibly toggles on/off from the toolbar.
 - Tauri now has an SSH tunneling manager for local (`-L`), remote (`-R`), and dynamic SOCKS (`-D`) forwarding, with tracked child processes and explicit stop support; secrets are never accepted.
 - Tauri terminal recording can capture each tab's streamed PTY output to an explicitly chosen file and stop recording without placing secrets in command arguments.
+- Tauri Tools now supports fixed-operation ping, traceroute, DNS lookup, and TCP port checks with bounded port timeouts and structured platform-specific arguments.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition

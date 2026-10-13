@@ -6,7 +6,8 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::process::Child;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::net::{TcpStream, ToSocketAddrs};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Default)]
@@ -87,6 +88,35 @@ fn stop_tunnel(state: State<'_, TunnelManager>, id: String) -> Result<bool, Stri
     let child = state.processes.lock().map_err(|_| "tunnel manager poisoned")?.remove(&id);
     if let Some(mut child) = child { child.kill().map_err(|e| e.to_string())?; let _ = child.wait(); return Ok(true); }
     Ok(false)
+}
+
+#[tauri::command]
+fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<String, String> {
+    if target.trim().is_empty() { return Err("network target cannot be empty".into()); }
+    let tool = tool.to_ascii_lowercase();
+    if tool == "port" {
+        let port = port.ok_or("port is required for a TCP check")?;
+        if port == 0 { return Err("port must be non-zero".into()); }
+        let address = format!("{}:{}", target, port);
+        let resolved = address.to_socket_addrs().map_err(|e| e.to_string())?;
+        for socket in resolved {
+            if TcpStream::connect_timeout(&socket, Duration::from_secs(3)).is_ok() { return Ok(format!("TCP {} is open", address)); }
+        }
+        return Ok(format!("TCP {} is closed or unreachable", address));
+    }
+    let (program, args): (&str, Vec<String>) = match tool.as_str() {
+        "ping" if cfg!(windows) => ("ping", vec!["-n".into(), "4".into(), target]),
+        "ping" => ("ping", vec!["-c".into(), "4".into(), target]),
+        "traceroute" if cfg!(windows) => ("tracert", vec![target]),
+        "traceroute" => ("traceroute", vec!["-m".into(), "12".into(), target]),
+        "dns" if cfg!(windows) => ("nslookup", vec![target]),
+        "dns" => ("getent", vec!["hosts".into(), target]),
+        _ => return Err("tool must be ping, traceroute, dns, or port".into()),
+    };
+    let output = std::process::Command::new(program).args(args).output().map_err(|e| format!("cannot run network tool: {e}"))?;
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    if text.is_empty() { text = String::from_utf8_lossy(&output.stderr).into_owned(); }
+    Ok(text)
 }
 
 #[tauri::command]
@@ -184,7 +214,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

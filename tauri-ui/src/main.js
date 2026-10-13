@@ -190,6 +190,22 @@ function closeActiveTab() {
   button?.querySelector('b')?.click();
 }
 
+async function runNetworkTool() {
+  if (!invoke) { status('Network tools are available in the native Tauri app', true); return; }
+  const tool = (window.prompt('Tool: ping, traceroute, dns, or port', 'ping') || '').trim().toLowerCase();
+  if (!tool) return;
+  const target = (window.prompt('Target host or IP:') || '').trim();
+  if (!target) return;
+  const port = tool === 'port' ? Number(window.prompt('TCP port:', '22') || '0') : null;
+  try {
+    const result = await invoke('run_network_tool', { tool, target, port });
+    const id = activeTab();
+    const tab = id && tabs.get(id);
+    if (tab) { tab.terminal.writeln(`\\r\\n\\x1b[36m[${tool} ${target}]\\x1b[0m`); tab.terminal.write(result.replaceAll('\\n', '\\r\\n')); }
+    status(`${tool} completed for ${target}`);
+  } catch (error) { status(`Network tool failed: ${error}`, true); }
+}
+
 async function toggleRecording() {
   const id = activeTab();
   if (!id || !invoke) { status('Open a native terminal tab before recording', true); return; }
@@ -246,6 +262,7 @@ function actionMessage(action) {
   if (action === 'multiexec') { toggleMultiExec(); return; }
   if (action === 'tunnel') { toggleTunnel(); return; }
   if (action === 'record') { toggleRecording(); return; }
+  if (action === 'tools') { runNetworkTool(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }
