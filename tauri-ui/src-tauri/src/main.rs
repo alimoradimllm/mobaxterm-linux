@@ -55,9 +55,20 @@ fn delete_session(name: String) -> Result<bool, String> {
 fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, session: Option<moraxterm_core::Session>, program: Option<String>) -> Result<(), String> {
     let (program_name, args): (String, Vec<String>) = if let Some(program) = program {
         (program, Vec::new())
-    } else if let Some(session) = session.filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
         if session.host.trim().is_empty() || session.username.trim().is_empty() || session.port == 0 { return Err("SSH session requires host, username, and a valid port".into()); }
         ("ssh".into(), vec!["-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Rdp")) {
+        if session.host.trim().is_empty() || session.port == 0 { return Err("RDP session requires host and a valid port".into()); }
+        let mut args = vec![format!("/v:{}:{}", session.host, session.port)];
+        if !session.username.trim().is_empty() { args.push(format!("/u:{}", session.username)); }
+        (if cfg!(windows) { "xfreerdp.exe".into() } else { "xfreerdp".into() }, args)
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Vnc")) {
+        if session.host.trim().is_empty() || session.port == 0 { return Err("VNC session requires host and a valid port".into()); }
+        (if cfg!(windows) { "vncviewer.exe".into() } else { "vncviewer".into() }, vec![format!("{}:{}", session.host, session.port)])
+    } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("WSL")) {
+        if session.host.trim().is_empty() { return Err("WSL session requires a distribution name".into()); }
+        (if cfg!(windows) { "wsl.exe".into() } else { "wsl".into() }, vec!["-d".into(), session.host.clone()])
     } else if cfg!(windows) {
         ("cmd.exe".into(), vec!["/Q".into(), "/K".into()])
     } else {

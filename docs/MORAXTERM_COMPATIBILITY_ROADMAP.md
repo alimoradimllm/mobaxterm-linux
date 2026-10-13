@@ -31,6 +31,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri now provides a SQLite-backed session editor: create, edit, delete, and reload sanitized session metadata from the UI.
 - Tauri can import a user-selected INI file read-only, merge basic sessions and encoded bookmarks, deduplicate by name, and persist only sanitized metadata.
 - Saved SSH sessions now launch `ssh` through their persistent PTY with structured port and user/host arguments; non-SSH sessions retain the local-shell fallback until their native backends are connected.
+- Saved WSL, RDP, and VNC sessions now select native clients (`wsl`, `xfreerdp`, and `vncviewer`) with structured arguments and no password injection; availability still depends on the client being installed.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
