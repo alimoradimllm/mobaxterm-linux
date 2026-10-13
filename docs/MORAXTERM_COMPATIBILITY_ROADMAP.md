@@ -52,6 +52,7 @@ observed behavior, public protocol tooling, and independent code.
 - Native Linux Tauri packaging now produces verified `.deb` and `.rpm` bundles with the Moraxterm executable, desktop entry, and icon. AppImage remains disabled by default because the installed `linuxdeploy` plugin fails in this environment.
 - Native Windows Tauri builds now produce a verified optimized `moraxterm-linux-ui.exe` and NSIS installer through `build-tauri-windows.cmd`; the Windows build uses the MSVC toolchain and the Moraxterm ICO asset.
 - PTY resize now propagates from xterm.js pane dimensions through the Tauri bridge into `portable-pty`; zero dimensions are rejected and Linux regression coverage verifies resize behavior.
+- Exited PTYs now remove themselves from the Rust process/recording maps and the UI disables input for exited tabs, preventing stale terminal state.
 
 ## Priority definition
 

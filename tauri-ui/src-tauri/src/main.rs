@@ -12,7 +12,7 @@ use tauri::{AppHandle, Emitter, State};
 
 #[derive(Default)]
 struct TerminalManager {
-    processes: Mutex<HashMap<String, Arc<Mutex<TerminalProcess>>>>,
+    processes: Arc<Mutex<HashMap<String, Arc<Mutex<TerminalProcess>>>>>,
     recordings: Arc<Mutex<HashMap<String, File>>>,
 }
 
@@ -244,6 +244,7 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
     state.processes.lock().map_err(|_| "terminal manager poisoned")?.insert(id.clone(), Arc::clone(&shared));
     if !startup_command.trim().is_empty() { shared.lock().map_err(|_| "terminal poisoned")?.write(format!("{}\n", startup_command).as_bytes()).map_err(|e| e.to_string())?; }
     let recordings = Arc::clone(&state.recordings);
+    let processes = Arc::clone(&state.processes);
     std::thread::spawn(move || loop {
         let result = shared.lock().map_err(|_| "terminal poisoned".to_string()).and_then(|mut process| process.read_chunk().map_err(|e| e.to_string()));
         match result {
@@ -255,6 +256,8 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
                 let _ = app.emit("terminal-output", event);
             }
             _ => {
+                if let Ok(mut active) = recordings.lock() { active.remove(&id); }
+                if let Ok(mut active) = processes.lock() { active.remove(&id); }
                 let _ = app.emit("terminal-exit", TerminalEvent { id: id.clone(), data: String::new() });
                 break;
             }

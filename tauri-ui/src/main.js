@@ -477,7 +477,12 @@ if (listen) {
   });
   listen('terminal-exit', event => {
     const tab = tabs.get(event.payload.id);
-    if (tab) tab.terminal.writeln('\r\n\x1b[33m[terminal exited]\x1b[0m');
+    if (tab) {
+      tab.exited = true;
+      tab.terminal.options.disableStdin = true;
+      tab.terminal.writeln('terminal exited');
+      status(`Terminal ${event.payload.id} exited`);
+    }
   });
 }
 
