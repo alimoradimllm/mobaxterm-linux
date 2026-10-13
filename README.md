@@ -2,16 +2,15 @@
 
 **A clean-room, cross-platform terminal workspace for Windows and Linux.**
 
-Moraxterm is an independent desktop application inspired by the workflow of
-MobaXterm: one place for local terminals, SSH, SFTP, remote sessions, saved
-connections, split panes, tunnels, and operator tools. It does not copy
-proprietary MobaXterm source or assets.
+Moraxterm is an independent desktop application for local terminals, SSH,
+SFTP, remote sessions, saved connections, split panes, tunnels, and operator
+tools. It does not copy third-party proprietary source or assets.
 
-> Compatibility target: observed behavior from MobaXterm 25.4 build 5418.
-> Moraxterm is not a pixel-perfect clone and does not claim full feature parity.
+> The project targets practical cross-platform terminal workflows without
+> claiming pixel-perfect parity with any proprietary application.
 
 [![Latest release](https://img.shields.io/github/v/release/alimoradimllm/moraxterm?display_name=tag&sort=semver)](https://github.com/alimoradimllm/moraxterm/releases)
-[![Repository](https://img.shields.io/badge/repository-private-111827)](https://github.com/alimoradimllm/moraxterm)
+[![Repository](https://img.shields.io/badge/repository-public-166534)](https://github.com/alimoradimllm/moraxterm)
 
 ## What Moraxterm does today
 
@@ -82,17 +81,17 @@ Review the security and open-work details in
 
 ## Current release
 
-The latest published release is **v0.1.3**:
+The latest published release is **v0.1.4**:
 
-<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.3>
+<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.4>
 
 Published assets include:
 
-- `Moraxterm_0.1.3_amd64.deb`
-- `Moraxterm-0.1.3-1.x86_64.rpm`
-- `Moraxterm_0.1.3_x64-setup.exe`
+- `Moraxterm_0.1.4_amd64.deb`
+- `Moraxterm-0.1.4-1.x86_64.rpm`
+- `Moraxterm_0.1.4_x64-setup.exe`
 - `moraxterm-linux-ui.exe`
-- `Moraxterm-v0.1.3-SHA256SUMS.txt`
+- `Moraxterm-v0.1.4-SHA256SUMS.txt`
 
 The Windows database-path correction and Unix terminal-resume control were
 pushed after that release in commit `5f0dd72`. A new release should be created
@@ -103,7 +102,7 @@ only after rebuilding and repeating the full verification matrix.
 ### Linux / WSL Debian
 
 ```bash
-cd /mnt/c/Users/alimo/OneDrive/Documents/HermesWorkspace/mobaxterm-linux
+cd /path/to/moraxterm
 
 # Rust core
 cd rust-core
@@ -132,7 +131,7 @@ npm run tauri build -- --bundles deb,rpm
 Open a Visual Studio Developer Command Prompt or run the repository helper:
 
 ```cmd
-C:\Users\alimo\OneDrive\Documents\HermesWorkspace\mobaxterm-linux\build-tauri-windows.cmd --bundles nsis
+build-tauri-windows.cmd --bundles nsis
 ```
 
 The helper initializes the MSVC environment and builds the Windows executable
@@ -143,7 +142,7 @@ and NSIS installer.
 ### Ubuntu/Debian
 
 ```bash
-sudo apt install ./tauri-ui/src-tauri/target/release/bundle/deb/Moraxterm_0.1.3_amd64.deb
+sudo apt install ./tauri-ui/src-tauri/target/release/bundle/deb/Moraxterm_0.1.4_amd64.deb
 ```
 
 The package installs the application, desktop entry, and icon.
@@ -153,7 +152,7 @@ The package installs the application, desktop entry, and icon.
 Run the NSIS installer:
 
 ```text
-tauri-ui/src-tauri/target/release/bundle/nsis/Moraxterm_0.1.3_x64-setup.exe
+tauri-ui/src-tauri/target/release/bundle/nsis/Moraxterm_0.1.4_x64-setup.exe
 ```
 
 For a per-user test installation, the installer can be directed to a user
@@ -185,7 +184,7 @@ applications and keyboard control behavior.
 
 ## Project status
 
-Moraxterm is usable for development work, but practical MobaXterm parity is not
+Moraxterm is usable for development work, but practical legacy terminal suite parity is not
 finished. The current gaps include SSH host-key and credential workflows,
 complete SFTP file management, richer session hierarchy, native Windows ConPTY
 coverage, RDP/VNC embedding, serial configuration, X-server lifecycle, and
@@ -200,7 +199,7 @@ release-quality automation.
 ### Moraxterm چیست؟
 
 Moraxterm یک محیط دسکتاپ مستقل برای کار با ترمینال و نشست‌های راه دور در
-Windows و Linux است. هدف پروژه این است که workflow ابزارهایی مانند MobaXterm
+Windows و Linux است. هدف پروژه این است که workflow ابزارهایی مانند legacy terminal suite
 را با کد مستقل و بدون کپی‌کردن کد یا دارایی‌های اختصاصی پیاده‌سازی کند.
 
 فناوری‌های اصلی پروژه:
@@ -238,5 +237,5 @@ Manager، مدیریت کامل فایل‌های SFTP، تست واقعی ConPT
 ## License and clean-room note
 
 Moraxterm is an independent implementation. It is not affiliated with or
-endorsed by MobaXterm or its publisher. The repository's license and notices
+endorsed by legacy terminal suite or its publisher. The repository's license and notices
 are maintained in the GitHub repository metadata.

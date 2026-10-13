@@ -18,7 +18,7 @@ class SessionModelTests(unittest.TestCase):
                 'remote_host': 'server.example',
                 'username': 'ali',
                 'port': '2222',
-                'private_key': '/home/ali/.ssh/id_ed25519',
+                'private_key': '/home/user/.ssh/id_ed25519',
                 'credential_ref': 'vault:ssh-prod',
                 'gateway': {'host': 'jump.example', 'port': 22},
             },

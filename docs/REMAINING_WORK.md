@@ -3,7 +3,7 @@
 _Last reviewed: 2026-10-13. Repository: `alimoradimllm/moraxterm`._
 
 This document separates verified behavior from planned work. It is not a claim
-of full MobaXterm parity.
+of full third-party terminal workspace parity.
 
 ## Verified in the current source tree
 

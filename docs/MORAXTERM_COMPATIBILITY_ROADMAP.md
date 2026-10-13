@@ -3,8 +3,8 @@
 ## Purpose
 
 This document tracks the remaining work required to make Moraxterm a practical,
-clean-room alternative for the user's Windows and Linux MobaXterm workflow.
-MobaXterm proprietary code is not copied. Compatibility is implemented from
+clean-room alternative for the user's Windows and Linux third-party terminal workspace workflow.
+third-party terminal workspace proprietary code is not copied. Compatibility is implemented from
 observed behavior, public protocol tooling, and independent code.
 
 ## Current verified baseline
@@ -64,7 +64,7 @@ observed behavior, public protocol tooling, and independent code.
 ## Priority definition
 
 - **P0**: Required for a usable daily replacement.
-- **P1**: Required for strong MobaXterm workflow compatibility.
+- **P1**: Required for strong third-party terminal workspace workflow compatibility.
 - **P2**: Advanced parity and convenience features.
 - **P3**: Future/mobile/platform expansion.
 
@@ -191,7 +191,7 @@ Acceptance criteria:
 
 ---
 
-## P1 — MobaXterm workspace features
+## P1 — workspace features
 
 ### P1.1 Tabs, panes, and windows
 
@@ -304,7 +304,7 @@ Tasks:
 
 ---
 
-## P2 — Advanced MobaXterm features
+## P2 — Advanced third-party terminal workspace features
 
 ### P2.1 X server
 
@@ -464,5 +464,5 @@ and the following P1 items are complete:
 - Credentials are stored by the platform keyring.
 - Desktop installers create working application entries and icons.
 
-Pixel-perfect copying of proprietary MobaXterm UI and implementation is not a
+Pixel-perfect copying of proprietary third-party terminal workspace UI and implementation is not a
 requirement; functional and visual compatibility is the target.

@@ -176,7 +176,7 @@ class Moraxterm(tk.Tk):
         self.notebook.pack(fill='both', expand=True, padx=(1, 0), pady=(1, 0))
         welcome = tk.Frame(self.notebook, bg='#0b0e10')
         tk.Label(welcome, text='Moraxterm', bg='#0b0e10', fg=GREEN, font=('Consolas', 22, 'bold')).pack(pady=(100, 8))
-        tk.Label(welcome, text='Select a session or import your MobaXterm configuration', bg='#0b0e10', fg=MUTED, font=('Segoe UI', 11)).pack()
+        tk.Label(welcome, text='Select a session or import a sanitized session configuration', bg='#0b0e10', fg=MUTED, font=('Segoe UI', 11)).pack()
         self.notebook.add(welcome, text='Welcome')
 
     def import_file(self):

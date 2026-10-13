@@ -11,13 +11,13 @@ class SshBackendTests(unittest.TestCase):
             session_type='SSH',
             host='app.example',
             username='ali',
-            private_key='/home/ali/.ssh/id_ed25519',
+            private_key='/home/user/.ssh/id_ed25519',
             gateway={'host': 'jump.example', 'username': 'jump', 'port': 2222},
             options={'compression': True, 'x11_forwarding': True},
             command='uname -a',
         ))
         self.assertEqual(plan.argv, (
-            'ssh', '-p', '22', '-i', '/home/ali/.ssh/id_ed25519', '-C', '-X',
+            'ssh', '-p', '22', '-i', '/home/user/.ssh/id_ed25519', '-C', '-X',
             '-J', 'jump@jump.example:2222', 'ali@app.example', 'uname -a'
         ))
         self.assertIn("'uname -a'", plan.shell_command)

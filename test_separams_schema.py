@@ -1,10 +1,15 @@
+import os
 import unittest
+from pathlib import Path
 from separams_schema import parse_separams
 
 
 class SeparamsTests(unittest.TestCase):
     def test_real_decoded_schema_contains_core_session_types(self):
-        sessions = parse_separams('/home/ali/mobaxterm-research/resources-decoded/SEPARAMS.decoded')
+        fixture = os.environ.get('MORAXTERM_SCHEMA_FIXTURE')
+        if not fixture or not Path(fixture).is_file():
+            self.skipTest('set MORAXTERM_SCHEMA_FIXTURE to run the decoded-schema integration test')
+        sessions = parse_separams(fixture)
         names = {session['name'] for session in sessions}
         self.assertEqual(len(sessions), 21)
         self.assertTrue({'SSH', 'Sftp', 'Rdp', 'Vnc', 'Serial', 'Mosh', 'WSL'} <= names)

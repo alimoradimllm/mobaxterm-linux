@@ -134,7 +134,7 @@ async function importBackup() {
 
 async function importSessions() {
   if (!invoke) { status('Import is available in the native Tauri app', true); return; }
-  const path = window.prompt('Path to a sanitized INI export:', 'MobaXterm.ini');
+  const path = window.prompt('Path to a sanitized INI export:', 'SanitizedSessions.ini');
   if (!path) return;
   try {
     const count = await invoke('import_sessions', { path });
