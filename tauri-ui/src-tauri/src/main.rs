@@ -180,6 +180,8 @@ fn stop_recording(state: State<'_, TerminalManager>, id: String) -> Result<bool,
 
 #[tauri::command]
 fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, session: Option<moraxterm_core::Session>, program: Option<String>) -> Result<(), String> {
+    let environment = session.as_ref().map(|value| value.environment.clone()).unwrap_or_default();
+    let startup_command = session.as_ref().map(|value| value.startup_command.clone()).unwrap_or_default();
     let (program_name, args): (String, Vec<String>) = if let Some(program) = program {
         (program, Vec::new())
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
@@ -209,9 +211,10 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
         ("/bin/sh".into(), vec!["-l".into()])
     };
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let process = TerminalProcess::spawn(&program_name, &arg_refs).map_err(|e| e.to_string())?;
+    let process = TerminalProcess::spawn_with_env(&program_name, &arg_refs, &environment).map_err(|e| e.to_string())?;
     let shared = Arc::new(Mutex::new(process));
     state.processes.lock().map_err(|_| "terminal manager poisoned")?.insert(id.clone(), Arc::clone(&shared));
+    if !startup_command.trim().is_empty() { shared.lock().map_err(|_| "terminal poisoned")?.write(format!("{}\n", startup_command).as_bytes()).map_err(|e| e.to_string())?; }
     let recordings = Arc::clone(&state.recordings);
     std::thread::spawn(move || loop {
         let result = shared.lock().map_err(|_| "terminal poisoned".to_string()).and_then(|mut process| process.read_chunk().map_err(|e| e.to_string()));

@@ -43,6 +43,7 @@ observed behavior, public protocol tooling, and independent code.
 - Saved Telnet sessions now launch native `telnet` clients, and Linux Serial sessions launch `socat` PTYs with explicit Windows limitation reporting.
 - Tauri Macros now records terminal input events in memory, stops recording explicitly, and replays the latest macro into the active persistent PTY without storing secrets.
 - SSH sessions now request X11 forwarding with `ssh -X`; the X server action reports `DISPLAY`, session type, and detected local X server binaries.
+- Session records now support non-secret environment variables and startup commands; Tauri applies the environment to the PTY and sends the startup command after launch.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
