@@ -1916,7 +1916,7 @@ dependencies = [
 
 [[package]]
 name = "moraxterm-linux-ui"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "dirs 5.0.1",
  "moraxterm_core",
