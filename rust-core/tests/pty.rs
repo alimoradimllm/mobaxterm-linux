@@ -19,6 +19,15 @@ fn pty_processes_ctrl_c_as_interrupt() {
 
 #[test]
 #[cfg(unix)]
+fn pty_processes_ctrl_d_as_eof() {
+    let mut process = TerminalProcess::spawn("/bin/sh", &["-i", "-c", "read value; printf eof-ok"]).unwrap();
+    process.write(&[4]).unwrap();
+    let output = process.read_to_end().unwrap();
+    assert!(String::from_utf8_lossy(&output).contains("eof-ok"));
+}
+
+#[test]
+#[cfg(unix)]
 fn pty_captures_child_output() {
     let mut process = TerminalProcess::spawn("/bin/sh", &["-c", "printf rust-pty"]).unwrap();
     let output = process.read_to_end().unwrap();

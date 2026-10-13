@@ -55,6 +55,7 @@ observed behavior, public protocol tooling, and independent code.
 - Exited PTYs now remove themselves from the Rust process/recording maps and the UI disables input for exited tabs, preventing stale terminal state.
 - Terminal tabs now retain their sanitized session and provide a reconnect control that starts a fresh PTY under the same tab after exit.
 - Linux PTY regression coverage now verifies resize, output capture, and Ctrl+C terminal-interrupt processing.
+- Linux PTY regression coverage also verifies Ctrl+D/EOF delivery to an interactive child process.
 
 ## Priority definition
 
