@@ -64,11 +64,15 @@ pub struct Session {
     pub environment: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub startup_command: String,
+    #[serde(default)]
+    pub group: String,
+    #[serde(default)]
+    pub favorite: bool,
 }
 
 impl Session {
     pub fn ssh(name: impl Into<String>, host: impl Into<String>, username: impl Into<String>) -> Self {
-        Self { name: name.into(), session_type: "SSH".into(), host: host.into(), username: username.into(), port: 22, environment: std::collections::HashMap::new(), startup_command: String::new() }
+        Self { name: name.into(), session_type: "SSH".into(), host: host.into(), username: username.into(), port: 22, environment: std::collections::HashMap::new(), startup_command: String::new(), group: String::new(), favorite: false }
     }
 
     pub fn ssh_plan(&self) -> Result<CommandPlan, ValidationError> {
@@ -177,7 +181,7 @@ pub fn import_ini(text: &str) -> Result<Vec<Session>, ImportError> {
         let host = fields.get("host").cloned().unwrap_or_default();
         let username = fields.get("user").or_else(|| fields.get("username")).cloned().unwrap_or_default();
         let port = match fields.get("port") { Some(value) if !value.is_empty() => value.parse().map_err(|_| ImportError::InvalidPort(value.clone()))?, _ => if session_type == "Rdp" { 3389 } else { 22 } };
-        if !host.is_empty() { result.push(Session { name, session_type: session_type.into(), host, username, port, environment: std::collections::HashMap::new(), startup_command: String::new() }); }
+        if !host.is_empty() { result.push(Session { name, session_type: session_type.into(), host, username, port, environment: std::collections::HashMap::new(), startup_command: String::new(), group: String::new(), favorite: false }); }
         Ok(())
     };
     for raw_line in text.lines() {
@@ -212,12 +216,12 @@ pub fn import_bookmarks(text: &str) -> Result<Vec<Session>, ImportError> {
         let session_type = match mode { "0" | "7" => "SSH", "4" => "Rdp", "14" => "WSL", _ => continue };
         if session_type == "WSL" {
             let distribution = fields.first().copied().unwrap_or_default();
-            result.push(Session { name: name.to_string(), session_type: "WSL".into(), host: distribution.to_string(), username: String::new(), port: 0, environment: std::collections::HashMap::new(), startup_command: String::new() });
+            result.push(Session { name: name.to_string(), session_type: "WSL".into(), host: distribution.to_string(), username: String::new(), port: 0, environment: std::collections::HashMap::new(), startup_command: String::new(), group: String::new(), favorite: false });
             continue;
         }
         if fields.len() < 3 || fields[0].is_empty() || fields[1].is_empty() { continue; }
         let port = match fields[1].parse() { Ok(port) => port, Err(_) => continue };
-        result.push(Session { name: name.to_string(), session_type: session_type.into(), host: fields[0].to_string(), username: fields[2].to_string(), port, environment: std::collections::HashMap::new(), startup_command: String::new() });
+        result.push(Session { name: name.to_string(), session_type: session_type.into(), host: fields[0].to_string(), username: fields[2].to_string(), port, environment: std::collections::HashMap::new(), startup_command: String::new(), group: String::new(), favorite: false });
     }
     Ok(result)
 }

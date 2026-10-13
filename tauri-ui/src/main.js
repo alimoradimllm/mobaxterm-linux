@@ -43,8 +43,8 @@ function renderSessions() {
   const query = document.querySelector('#search').value.toLowerCase().trim();
   sessionsEl.innerHTML = '';
   const groups = new Map();
-  sessions.filter(s => JSON.stringify(s).toLowerCase().includes(query)).forEach(session => {
-    const group = session.session_type || 'Other';
+  sessions.filter(s => JSON.stringify(s).toLowerCase().includes(query)).sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name)).forEach(session => {
+    const group = session.group || session.session_type || 'Other';
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(session);
   });
@@ -56,7 +56,13 @@ function renderSessions() {
     items.forEach(session => {
       const li = document.createElement('li');
       li.className = 'session-entry';
-      li.innerHTML = `<span class="session-icon">${iconFor(session.session_type)}</span><span>${session.name}</span><small>${session.host || ''}</small>`;
+      li.innerHTML = `<button class="favorite-button" title="Toggle favorite">${session.favorite ? '★' : '☆'}</button><span class="session-icon">${iconFor(session.session_type)}</span><span>${session.name}</span><small>${session.host || ''}</small>`;
+      li.querySelector('.favorite-button').onclick = async event => {
+        event.stopPropagation();
+        session.favorite = !session.favorite;
+        if (invoke) { try { await invoke('save_session', { session }); } catch (error) { status(`Favorite update failed: ${error}`, true); } }
+        renderSessions();
+      };
       li.onclick = () => openTab(session);
       li.ondblclick = event => { event.stopPropagation(); showEditor(session); };
       sessionsEl.appendChild(li);
@@ -96,7 +102,7 @@ async function importSessions() {
 function showEditor(session = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<form class="session-editor"><h2>${session.name ? 'Edit session' : 'New session'}</h2><label>Name<input name="name" required value="${session.name || ''}"></label><label>Type<select name="session_type"><option>SSH</option><option>Rdp</option><option>Vnc</option><option>WSL</option><option>Shell</option><option>Telnet</option><option>Serial</option></select></label><label>Host<input name="host" value="${session.host || ''}"></label><label>Username<input name="username" value="${session.username || ''}"></label><label>Port<input name="port" type="number" min="0" max="65535" value="${session.port || 22}"></label><label>Environment (non-secret KEY=VALUE, one per line)<textarea name="environment" rows="3">${Object.entries(session.environment || {}).map(([key, value]) => `${key}=${value}`).join('\\n')}</textarea></label><label>Startup command (non-secret)<input name="startup_command" value="${session.startup_command || ''}"></label><div class="editor-actions"><button type="button" data-cancel>Cancel</button>${session.name ? '<button type="button" data-delete>Delete</button>' : ''}<button type="submit">Save</button></div></form>`;
+  overlay.innerHTML = `<form class="session-editor"><h2>${session.name ? 'Edit session' : 'New session'}</h2><label>Name<input name="name" required value="${session.name || ''}"></label><label>Type<select name="session_type"><option>SSH</option><option>Rdp</option><option>Vnc</option><option>WSL</option><option>Shell</option><option>Telnet</option><option>Serial</option></select></label><label>Host<input name="host" value="${session.host || ''}"></label><label>Username<input name="username" value="${session.username || ''}"></label><label>Port<input name="port" type="number" min="0" max="65535" value="${session.port || 22}"></label><label>Environment (non-secret KEY=VALUE, one per line)<textarea name="environment" rows="3">${Object.entries(session.environment || {}).map(([key, value]) => `${key}=${value}`).join('\\n')}</textarea></label><label>Startup command (non-secret)<input name="startup_command" value="${session.startup_command || ''}"></label><label>Bookmark group<input name="group" value="${session.group || ''}"></label><label><input name="favorite" type="checkbox" ${session.favorite ? 'checked' : ''}> Favorite</label><div class="editor-actions"><button type="button" data-cancel>Cancel</button>${session.name ? '<button type="button" data-delete>Delete</button>' : ''}<button type="submit">Save</button></div></form>`;
   document.body.appendChild(overlay);
   const form = overlay.querySelector('form');
   form.session_type.value = session.session_type || 'SSH';
@@ -110,7 +116,7 @@ function showEditor(session = {}) {
     event.preventDefault();
     const values = new FormData(form);
     const environment = Object.fromEntries(String(values.get('environment') || '').split('\\n').map(line => line.trim()).filter(line => line && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1)]; }));
-    const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), environment, startup_command: values.get('startup_command') || '' };
+    const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
     try {
       if (invoke) await invoke('save_session', { session: record });
       overlay.remove();
