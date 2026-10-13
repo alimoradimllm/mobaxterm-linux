@@ -19,6 +19,7 @@ const panesEl = document.querySelector('#panes');
 const statusEl = document.querySelector('#status-message');
 let sessions = [];
 const tabs = new Map();
+let multiExec = false;
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
   { name: 'WSL-Debian', session_type: 'WSL', host: 'Debian' },
@@ -136,10 +137,12 @@ function openTab(session) {
   terminal.writeln('Persistent terminal ready.');
   terminal.write('\r\n$ ');
   terminal.onData(async data => {
-    if (invoke) {
-      try { await invoke('write_terminal', { id, data }); }
+    if (!invoke) return;
+    const destinations = multiExec ? [...tabs.keys()] : [id];
+    await Promise.all(destinations.map(async target => {
+      try { await invoke('write_terminal', { id: target, data }); }
       catch (error) { status(`Terminal input failed: ${error}`, true); }
-    }
+    }));
   });
   tabs.set(id, { pane, terminal, fit });
   if (invoke) {
@@ -185,8 +188,16 @@ function closeActiveTab() {
   button?.querySelector('b')?.click();
 }
 
+function toggleMultiExec() {
+  multiExec = !multiExec;
+  const button = document.querySelector('[data-action="multiexec"]');
+  button?.classList.toggle('active', multiExec);
+  status(multiExec ? `MultiExec enabled for ${tabs.size} terminals` : 'MultiExec disabled');
+}
+
 function actionMessage(action) {
   if (action === 'split') { splitActive(); return; }
+  if (action === 'multiexec') { toggleMultiExec(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }

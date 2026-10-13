@@ -33,6 +33,7 @@ observed behavior, public protocol tooling, and independent code.
 - Saved SSH sessions now launch `ssh` through their persistent PTY with structured port and user/host arguments; non-SSH sessions retain the local-shell fallback until their native backends are connected.
 - Saved WSL, RDP, and VNC sessions now select native clients (`wsl`, `xfreerdp`, and `vncviewer`) with structured arguments and no password injection; availability still depends on the client being installed.
 - The Tauri toolbar Split action now creates a two-pane layout with independent persistent PTYs, input routing, terminal tabs, and pane cleanup when closed.
+- Tauri MultiExec mode now broadcasts typed input to every open persistent terminal and visibly toggles on/off from the toolbar.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition
