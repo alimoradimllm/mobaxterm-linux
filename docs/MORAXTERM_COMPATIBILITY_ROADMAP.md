@@ -48,7 +48,8 @@ observed behavior, public protocol tooling, and independent code.
 - Sessions now persist favorite flags and bookmark-group names; the tree supports custom group headings, favorite-first sorting, and one-click favorite toggling.
 - Tauri now supports sanitized JSON session export and restore; sensitive-looking environment keys and startup commands are excluded before export and again before restore.
 - The session tree now keeps a persistent recent-session list and provides right-click Open, Edit, Favorite, and Delete actions.
-- Optimized native Linux Tauri build completed successfully.
+- The optimized native Linux Tauri build completed successfully.
+- Native Linux Tauri packaging now produces verified `.deb` and `.rpm` bundles with the Moraxterm executable, desktop entry, and icon. AppImage remains disabled by default because the installed `linuxdeploy` plugin fails in this environment.
 
 ## Priority definition
 
