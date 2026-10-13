@@ -8,7 +8,7 @@ const listen = window.__TAURI__?.event?.listen;
 const app = document.querySelector('#app');
 app.innerHTML = `
 <header class="titlebar"><span class="brand">Moraxterm</span><nav class="menus"><button data-action="new-shell">Terminal</button><button data-action="sessions">Sessions</button><button data-action="view">View</button><button data-action="xserver">X server</button><button data-action="tools">Tools</button><button data-action="settings">Settings</button><button data-action="macros">Macros</button><button data-action="help">Help</button></nav><div class="window-actions">— □ ×</div></header>
-<div class="toolbar"><button class="tool primary" data-action="new-shell">▣<small>Session</small></button><button class="tool" data-action="load-sessions">★<small>Sessions</small></button><button class="tool" data-action="split">▤<small>Split</small></button><button class="tool" data-action="multiexec">⇄<small>MultiExec</small></button><button class="tool" data-action="tunnel">⌁<small>Tunneling</small></button><button class="tool" data-action="packages">▣<small>Packages</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="settings">⚙<small>Settings</small></button></div>
+<div class="toolbar"><button class="tool primary" data-action="new-shell">▣<small>Session</small></button><button class="tool" data-action="load-sessions">★<small>Sessions</small></button><button class="tool" data-action="split">▤<small>Split</small></button><button class="tool" data-action="multiexec">⇄<small>MultiExec</small></button><button class="tool" data-action="tunnel">⌁<small>Tunneling</small></button><button class="tool" data-action="record">●<small>Record</small></button><button class="tool" data-action="packages">▣<small>Packages</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="settings">⚙<small>Settings</small></button></div>
 <div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
 <main><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Search sessions"/></div><div class="tree-header">▾ Saved sessions <button id="import-sessions" title="Import INI">⇩</button><button id="new-session" title="New session">＋</button><button id="reload" title="Reload SQLite sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer">▣ Remote monitoring<br/><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
 <section class="workspace"><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
@@ -20,6 +20,7 @@ const statusEl = document.querySelector('#status-message');
 let sessions = [];
 const tabs = new Map();
 const tunnels = new Set();
+const recordings = new Set();
 let multiExec = false;
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
@@ -189,6 +190,27 @@ function closeActiveTab() {
   button?.querySelector('b')?.click();
 }
 
+async function toggleRecording() {
+  const id = activeTab();
+  if (!id || !invoke) { status('Open a native terminal tab before recording', true); return; }
+  const button = document.querySelector('[data-action="record"]');
+  if (recordings.has(id)) {
+    await invoke('stop_recording', { id });
+    recordings.delete(id);
+    button?.classList.remove('active');
+    status('Terminal recording stopped');
+    return;
+  }
+  const path = (window.prompt('Recording file path:', `moraxterm-${Date.now()}.log`) || '').trim();
+  if (!path) return;
+  try {
+    await invoke('start_recording', { id, path });
+    recordings.add(id);
+    button?.classList.add('active');
+    status(`Recording terminal output to ${path}`);
+  } catch (error) { status(`Recording failed: ${error}`, true); }
+}
+
 async function toggleTunnel() {
   if (!invoke) { status('Tunneling is available in the native Tauri app', true); return; }
   if (tunnels.size) {
@@ -223,6 +245,7 @@ function actionMessage(action) {
   if (action === 'split') { splitActive(); return; }
   if (action === 'multiexec') { toggleMultiExec(); return; }
   if (action === 'tunnel') { toggleTunnel(); return; }
+  if (action === 'record') { toggleRecording(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }

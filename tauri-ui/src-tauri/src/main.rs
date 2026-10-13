@@ -2,6 +2,8 @@ use moraxterm_core::{SessionStore, TerminalProcess};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::process::Child;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,6 +12,7 @@ use tauri::{AppHandle, Emitter, State};
 #[derive(Default)]
 struct TerminalManager {
     processes: Mutex<HashMap<String, Arc<Mutex<TerminalProcess>>>>,
+    recordings: Arc<Mutex<HashMap<String, File>>>,
 }
 
 #[derive(Default)]
@@ -87,6 +90,19 @@ fn stop_tunnel(state: State<'_, TunnelManager>, id: String) -> Result<bool, Stri
 }
 
 #[tauri::command]
+fn start_recording(state: State<'_, TerminalManager>, id: String, path: String) -> Result<(), String> {
+    if path.trim().is_empty() { return Err("recording path cannot be empty".into()); }
+    let file = OpenOptions::new().create(true).append(true).open(&path).map_err(|e| format!("cannot open recording file: {e}"))?;
+    state.recordings.lock().map_err(|_| "recording manager poisoned")?.insert(id, file);
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_recording(state: State<'_, TerminalManager>, id: String) -> Result<bool, String> {
+    Ok(state.recordings.lock().map_err(|_| "recording manager poisoned")?.remove(&id).is_some())
+}
+
+#[tauri::command]
 fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, session: Option<moraxterm_core::Session>, program: Option<String>) -> Result<(), String> {
     let (program_name, args): (String, Vec<String>) = if let Some(program) = program {
         (program, Vec::new())
@@ -113,10 +129,14 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
     let process = TerminalProcess::spawn(&program_name, &arg_refs).map_err(|e| e.to_string())?;
     let shared = Arc::new(Mutex::new(process));
     state.processes.lock().map_err(|_| "terminal manager poisoned")?.insert(id.clone(), Arc::clone(&shared));
+    let recordings = Arc::clone(&state.recordings);
     std::thread::spawn(move || loop {
         let result = shared.lock().map_err(|_| "terminal poisoned".to_string()).and_then(|mut process| process.read_chunk().map_err(|e| e.to_string()));
         match result {
             Ok(data) if !data.is_empty() => {
+                if let Ok(mut active) = recordings.lock() {
+                    if let Some(file) = active.get_mut(&id) { let _ = file.write_all(&data); let _ = file.flush(); }
+                }
                 let event = TerminalEvent { id: id.clone(), data: String::from_utf8_lossy(&data).into_owned() };
                 let _ = app.emit("terminal-output", event);
             }
@@ -142,6 +162,7 @@ fn close_terminal(state: State<'_, TerminalManager>, id: String) -> Result<(), S
     if let Some(process) = process {
         process.lock().map_err(|_| "terminal poisoned")?.kill().map_err(|e| e.to_string())?;
     }
+    state.recordings.lock().map_err(|_| "recording manager poisoned")?.remove(&id);
     Ok(())
 }
 
@@ -163,7 +184,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_tunnel, stop_tunnel, start_recording, stop_recording, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }
