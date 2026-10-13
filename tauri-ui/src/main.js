@@ -22,6 +22,8 @@ const tabs = new Map();
 const tunnels = new Set();
 const recordings = new Set();
 let multiExec = false;
+let macroRecording = false;
+let macroBuffer = [];
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
   { name: 'WSL-Debian', session_type: 'WSL', host: 'Debian' },
@@ -139,6 +141,7 @@ function openTab(session) {
   terminal.writeln('Persistent terminal ready.');
   terminal.write('\r\n$ ');
   terminal.onData(async data => {
+    if (macroRecording) macroBuffer.push(data);
     if (!invoke) return;
     const destinations = multiExec ? [...tabs.keys()] : [id];
     await Promise.all(destinations.map(async target => {
@@ -310,6 +313,27 @@ async function toggleTunnel() {
   } catch (error) { status(`Tunnel failed: ${error}`, true); }
 }
 
+async function macroAction() {
+  const button = document.querySelector('[data-action="macros"]');
+  const id = activeTab();
+  if (!id || !invoke) { status('Open a native terminal before using macros', true); return; }
+  if (macroRecording) {
+    macroRecording = false;
+    button?.classList.remove('active');
+    status(`Macro stopped (${macroBuffer.length} input events)`);
+    return;
+  }
+  if (macroBuffer.length && window.confirm('Play the last macro? Choose Cancel to record a new macro.')) {
+    for (const data of macroBuffer) await invoke('write_terminal', { id, data });
+    status(`Macro played into terminal (${macroBuffer.length} input events)`);
+    return;
+  }
+  macroBuffer = [];
+  macroRecording = true;
+  button?.classList.add('active');
+  status('Macro recording started');
+}
+
 function toggleMultiExec() {
   multiExec = !multiExec;
   const button = document.querySelector('[data-action="multiexec"]');
@@ -324,6 +348,7 @@ function actionMessage(action) {
   if (action === 'record') { toggleRecording(); return; }
   if (action === 'tools') { runNetworkTool(); return; }
   if (action === 'sftp') { runSftpList(); return; }
+  if (action === 'macros') { macroAction(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }
