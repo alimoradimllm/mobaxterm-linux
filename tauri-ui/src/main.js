@@ -24,6 +24,7 @@ const recordings = new Set();
 let multiExec = false;
 let macroRecording = false;
 let macroBuffer = [];
+let terminalSettings = (() => { try { return { fontSize: 13, cursorBlink: true, theme: 'dark', ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return { fontSize: 13, cursorBlink: true, theme: 'dark' }; } })();
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
   { name: 'WSL-Debian', session_type: 'WSL', host: 'Debian' },
@@ -119,6 +120,11 @@ function showEditor(session = {}) {
   };
 }
 
+function terminalTheme() {
+  if (terminalSettings.theme === 'amber') return { background: '#17120a', foreground: '#ffd27a', cursor: '#ffb000', black: '#17120a', green: '#d9b44a', cyan: '#e0b35a', blue: '#d99a3e', yellow: '#ffe08a', red: '#ff7657' };
+  return { background: '#101113', foreground: '#d7d7d7', cursor: '#00d084', black: '#101113', green: '#00d084', cyan: '#00c8d7', blue: '#4d9cff', yellow: '#e6d85a', red: '#ff5c57' };
+}
+
 function openTab(session) {
   const id = `tab-${Date.now()}-${tabs.size}`;
   const button = document.createElement('button');
@@ -133,7 +139,7 @@ function openTab(session) {
   terminalHost.className = 'terminal-host';
   pane.appendChild(terminalHost);
   panesEl.appendChild(pane);
-  const terminal = new Terminal({ convertEol: true, cursorBlink: true, fontSize: 13, theme: { background: '#101113', foreground: '#d7d7d7', cursor: '#00d084', black: '#101113', green: '#00d084', cyan: '#00c8d7', blue: '#4d9cff', yellow: '#e6d85a', red: '#ff5c57' } });
+  const terminal = new Terminal({ convertEol: true, cursorBlink: terminalSettings.cursorBlink, fontSize: Number(terminalSettings.fontSize) || 13, theme: terminalTheme() });
   const fit = new FitAddon();
   terminal.loadAddon(fit);
   terminal.open(terminalHost);
@@ -325,6 +331,24 @@ async function toggleTunnel() {
   } catch (error) { status(`Tunnel failed: ${error}`, true); }
 }
 
+function showSettings() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<form class="session-editor"><h2>Terminal settings</h2><label>Font size<input name="fontSize" type="number" min="8" max="32" value="${terminalSettings.fontSize}"></label><label><input name="cursorBlink" type="checkbox" ${terminalSettings.cursorBlink ? 'checked' : ''}> Cursor blink</label><label>Theme<select name="theme"><option value="dark">Dark</option><option value="amber">Amber</option></select></label><div class="editor-actions"><button type="button" data-cancel>Cancel</button><button type="submit">Apply</button></div></form>`;
+  document.body.appendChild(overlay);
+  const form = overlay.querySelector('form');
+  form.theme.value = terminalSettings.theme;
+  overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();
+  form.onsubmit = event => {
+    event.preventDefault();
+    terminalSettings = { fontSize: Math.max(8, Math.min(32, Number(form.fontSize.value) || 13)), cursorBlink: form.cursorBlink.checked, theme: form.theme.value };
+    localStorage.setItem('moraxterm-settings', JSON.stringify(terminalSettings));
+    for (const tab of tabs.values()) { tab.terminal.options.fontSize = terminalSettings.fontSize; tab.terminal.options.cursorBlink = terminalSettings.cursorBlink; tab.terminal.options.theme = terminalTheme(); tab.fit.fit(); }
+    overlay.remove();
+    status('Terminal settings applied');
+  };
+}
+
 async function macroAction() {
   const button = document.querySelector('[data-action="macros"]');
   const id = activeTab();
@@ -362,6 +386,7 @@ function actionMessage(action) {
   if (action === 'xserver') { showXserverStatus(); return; }
   if (action === 'sftp') { runSftpList(); return; }
   if (action === 'macros') { macroAction(); return; }
+  if (action === 'settings') { showSettings(); return; }
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }
