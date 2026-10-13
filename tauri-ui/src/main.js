@@ -7,10 +7,11 @@ const invoke = window.__TAURI__?.core?.invoke;
 const listen = window.__TAURI__?.event?.listen;
 const app = document.querySelector('#app');
 app.innerHTML = `
-<div class="toolbar"><button class="tool primary" data-action="new-shell">▣<small>Session</small></button><button class="tool" data-action="load-sessions">★<small>Sessions</small></button><button class="tool" data-action="split">▤<small>Split</small></button><button class="tool" data-action="multiexec">⇄<small>MultiExec</small></button><button class="tool" data-action="tunnel">⌁<small>Tunneling</small></button><button class="tool" data-action="record">●<small>Record</small></button><button class="tool" data-action="sftp">⇅<small>SFTP</small></button><button class="tool" data-action="packages">▣<small>Packages</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="settings">⚙<small>Settings</small></button></div>
+<div class="menu-row"><strong>Moraxterm</strong><button data-action="terminal-menu">Terminal</button><button data-action="sessions">Sessions</button><button data-action="view">View</button><button data-action="xserver">X server</button><button data-action="tools">Tools</button><button data-action="settings">Settings</button><button data-action="macros">Macros</button><button data-action="help">Help</button></div>
+<div class="toolbar"><button class="tool primary" data-action="new-shell"><span>▣</span><small>Session</small></button><button class="tool" data-action="sessions"><span>✣</span><small>Servers</small></button><button class="tool" data-action="tools"><span>⚒</span><small>Tools</small></button><button class="tool" data-action="load-sessions"><span>★</span><small>Sessions</small></button><button class="tool" data-action="view"><span>▣</span><small>View</small></button><button class="tool" data-action="split"><span>▤</span><small>Split</small></button><button class="tool" data-action="multiexec"><span>⇄</span><small>MultiExec</small></button><button class="tool" data-action="tunnel"><span>⇆</span><small>Tunneling</small></button><button class="tool" data-action="sftp"><span>⇅</span><small>Packages</small></button><button class="tool" data-action="settings"><span>⚙</span><small>Settings</small></button><button class="tool" data-action="help"><span>?</span><small>Help</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="xserver"><span>⚔</span><small>X server</small></button><button class="tool" data-action="close-app"><span>⏻</span><small>Exit</small></button></div>
 <div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
-<main><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Search sessions"/></div><div class="tree-header"><span>▾ Saved sessions</span> <button id="import-backup" title="Restore backup">⇩</button><button id="export-sessions" title="Export backup">⇧</button><button id="import-sessions" title="Import INI">⇩</button><button id="new-session" title="New session">＋</button><button id="reload" title="Reload SQLite sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer">▣ Remote monitoring<br/><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
-<section class="workspace"><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
+<main><nav class="rail"><button class="rail-button active" title="Sessions" data-rail="sessions">★</button><button class="rail-button" title="Tools" data-rail="tools" data-action="tools">⚒</button><button class="rail-button" title="Macros" data-rail="macros" data-action="macros">➤</button><button class="rail-button" title="Favorites" data-rail="favorites">◆</button></nav><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Quick find sessions"/></div><div class="tree-header"><span>★ User sessions</span><button id="import-backup" title="Restore backup">⇩</button><button id="export-sessions" title="Export backup">⇧</button><button id="import-sessions" title="Import sessions">⇩</button><button id="new-session" title="New session">＋</button><button id="reload" title="Reload sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer"><span>▣ Remote monitoring</span><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
+<section class="workspace"><div id="home-screen" class="home-screen"><div class="welcome-mark">▣</div><h1>Moraxterm</h1><p class="welcome-subtitle">Your terminal workspace</p><div class="welcome-actions"><button data-action="new-shell">＋ Start local terminal</button><button data-action="load-sessions">↻ Recover previous sessions</button></div><input id="home-search" placeholder="Find existing session or server name..."/><h2>Recent sessions</h2><div id="recent-cards" class="recent-cards"></div></div><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
 
 const sessionsEl = document.querySelector('#sessions');
 const tabsEl = document.querySelector('#tabs');
@@ -103,6 +104,15 @@ function showSessionMenu(event, session) {
   menu.querySelector('[data-delete]').onclick = async () => { close(); if (invoke) await invoke('delete_session', { name: session.name }); sessions = sessions.filter(item => item.name !== session.name); recentSessionNames = recentSessionNames.filter(name => name !== session.name); localStorage.setItem('moraxterm-recent-sessions', JSON.stringify(recentSessionNames)); renderSessions(); };
 }
 
+function renderHome() {
+  const cards = document.querySelector('#recent-cards');
+  if (!cards) return;
+  const recent = recentSessionNames.map(name => sessions.find(session => session.name === name)).filter(Boolean).slice(0, 6);
+  const items = recent.length ? recent : sessions.slice(0, 6);
+  cards.innerHTML = items.map(session => `<button class="recent-card" data-session-name="${session.name.replaceAll('"', '&quot;')}"><span>${iconFor(session.session_type)}</span><strong>${session.name}</strong><small>${session.host || session.session_type}</small></button>`).join('') || '<span class="recent-empty">No recent sessions yet</span>';
+  cards.querySelectorAll('.recent-card').forEach(card => { card.onclick = () => { const session = sessions.find(item => item.name === card.dataset.sessionName); if (session) openTab(session); }; });
+}
+
 async function loadSessions() {
   try {
     const loaded = invoke ? await invoke('list_sessions') : [];
@@ -113,6 +123,7 @@ async function loadSessions() {
     status(`Using local defaults: ${error}`, true);
   }
   renderSessions();
+  renderHome();
 }
 
 async function exportSessions() {
@@ -194,6 +205,7 @@ function reconnectTab(id) {
 }
 
 function openTab(session) {
+  document.querySelector('#home-screen')?.classList.add('hidden');
   rememberRecent(session);
   const id = `tab-${Date.now()}-${tabs.size}`;
   const button = document.createElement('button');
@@ -404,23 +416,28 @@ async function toggleTunnel() {
   } catch (error) { status(`Tunnel failed: ${error}`, true); }
 }
 
+function showSessionChooser() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const types = [['SSH','🔑'],['Telnet','◆'],['Rsh','⚒'],['RDP','▣'],['VNC','◉'],['FTP','◉'],['SFTP','⇅'],['Serial','⌁'],['Shell','>_'],['Browser','◎'],['WSL','▸']];
+  overlay.innerHTML = `<section class="chooser-modal"><header><strong>New session</strong><button data-close>×</button></header><div class="session-types">${types.map(([name, icon]) => `<button data-type="${name}"><span>${icon}</span><label>${name}</label></button>`).join('')}</div><div class="chooser-empty"><span>▣</span><strong>Choose a session type…</strong></div><footer><button data-cancel>Cancel</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-close]').onclick = () => overlay.remove();
+  overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();
+  overlay.querySelectorAll('[data-type]').forEach(button => button.onclick = () => { const type = button.dataset.type === 'RDP' ? 'Rdp' : button.dataset.type; overlay.remove(); showEditor({ session_type: type, port: type === 'SSH' ? 22 : 0 }); });
+}
+
 function showSettings() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<form class="session-editor"><h2>Terminal settings</h2><label>Font size<input name="fontSize" type="number" min="8" max="32" value="${terminalSettings.fontSize}"></label><label><input name="cursorBlink" type="checkbox" ${terminalSettings.cursorBlink ? 'checked' : ''}> Cursor blink</label><label>Theme<select name="theme"><option value="dark">Dark</option><option value="amber">Amber</option></select></label><div class="editor-actions"><button type="button" data-cancel>Cancel</button><button type="submit">Apply</button></div></form>`;
+  overlay.innerHTML = `<section class="settings-modal"><header><strong>Moraxterm settings</strong><button data-close>×</button></header><nav class="settings-tabs"><button class="active" data-panel="general">◆ General</button><button data-panel="terminal">▣ Terminal</button><button data-panel="x11">⚔ X11</button><button data-panel="ssh">🔑 SSH</button><button data-panel="display">▣ Display</button><button data-panel="toolbar">⚒ Toolbar</button><button data-panel="misc">⚙ Misc</button></nav><div class="settings-panels"><div data-view="general" class="settings-view active"><h3>General</h3><label>Terminal home directory<input value="AppDataDir/Moraxterm/home"></label><label>Terminal root directory<input value="AppDataDir/Moraxterm/root"></label><label>Default text editor<input value="&lt;default&gt;"></label><label class="check"><input type="checkbox" checked> Automatically back up session configuration</label></div><div data-view="terminal" class="settings-view"><h3>Default terminal look and feel</h3><div class="setting-buttons"><button>Default font settings</button><button>Default color settings</button><button>Expert settings</button></div><label>Local shell environment<select><option>Windows shell</option><option>WSL</option><option>Custom executable</option></select></label><label class="check"><input type="checkbox" checked> Cursor blink</label></div><div data-view="x11" class="settings-view"><h3>Server settings</h3><label class="check"><input type="checkbox" checked> Automatically start X server on application startup</label><label>X11 display mode<select><option>Multiwindow mode</option><option>Fullscreen mode</option></select></label><label class="check"><input type="checkbox" checked> Clipboard integration</label></div><div data-view="ssh" class="settings-view"><h3>SSH settings</h3><label class="check"><input type="checkbox" checked> Enable graphical SSH browser</label><label class="check"><input type="checkbox" checked> Remote monitoring</label><label class="check"><input type="checkbox"> Validate host identity at first connection</label><label>SSH keepalive<select><option>Disabled</option><option>30 seconds</option><option>60 seconds</option></select></label></div><div data-view="display" class="settings-view"><h3>Display</h3><label>Interface density<select><option>Compact</option><option>Comfortable</option></select></label><label class="check"><input type="checkbox" checked> Show toolbar labels</label></div><div data-view="toolbar" class="settings-view"><h3>Toolbar</h3><label class="check"><input type="checkbox" checked> Show session toolbar</label><label class="check"><input type="checkbox" checked> Show quick connect bar</label></div><div data-view="misc" class="settings-view"><h3>Miscellaneous</h3><label class="check"><input type="checkbox" checked> Confirm terminal close</label><label class="check"><input type="checkbox"> Start minimized</label></div></div><footer><button data-close>Cancel</button><button class="primary" data-apply>OK</button></footer></section>`;
   document.body.appendChild(overlay);
-  const form = overlay.querySelector('form');
-  form.theme.value = terminalSettings.theme;
-  overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();
-  form.onsubmit = event => {
-    event.preventDefault();
-    terminalSettings = { fontSize: Math.max(8, Math.min(32, Number(form.fontSize.value) || 13)), cursorBlink: form.cursorBlink.checked, theme: form.theme.value };
-    localStorage.setItem('moraxterm-settings', JSON.stringify(terminalSettings));
-    for (const tab of tabs.values()) { tab.terminal.options.fontSize = terminalSettings.fontSize; tab.terminal.options.cursorBlink = terminalSettings.cursorBlink; tab.terminal.options.theme = terminalTheme(); tab.fit.fit(); }
-    overlay.remove();
-    status('Terminal settings applied');
-  };
+  const close = () => overlay.remove();
+  overlay.querySelectorAll('[data-close]').forEach(button => button.onclick = close);
+  overlay.querySelector('[data-apply]').onclick = close;
+  overlay.querySelectorAll('[data-panel]').forEach(button => button.onclick = () => { overlay.querySelectorAll('[data-panel]').forEach(item => item.classList.toggle('active', item === button)); overlay.querySelectorAll('[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === button.dataset.panel)); });
 }
+
 
 async function macroAction() {
   const button = document.querySelector('[data-action="macros"]');
@@ -468,7 +485,7 @@ document.querySelector('#search').oninput = renderSessions;
 document.querySelector('#export-sessions').onclick = exportSessions;
 document.querySelector('#import-backup').onclick = importBackup;
 document.querySelector('#import-sessions').onclick = importSessions;
-document.querySelector('#new-session').onclick = () => showEditor();
+document.querySelector('#new-session').onclick = showSessionChooser;
 document.querySelector('#reload').onclick = loadSessions;
 document.querySelector('#connect').onclick = () => {
   const host = document.querySelector('#quick').value.trim();
