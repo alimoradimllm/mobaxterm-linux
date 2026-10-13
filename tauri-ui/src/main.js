@@ -180,6 +180,11 @@ function launchTerminal(id, session) {
   invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
 }
 
+function resumeTab(id) {
+  if (!invoke) return;
+  invoke('resume_terminal', { id }).then(() => status(`Terminal ${id} resumed`)).catch(error => status(`Terminal resume failed: ${error}`, true));
+}
+
 function reconnectTab(id) {
   const tab = tabs.get(id);
   if (!tab || !invoke) return;
@@ -194,7 +199,7 @@ function openTab(session) {
   const id = `tab-${Date.now()}-${tabs.size}`;
   const button = document.createElement('button');
   button.dataset.id = id;
-  button.innerHTML = `<span class="tab-icon">${iconFor(session.session_type)}</span>${session.name}<i title="Reconnect">↻</i><b>×</b>`;
+  button.innerHTML = `<span class="tab-icon">${iconFor(session.session_type)}</span>${session.name}<em title="Resume suspended process">▶</em><i title="Reconnect">↻</i><b>×</b>`;
   button.onclick = () => activate(id);
   tabsEl.appendChild(button);
   const pane = document.createElement('div');
@@ -226,6 +231,7 @@ function openTab(session) {
     }));
   });
   tabs.set(id, { pane, terminal, fit, session, exited: false });
+  button.querySelector('em').onclick = event => { event.stopPropagation(); resumeTab(id); };
   button.querySelector('i').onclick = event => { event.stopPropagation(); reconnectTab(id); };
   launchTerminal(id, session);
   button.querySelector('b').onclick = event => {

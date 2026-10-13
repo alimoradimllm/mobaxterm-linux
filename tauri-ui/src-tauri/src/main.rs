@@ -6,6 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::process::Child;
+use std::path::PathBuf;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
@@ -27,9 +28,19 @@ struct TerminalEvent {
     data: String,
 }
 
+fn session_database_path() -> Result<PathBuf, String> {
+    let base = if cfg!(windows) {
+        dirs::data_dir().ok_or("application data directory unavailable")?.join("Moraxterm")
+    } else {
+        dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux")
+    };
+    fs::create_dir_all(&base).map_err(|e| format!("cannot create session directory: {e}"))?;
+    Ok(base.join("sessions.sqlite3"))
+}
+
 #[tauri::command]
 fn list_sessions() -> Result<Vec<moraxterm_core::Session>, String> {
-    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let path = session_database_path()?;
     let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     store.list().map_err(|e| e.to_string())
 }
@@ -41,7 +52,7 @@ fn import_sessions(path: String) -> Result<usize, String> {
     imported.extend(moraxterm_core::import_bookmarks(&text).map_err(|e| e.to_string())?);
     let mut unique = HashMap::new();
     for session in imported { unique.insert(session.name.clone(), session); }
-    let db_path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let db_path = session_database_path()?;
     let store = SessionStore::open(db_path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     for session in unique.values() { store.upsert(session).map_err(|e| e.to_string())?; }
     Ok(unique.len())
@@ -50,14 +61,14 @@ fn import_sessions(path: String) -> Result<usize, String> {
 #[tauri::command]
 fn save_session(session: moraxterm_core::Session) -> Result<(), String> {
     if session.name.trim().is_empty() { return Err("session name cannot be empty".into()); }
-    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let path = session_database_path()?;
     let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     store.upsert(&session).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn delete_session(name: String) -> Result<bool, String> {
-    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let path = session_database_path()?;
     let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     store.delete(&name).map_err(|e| e.to_string())
 }
@@ -65,7 +76,7 @@ fn delete_session(name: String) -> Result<bool, String> {
 #[tauri::command]
 fn export_sessions(path: String) -> Result<usize, String> {
     if path.trim().is_empty() { return Err("export path cannot be empty".into()); }
-    let db_path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let db_path = session_database_path()?;
     let store = SessionStore::open(db_path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     let sessions = store.list().map_err(|e| e.to_string())?;
     let sanitized: Vec<_> = sessions.into_iter().map(sanitize_session).collect();
@@ -77,7 +88,7 @@ fn export_sessions(path: String) -> Result<usize, String> {
 fn import_backup(path: String) -> Result<usize, String> {
     let data = fs::read(&path).map_err(|e| e.to_string())?;
     let sessions: Vec<moraxterm_core::Session> = serde_json::from_slice(&data).map_err(|e| format!("invalid session backup: {e}"))?;
-    let db_path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let db_path = session_database_path()?;
     let store = SessionStore::open(db_path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     for session in &sessions { if session.name.trim().is_empty() { continue; } let clean = sanitize_session(session.clone()); store.upsert(&clean).map_err(|e| e.to_string())?; }
     Ok(sessions.iter().filter(|s| !s.name.trim().is_empty()).count())
@@ -281,6 +292,13 @@ fn resize_terminal(state: State<'_, TerminalManager>, id: String, cols: u16, row
 }
 
 #[tauri::command]
+fn resume_terminal(state: State<'_, TerminalManager>, id: String) -> Result<(), String> {
+    let process = state.processes.lock().map_err(|_| "terminal manager poisoned")?.get(&id).cloned().ok_or("terminal not found")?;
+    let result = process.lock().map_err(|_| "terminal poisoned")?.resume().map_err(|e| e.to_string());
+    result
+}
+
+#[tauri::command]
 fn close_terminal(state: State<'_, TerminalManager>, id: String) -> Result<(), String> {
     let process = state.processes.lock().map_err(|_| "terminal manager poisoned")?.remove(&id);
     if let Some(process) = process {
@@ -308,7 +326,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
         .manage(TunnelManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, resize_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, export_sessions, import_backup, save_session, delete_session, start_tunnel, stop_tunnel, xserver_status, sftp_list, sftp_transfer, run_network_tool, start_recording, stop_recording, start_terminal, write_terminal, resize_terminal, resume_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

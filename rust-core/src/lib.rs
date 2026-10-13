@@ -48,6 +48,19 @@ impl TerminalProcess {
         Ok(())
     }
 
+    #[cfg(unix)]
+    pub fn resume(&self) -> anyhow::Result<()> {
+        let pid = self.child.process_id().ok_or_else(|| anyhow::anyhow!("terminal process has no pid"))?;
+        let result = unsafe { libc::kill(pid as libc::pid_t, libc::SIGCONT) };
+        if result != 0 { anyhow::bail!("cannot resume terminal process: {}", std::io::Error::last_os_error()); }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    pub fn resume(&self) -> anyhow::Result<()> {
+        anyhow::bail!("terminal resume is not available on this platform")
+    }
+
     pub fn kill(&mut self) -> anyhow::Result<()> {
         self.child.kill()?;
         Ok(())

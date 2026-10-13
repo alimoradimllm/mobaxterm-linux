@@ -365,10 +365,6 @@ Completed:
 
 Remaining:
 
-- Native Tauri `.deb`.
-- AppImage.
-- Flatpak.
-- RPM package.
 - ARM64 package.
 - Uninstaller.
 - Automatic update support.
@@ -382,11 +378,11 @@ Completed:
 - GUI executable.
 - Embedded icon.
 - Portable ZIP.
+- Native NSIS installer.
 - PowerShell desktop-shortcut installer.
 
 Remaining:
 
-- MSI or Inno Setup installer.
 - Start Menu shortcut.
 - Add/Remove Programs registration.
 - Uninstaller.
