@@ -52,9 +52,12 @@ fn delete_session(name: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, program: Option<String>) -> Result<(), String> {
+fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String, session: Option<moraxterm_core::Session>, program: Option<String>) -> Result<(), String> {
     let (program_name, args): (String, Vec<String>) = if let Some(program) = program {
         (program, Vec::new())
+    } else if let Some(session) = session.filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
+        if session.host.trim().is_empty() || session.username.trim().is_empty() || session.port == 0 { return Err("SSH session requires host, username, and a valid port".into()); }
+        ("ssh".into(), vec!["-p".into(), session.port.to_string(), format!("{}@{}", session.username, session.host)])
     } else if cfg!(windows) {
         ("cmd.exe".into(), vec!["/Q".into(), "/K".into()])
     } else {
