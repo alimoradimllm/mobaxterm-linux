@@ -20,6 +20,14 @@ observed behavior, public protocol tooling, and independent code.
 - Windows portable ZIP includes a desktop-shortcut installer.
 - Secret values are excluded from imported session data and command plans.
 
+## Completed in the current milestone
+
+- Tauri UI loads persisted SQLite sessions automatically when the bridge is available.
+- Sessions are grouped by protocol in the sidebar.
+- Tauri toolbar actions now have handlers and status feedback.
+- Tauri keyboard shortcuts are wired for new shell, close tab, quick connect, and search.
+- Tauri frontend and Rust bridge both pass production checks.
+
 ## Priority definition
 
 - **P0**: Required for a usable daily replacement.
