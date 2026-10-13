@@ -1,64 +1,21 @@
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 import './style.css';
 
-const tabs = [];
+const invoke = window.__TAURI__?.core?.invoke;
 const app = document.querySelector('#app');
 app.innerHTML = `
-  <header><strong>MobaXterm Linux</strong><button id="import">Import sessions</button><input id="search" placeholder="Search sessions"></header>
-  <main><aside><ul id="sessions"></ul></aside><section><nav id="tabs"></nav><div id="panes"></div></section></main>`;
+<header class="titlebar"><span class="brand">Moba<span>Xterm</span> Linux</span><nav class="menus"><button>Terminal</button><button>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button>Settings</button><button>Macros</button><button>Help</button></nav><div class="window-actions">— □ ×</div></header>
+<div class="toolbar"><button class="tool primary">▣<small>Session</small></button><button class="tool">✣<small>Servers</small></button><button class="tool">⚒<small>Tools</small></button><button class="tool">★<small>Sessions</small></button><button class="tool">◈<small>View</small></button><button class="tool">▤<small>Split</small></button><button class="tool">⇄<small>MultiExec</small></button><button class="tool">⌁<small>Tunneling</small></button><button class="tool">▣<small>Packages</small></button><button class="tool">⚙<small>Settings</small></button><span class="toolbar-spacer"></span><button class="tool">✕<small>Exit</small></button></div>
+<div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
+<main><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button>Tools</button><button>Macros</button></div><div class="side-search"><input id="search" placeholder="Search sessions"/></div><div class="tree-header">▾ Imported sessions <button id="import">↻</button></div><ul id="sessions"></ul><div class="side-footer">▣ Remote monitoring<br/><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
+<section class="workspace"><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span>● Ready</span><span>CPU 0%</span><span>RAM 0 MB</span><span>Network —</span><span class="status-spacer"></span><span>Linux</span></footer></section></main>`;
 
-const sessionsEl = document.querySelector('#sessions');
-const tabsEl = document.querySelector('#tabs');
-const panesEl = document.querySelector('#panes');
-let sessions = [];
-
-function renderSessions() {
-  const query = document.querySelector('#search').value.toLowerCase();
-  sessionsEl.innerHTML = '';
-  sessions.filter(s => JSON.stringify(s).toLowerCase().includes(query)).forEach((session, index) => {
-    const item = document.createElement('li');
-    item.textContent = `${session.name} [${session.session_type}] ${session.host || ''}`;
-    item.onclick = () => openTab(session, index);
-    sessionsEl.appendChild(item);
-  });
-}
-
-function openTab(session, index) {
-  const id = `tab-${Date.now()}-${index}`;
-  tabs.push({ id, session });
-  const tab = document.createElement('button');
-  tab.textContent = session.name;
-  tab.onclick = () => activate(id);
-  tab.dataset.id = id;
-  tabsEl.appendChild(tab);
-  const pane = document.createElement('div');
-  pane.className = 'terminal-pane'; pane.dataset.id = id;
-  pane.innerHTML = `<div class="terminal-output">Ready: ${session.session_type} ${session.host || ''}</div><input placeholder="Command or input" />`;
-  pane.querySelector('input').onkeydown = async event => {
-    if (event.key === 'Enter') {
-      const command = event.target.value;
-      pane.querySelector('.terminal-output').textContent += `\n> ${command}`;
-      event.target.value = '';
-      if (window.__TAURI__?.core?.invoke) {
-        try {
-          const output = await window.__TAURI__.core.invoke('run_terminal_command', { command });
-          pane.querySelector('.terminal-output').textContent += `\n${output}`;
-        } catch (error) {
-          pane.querySelector('.terminal-output').textContent += `\n[error] ${error}`;
-        }
-      }
-    }
-  };
-  panesEl.appendChild(pane); activate(id);
-}
-
-function activate(id) {
-  document.querySelectorAll('[data-id]').forEach(el => el.classList.toggle('active', el.dataset.id === id));
-}
-
-document.querySelector('#search').oninput = renderSessions;
-document.querySelector('#import').onclick = async () => {
-  if (window.__TAURI__?.core?.invoke) sessions = await window.__TAURI__.core.invoke('list_sessions');
-  else sessions = [{name: 'Rust core', session_type: 'SSH', host: 'import sessions through the CLI'}];
-  renderSessions();
-};
-renderSessions();
+const sessionsEl=document.querySelector('#sessions'), tabsEl=document.querySelector('#tabs'), panesEl=document.querySelector('#panes');
+let sessions=[]; const tabs=new Map();
+const fallback=[{name:'Local Shell',session_type:'Shell',host:''},{name:'WSL-Debian',session_type:'WSL',host:'Debian'},{name:'SSH session',session_type:'SSH',host:'Import sessions'}];
+function renderSessions(){const q=document.querySelector('#search').value.toLowerCase();sessionsEl.innerHTML='';sessions.filter(s=>JSON.stringify(s).toLowerCase().includes(q)).forEach((s,i)=>{const li=document.createElement('li');li.innerHTML=`<span class="session-icon">${s.session_type==='SSH'?'🔑':s.session_type==='Rdp'?'▣':'▸'}</span><span>${s.name}</span><small>${s.host||''}</small>`;li.onclick=()=>openTab(s,i);sessionsEl.appendChild(li);});}
+function openTab(session,index){const id=`tab-${Date.now()}-${index}`;const button=document.createElement('button');button.dataset.id=id;button.innerHTML=`<span class="tab-icon">▸</span>${session.name}<b>×</b>`;button.onclick=()=>activate(id);tabsEl.appendChild(button);const pane=document.createElement('div');pane.className='pane';pane.dataset.id=id;const terminal=new Terminal({convertEol:true,cursorBlink:true,fontSize:13,theme:{background:'#101113',foreground:'#d7d7d7',cursor:'#00d084',black:'#101113',green:'#00d084',cyan:'#00c8d7',blue:'#4d9cff',yellow:'#e6d85a',red:'#ff5c57'}});const fit=new FitAddon();terminal.loadAddon(fit);pane.appendChild(document.createElement('div'));panesEl.appendChild(pane);terminal.open(pane.firstChild);fit.fit();terminal.writeln(`\x1b[36mMobaXterm Linux\x1b[0m — ${session.session_type} ${session.host||''}`);terminal.writeln('Ready. Type a command and press Enter.');terminal.write('\r\n$ ');let line='';terminal.onData(async data=>{if(data==='\r'){terminal.write('\r\n');if(line.trim()&&invoke){try{const out=await invoke('run_terminal_command',{command:line});terminal.write(out.replaceAll('\n','\r\n'));}catch(e){terminal.write(`\r\n\x1b[31m${e}\x1b[0m`);} }line='';terminal.write('\r\n$ ');}else if(data==='\u007f'){if(line){line=line.slice(0,-1);terminal.write('\b \b');}}else if(data>=' '){line+=data;terminal.write(data);}});tabs.set(id,{pane,terminal,fit});button.querySelector('b').onclick=e=>{e.stopPropagation();tabs.get(id).terminal.dispose();pane.remove();button.remove();};activate(id);window.addEventListener('resize',()=>fit.fit());}
+function activate(id){document.querySelectorAll('[data-id]').forEach(e=>e.classList.toggle('active',e.dataset.id===id));const t=tabs.get(id);if(t)t.fit.fit();}
+document.querySelector('#search').oninput=renderSessions;document.querySelector('#import').onclick=async()=>{sessions=invoke?await invoke('list_sessions'):fallback;renderSessions();};document.querySelector('#connect').onclick=()=>{const host=document.querySelector('#quick').value.trim();if(host)openTab({name:host,session_type:'SSH',host},0);};sessions=fallback;renderSessions();
