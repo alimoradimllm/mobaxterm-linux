@@ -73,3 +73,7 @@ To build a Debian package:
 sudo apt install ./dist/moraxterm_0.1.2_amd64.deb
 ```
 
+The Debian package installs the `moraxterm-gui` application, desktop menu entry,
+and Moraxterm icon. On Windows, extract the portable ZIP and run
+`install-windows.ps1` to create a `Moraxterm` desktop shortcut.
+

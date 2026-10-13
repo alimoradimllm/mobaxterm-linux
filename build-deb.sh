@@ -7,8 +7,10 @@ ARCH="$(dpkg --print-architecture)"
 OUT="$ROOT/dist"
 PKG="$(mktemp -d /tmp/moraxterm-deb.XXXXXX)/moraxterm_${VERSION}_${ARCH}"
 rm -rf "$PKG"
-mkdir -p "$PKG/DEBIAN" "$PKG/usr/lib/moraxterm" "$PKG/usr/bin"
+mkdir -p "$PKG/DEBIAN" "$PKG/usr/lib/moraxterm" "$PKG/usr/bin" "$PKG/usr/share/applications" "$PKG/usr/share/icons/hicolor/256x256/apps"
 python3 -m pip install --no-deps --target "$PKG/usr/lib/moraxterm" "$ROOT"
+cp "$ROOT/assets/moraxterm.png" "$PKG/usr/share/icons/hicolor/256x256/apps/moraxterm.png"
+cp "$ROOT/packaging/moraxterm.desktop" "$PKG/usr/share/applications/moraxterm.desktop"
 cat > "$PKG/DEBIAN/control" <<EOF
 Package: moraxterm
 Version: $VERSION

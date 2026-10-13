@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Moraxterm
+Comment=SSH client, terminal, and network tools
+Exec=moraxterm-gui
+Icon=moraxterm
+Terminal=false
+Categories=Network;RemoteAccess;System;
+StartupNotify=true
