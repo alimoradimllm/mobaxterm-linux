@@ -29,6 +29,7 @@ observed behavior, public protocol tooling, and independent code.
 - Tauri frontend and Rust bridge both pass production checks.
 - Tauri terminal tabs now use persistent Rust PTY processes with streamed output, input forwarding, and close/kill commands.
 - Tauri now provides a SQLite-backed session editor: create, edit, delete, and reload sanitized session metadata from the UI.
+- Tauri can import a user-selected INI file read-only, merge basic sessions and encoded bookmarks, deduplicate by name, and persist only sanitized metadata.
 - Optimized native Linux Tauri build completed successfully.
 
 ## Priority definition

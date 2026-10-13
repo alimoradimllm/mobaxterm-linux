@@ -1,6 +1,7 @@
 use moraxterm_core::{SessionStore, TerminalProcess};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fs;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
@@ -20,6 +21,19 @@ fn list_sessions() -> Result<Vec<moraxterm_core::Session>, String> {
     let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
     let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     store.list().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn import_sessions(path: String) -> Result<usize, String> {
+    let text = fs::read_to_string(&path).map_err(|e| format!("cannot read import file: {e}"))?;
+    let mut imported = moraxterm_core::import_ini(&text).map_err(|e| e.to_string())?;
+    imported.extend(moraxterm_core::import_bookmarks(&text).map_err(|e| e.to_string())?);
+    let mut unique = HashMap::new();
+    for session in imported { unique.insert(session.name.clone(), session); }
+    let db_path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
+    let store = SessionStore::open(db_path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
+    for session in unique.values() { store.upsert(session).map_err(|e| e.to_string())?; }
+    Ok(unique.len())
 }
 
 #[tauri::command]
@@ -99,7 +113,7 @@ fn run_terminal_command(command: String) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(TerminalManager::default())
-        .invoke_handler(tauri::generate_handler![list_sessions, save_session, delete_session, start_terminal, write_terminal, close_terminal, run_terminal_command])
+        .invoke_handler(tauri::generate_handler![list_sessions, import_sessions, save_session, delete_session, start_terminal, write_terminal, close_terminal, run_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

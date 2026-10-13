@@ -10,7 +10,7 @@ app.innerHTML = `
 <header class="titlebar"><span class="brand">Moraxterm</span><nav class="menus"><button data-action="new-shell">Terminal</button><button data-action="sessions">Sessions</button><button data-action="view">View</button><button data-action="xserver">X server</button><button data-action="tools">Tools</button><button data-action="settings">Settings</button><button data-action="macros">Macros</button><button data-action="help">Help</button></nav><div class="window-actions">— □ ×</div></header>
 <div class="toolbar"><button class="tool primary" data-action="new-shell">▣<small>Session</small></button><button class="tool" data-action="load-sessions">★<small>Sessions</small></button><button class="tool" data-action="split">▤<small>Split</small></button><button class="tool" data-action="multiexec">⇄<small>MultiExec</small></button><button class="tool" data-action="tunnel">⌁<small>Tunneling</small></button><button class="tool" data-action="packages">▣<small>Packages</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="settings">⚙<small>Settings</small></button></div>
 <div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
-<main><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Search sessions"/></div><div class="tree-header">▾ Saved sessions <button id="new-session" title="New session">＋</button><button id="reload" title="Reload SQLite sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer">▣ Remote monitoring<br/><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
+<main><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Search sessions"/></div><div class="tree-header">▾ Saved sessions <button id="import-sessions" title="Import INI">⇩</button><button id="new-session" title="New session">＋</button><button id="reload" title="Reload SQLite sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer">▣ Remote monitoring<br/><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
 <section class="workspace"><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
 
 const sessionsEl = document.querySelector('#sessions');
@@ -74,6 +74,17 @@ async function loadSessions() {
     status(`Using local defaults: ${error}`, true);
   }
   renderSessions();
+}
+
+async function importSessions() {
+  if (!invoke) { status('Import is available in the native Tauri app', true); return; }
+  const path = window.prompt('Path to a sanitized INI export:', 'MobaXterm.ini');
+  if (!path) return;
+  try {
+    const count = await invoke('import_sessions', { path });
+    await loadSessions();
+    status(`Imported ${count} sessions`);
+  } catch (error) { status(`Import failed: ${error}`, true); }
 }
 
 function showEditor(session = {}) {
@@ -168,6 +179,7 @@ function actionMessage(action) {
 }
 
 document.querySelector('#search').oninput = renderSessions;
+document.querySelector('#import-sessions').onclick = importSessions;
 document.querySelector('#new-session').onclick = () => showEditor();
 document.querySelector('#reload').onclick = loadSessions;
 document.querySelector('#connect').onclick = () => {
