@@ -22,12 +22,12 @@ EOF
 cat > "$PKG/usr/bin/moraxterm" <<'EOF'
 #!/bin/sh
 export PYTHONPATH=/usr/lib/moraxterm${PYTHONPATH:+:$PYTHONPATH}
-exec python3 -m mobaxterm_cli "$@"
+exec python3 -m moraxterm_cli "$@"
 EOF
 cat > "$PKG/usr/bin/moraxterm-gui" <<'EOF'
 #!/bin/sh
 export PYTHONPATH=/usr/lib/moraxterm${PYTHONPATH:+:$PYTHONPATH}
-exec python3 -c 'from mobaxterm_gui import main; main()' "$@"
+exec python3 -c 'from moraxterm_gui import main; main()' "$@"
 EOF
 chmod 755 "$PKG/DEBIAN" "$PKG/usr/bin" "$PKG/usr/bin/moraxterm" "$PKG/usr/bin/moraxterm-gui"
 dpkg-deb --build "$PKG" "$OUT/moraxterm_${VERSION}_${ARCH}.deb" >/dev/null

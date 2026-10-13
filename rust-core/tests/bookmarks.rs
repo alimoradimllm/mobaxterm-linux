@@ -1,4 +1,4 @@
-use mobaxterm_core::import_bookmarks;
+use moraxterm_core::import_bookmarks;
 
 #[test]
 fn imports_ssh_bookmark_mode_zero() {

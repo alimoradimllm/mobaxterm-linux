@@ -6,4 +6,4 @@ if errorlevel 1 (
   echo Python 3 is required. Install it from https://www.python.org/downloads/windows/
   exit /b 1
 )
-py -3 -m mobaxterm_cli %*
+py -3 -m moraxterm_cli %*

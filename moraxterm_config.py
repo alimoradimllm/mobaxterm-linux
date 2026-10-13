@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only MobaXterm configuration/session inventory helpers.
+"""Read-only Moraxterm configuration/session inventory helpers.
 
 This module intentionally does not decrypt, export, or modify secrets.
 It preserves raw values in memory for parsing, but summaries redact fields
@@ -110,7 +110,7 @@ def summarize(sections: list[Section]) -> dict[str, Any]:
 
 def main() -> None:
     import argparse
-    ap = argparse.ArgumentParser(description="Inventory MobaXterm INI or MXTPRO files")
+    ap = argparse.ArgumentParser(description="Inventory Moraxterm INI or MXTPRO files")
     ap.add_argument("path", type=Path)
     args = ap.parse_args()
     if args.path.suffix.lower() == ".mxtpro":

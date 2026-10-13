@@ -12,7 +12,7 @@ class SessionStore:
     """SQLite store for sanitized sessions; never stores secret values."""
 
     def __init__(self, path: str | Path | None = None) -> None:
-        self.path = Path(path or '~/.local/share/mobaxterm-linux/sessions.sqlite3').expanduser()
+        self.path = Path(path or '~/.local/share/moraxterm-linux/sessions.sqlite3').expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._db = sqlite3.connect(self.path)
         self._db.execute('''CREATE TABLE IF NOT EXISTS sessions (

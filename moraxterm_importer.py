@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Convert read-only MobaXterm INI sections into safe Session objects."""
+"""Convert read-only Moraxterm INI sections into safe Session objects."""
 from __future__ import annotations
 
 import re
 from pathlib import Path
 from typing import Iterable
 
-from mobaxterm_config import Section, parse_ini
+from moraxterm_config import Section, parse_ini
 from session_model import Session, SessionValidationError, session_from_fields
 
 _SECRET_KEY_PARTS = ('password', 'passphrase', 'secret', 'token', 'privatekey', 'private_key')
@@ -42,7 +42,7 @@ def _infer_type(section: Section, values: dict[str, str]) -> str:
         for alias, session_type in _TYPE_ALIASES.items():
             if token == alias or token.endswith(alias):
                 return session_type
-    raise ValueError(f"unsupported MobaXterm session type in section {section.name!r}")
+    raise ValueError(f"unsupported Moraxterm session type in section {section.name!r}")
 
 
 def _safe_values(section: Section) -> dict[str, str]:

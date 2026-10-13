@@ -2,15 +2,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mobaxterm_importer import import_ini, import_sections
-from mobaxterm_config import parse_ini
+from moraxterm_importer import import_ini, import_sections
+from moraxterm_config import parse_ini
 
 
 class ImporterTests(unittest.TestCase):
     def test_imports_ssh_fields_and_excludes_secrets(self):
         content = """[SessionSSH]\nHost=server.example\nUser=ali\nPort=2222\nCommand=uname -a\nCompression=1\nX11Forwarding=true\nPassword=must-not-enter-model\nSSHPrivateKey=/secret/id_ed25519\n"""
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'MobaXterm.ini'
+            path = Path(directory) / 'Moraxterm.ini'
             path.write_text(content, encoding='utf-8')
             sessions = import_ini(path)
         self.assertEqual(len(sessions), 1)
@@ -28,7 +28,7 @@ class ImporterTests(unittest.TestCase):
     def test_infers_local_shell_and_skips_non_session_sections(self):
         content = """[Terminal]\nCommand=/bin/bash\n\n[SessionShell]\nCommand=/bin/zsh\n"""
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'MobaXterm.ini'
+            path = Path(directory) / 'Moraxterm.ini'
             path.write_text(content, encoding='utf-8')
             sessions = import_ini(path)
         self.assertEqual(len(sessions), 1)

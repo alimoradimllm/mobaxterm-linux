@@ -1,4 +1,4 @@
-use mobaxterm_core::import_ini;
+use moraxterm_core::import_ini;
 
 #[test]
 fn imports_ssh_and_excludes_secret_fields() {

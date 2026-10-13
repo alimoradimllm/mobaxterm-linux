@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "moraxterm"
 version = "0.1.2"
-description = "Clean-room Linux compatibility layer for sanitized MobaXterm sessions"
+description = "Clean-room Linux compatibility layer for sanitized Moraxterm sessions"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -13,16 +13,16 @@ authors = [{name = "Hermes Workspace"}]
 dependencies = []
 
 [project.scripts]
-moraxterm = "mobaxterm_cli:main"
-moraxterm-gui = "mobaxterm_gui:main"
+moraxterm = "moraxterm_cli:main"
+moraxterm-gui = "moraxterm_gui:main"
 
 [tool.setuptools]
 py-modules = [
-  "mobaxterm_cli",
-  "mobaxterm_config",
-  "mobaxterm_importer",
+  "moraxterm_cli",
+  "moraxterm_config",
+  "moraxterm_importer",
   "credential_store",
-  "mobaxterm_gui",
+  "moraxterm_gui",
   "rdp_backend",
   "session_model",
   "session_store",

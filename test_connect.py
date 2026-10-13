@@ -1,6 +1,6 @@
 import unittest
 
-from mobaxterm_cli import build_connect_plan, select_session
+from moraxterm_cli import build_connect_plan, select_session
 from session_model import Session, SessionValidationError
 
 

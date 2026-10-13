@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse the decoded MobaXterm SEPARAMS session schema."""
+"""Parse the decoded Moraxterm SEPARAMS session schema."""
 from __future__ import annotations
 
 import configparser

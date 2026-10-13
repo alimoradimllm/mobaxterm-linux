@@ -1,8 +1,8 @@
-use mobaxterm_core::{SessionStore, TerminalProcess};
+use moraxterm_core::{SessionStore, TerminalProcess};
 
 #[tauri::command]
-fn list_sessions() -> Result<Vec<mobaxterm_core::Session>, String> {
-    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/mobaxterm-linux/sessions.sqlite3");
+fn list_sessions() -> Result<Vec<moraxterm_core::Session>, String> {
+    let path = dirs::home_dir().ok_or("home directory unavailable")?.join(".local/share/moraxterm-linux/sessions.sqlite3");
     let store = SessionStore::open(path.to_str().ok_or("invalid database path")?).map_err(|e| e.to_string())?;
     store.list().map_err(|e| e.to_string())
 }

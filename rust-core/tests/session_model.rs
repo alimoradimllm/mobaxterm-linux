@@ -1,4 +1,4 @@
-use mobaxterm_core::{CommandPlan, Session};
+use moraxterm_core::{CommandPlan, Session};
 
 #[test]
 fn ssh_plan_uses_default_port_without_password() {

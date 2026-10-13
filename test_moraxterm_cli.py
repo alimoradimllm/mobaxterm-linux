@@ -4,7 +4,7 @@ import subprocess
 import sys
 import unittest
 
-from mobaxterm_cli import (
+from moraxterm_cli import (
     build_parser,
     execute_plan,
     filter_sessions,
@@ -30,9 +30,9 @@ class CliTests(unittest.TestCase):
 
     def test_import_command_accepts_ini_path(self):
         parser = build_parser()
-        args = parser.parse_args(['import', 'MobaXterm.ini'])
+        args = parser.parse_args(['import', 'Moraxterm.ini'])
         self.assertEqual(args.action, 'import')
-        self.assertEqual(args.path, 'MobaXterm.ini')
+        self.assertEqual(args.path, 'Moraxterm.ini')
 
     def test_connect_requires_explicit_execute_flag(self):
         parser = build_parser()
@@ -52,8 +52,8 @@ class CliTests(unittest.TestCase):
             filter_sessions([], search='missing')
 
     def test_missing_dependencies_reports_only_unavailable_executables(self):
-        plan = CommandPlan(('definitely-not-installed-mobaxterm-tool',))
-        self.assertEqual(missing_dependencies(plan), ['definitely-not-installed-mobaxterm-tool'])
+        plan = CommandPlan(('definitely-not-installed-moraxterm-tool',))
+        self.assertEqual(missing_dependencies(plan), ['definitely-not-installed-moraxterm-tool'])
 
     @unittest.skipUnless(os.name == 'posix', 'PTY backend requires POSIX')
     def test_execute_plan_runs_a_local_safe_command(self):
@@ -69,7 +69,7 @@ class CliTests(unittest.TestCase):
             'name': 'local', 'session_type': 'Shell', 'command': ['/bin/echo', 'listed']
         }])
         completed = subprocess.run(
-            [sys.executable, '-m', 'mobaxterm_cli', 'list', '--sessions', '-'],
+            [sys.executable, '-m', 'moraxterm_cli', 'list', '--sessions', '-'],
             input=sessions,
             text=True,
             capture_output=True,

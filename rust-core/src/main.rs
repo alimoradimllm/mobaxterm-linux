@@ -1,10 +1,10 @@
-use mobaxterm_core::{import_ini, SessionStore};
+use moraxterm_core::{import_ini, SessionStore};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 
 fn usage() {
-    eprintln!("usage: mobaxterm-core import <MobaXterm.ini> | store-import <MobaXterm.ini> <sessions.sqlite3> | list <sessions.sqlite3>");
+    eprintln!("usage: moraxterm-core import <Moraxterm.ini> | store-import <Moraxterm.ini> <sessions.sqlite3> | list <sessions.sqlite3>");
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

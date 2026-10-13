@@ -50,7 +50,7 @@ Rust importer and storage fixtures are ported.
   native Android clients or a documented remote-desktop plugin. Do not pretend
   desktop binaries are Android-compatible.
 - Secrets: platform keychain APIs only. Never place passwords in argv, JSON,
-  SQLite, logs, or imported MobaXterm data.
+  SQLite, logs, or imported Moraxterm data.
 
 ## Measured baseline
 

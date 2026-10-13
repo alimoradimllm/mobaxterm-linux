@@ -2,14 +2,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mobaxterm_importer import import_ini
+from moraxterm_importer import import_ini
 
 
 class BookmarkImporterTests(unittest.TestCase):
     def test_imports_encoded_ssh_bookmark(self):
         content = """[Bookmarks]\nSubRep=Lab\nserver-one=#109#0%server.example%60222%ali%%-1%-1%%%%%0%0%0%%%-1%-1%0%%%0\n"""
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'MobaXterm.ini'
+            path = Path(directory) / 'Moraxterm.ini'
             path.write_text(content, encoding='utf-8')
             sessions = import_ini(path)
         self.assertEqual(len(sessions), 1)
@@ -22,7 +22,7 @@ class BookmarkImporterTests(unittest.TestCase):
     def test_imports_encoded_rdp_and_wsl_bookmarks(self):
         content = """[Bookmarks]\nrdp-box=#91#4%10.0.0.5%3389%administrator%0%-1%-1%-1%-1%0%0%-1%%%%%0%0%%-1%%-1%-1%0%-1%0%-1\nwsl-box=#149#14%2%\n"""
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'MobaXterm.ini'
+            path = Path(directory) / 'Moraxterm.ini'
             path.write_text(content, encoding='utf-8')
             sessions = import_ini(path)
         self.assertEqual([s.session_type for s in sessions], ['Rdp', 'WSL'])

@@ -23,20 +23,20 @@ export PATH="$HOME/.local/bin:$PATH"
 Verify:
 
 ```bash
-mobaxterm-linux --help
+moraxterm-linux --help
 python3 -m unittest -q
 ```
 
-Import a sanitized MobaXterm configuration:
+Import a sanitized Moraxterm configuration:
 
 ```bash
-mobaxterm-linux import /path/to/MobaXterm.ini > imported-sessions.json
+moraxterm-linux import /path/to/Moraxterm.ini > imported-sessions.json
 ```
 
 Connect in dry-run mode first:
 
 ```bash
-mobaxterm-linux connect \
+moraxterm-linux connect \
   --sessions imported-sessions.json \
   --name "SESSION NAME"
 ```
@@ -44,7 +44,7 @@ mobaxterm-linux connect \
 Launch only after reviewing the generated command:
 
 ```bash
-mobaxterm-linux connect \
+moraxterm-linux connect \
   --sessions imported-sessions.json \
   --name "SESSION NAME" \
   --execute

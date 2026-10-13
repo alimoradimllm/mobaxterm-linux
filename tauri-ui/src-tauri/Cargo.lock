@@ -1915,11 +1915,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "mobaxterm-linux-ui"
+name = "moraxterm-linux-ui"
 version = "0.1.0"
 dependencies = [
  "dirs 5.0.1",
- "mobaxterm_core",
+ "moraxterm_core",
  "serde",
  "serde_json",
  "tauri",
@@ -1927,7 +1927,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mobaxterm_core"
+name = "moraxterm_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",

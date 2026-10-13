@@ -4,14 +4,14 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from mobaxterm_config import inspect_mxtpro, parse_ini, summarize
+from moraxterm_config import inspect_mxtpro, parse_ini, summarize
 
 
 class ConfigTests(unittest.TestCase):
     def test_ini_sections_are_classified_and_secrets_redacted(self):
         content = """[SessionSSH]\nHost=example.test\nUser=ali\nPassword=do-not-print\n\n[Terminal]\nFont=Monospace\n"""
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "MobaXterm.ini"
+            path = Path(directory) / "Moraxterm.ini"
             path.write_text(content, encoding="utf-8")
             sections = parse_ini(path)
             result = summarize(sections)

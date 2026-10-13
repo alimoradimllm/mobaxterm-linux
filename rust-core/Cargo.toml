@@ -1,9 +1,9 @@
 [package]
-name = "mobaxterm_core"
+name = "moraxterm_core"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Portable core for the clean-room MobaXterm compatibility layer"
+description = "Portable core for the clean-room Moraxterm compatibility layer"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -13,9 +13,9 @@ portable-pty = "0.8"
 anyhow = "1"
 
 [lib]
-name = "mobaxterm_core"
+name = "moraxterm_core"
 path = "src/lib.rs"
 
 [[bin]]
-name = "mobaxterm-core"
+name = "moraxterm-core"
 path = "src/main.rs"

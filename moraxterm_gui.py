@@ -5,8 +5,8 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from mobaxterm_cli import build_connect_plan
-from mobaxterm_importer import import_ini
+from moraxterm_cli import build_connect_plan
+from moraxterm_importer import import_ini
 from session_model import Session
 from terminal_backend import TerminalProcess, build_local_command
 

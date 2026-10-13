@@ -1,4 +1,4 @@
-use mobaxterm_core::TerminalProcess;
+use moraxterm_core::TerminalProcess;
 
 #[test]
 #[cfg(unix)]

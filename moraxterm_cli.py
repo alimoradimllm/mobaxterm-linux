@@ -14,7 +14,7 @@ from typing import Any, Sequence
 
 from session_model import Session, SessionValidationError, session_from_fields
 from terminal_backend import TerminalProcess, build_local_command
-from mobaxterm_importer import import_ini
+from moraxterm_importer import import_ini
 from rdp_backend import build_rdp
 from ssh_backend import CommandPlan, build_mosh, build_sftp, build_ssh
 from wsl_backend import build_wsl
@@ -35,8 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     listing = commands.add_parser('list', help='list sessions from a JSON file')
     listing.add_argument('--sessions', required=True, help='JSON path or - for stdin')
 
-    importing = commands.add_parser('import', help='convert a MobaXterm INI to safe JSON sessions')
-    importing.add_argument('path', help='MobaXterm INI path')
+    importing = commands.add_parser('import', help='convert a Moraxterm INI to safe JSON sessions')
+    importing.add_argument('path', help='Moraxterm INI path')
 
     connect = commands.add_parser('connect', help='select an imported session and print its backend command')
     connect.add_argument('--sessions', required=True, help='safe JSON session file')
