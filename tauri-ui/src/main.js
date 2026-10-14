@@ -178,6 +178,15 @@ function showEditor(session = {}) {
   const protocolFields = [['wsl_user', 'WSL user', session.wsl_user || '', 'Optional Linux user'], ['wsl_command', 'WSL command', session.wsl_command || '', 'Optional command'], ['telnet_mode', 'Telnet mode', session.telnet_mode || '', 'Raw / line']];
   const serialField = form.querySelector('[name="serial_flow_control"]');
   protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
+  const knownHostsRow = document.createElement('label');
+  knownHostsRow.innerHTML = 'Known-hosts status <button type="button" data-known-hosts>Check without exposing fingerprints</button><span data-known-hosts-status></span>';
+  form.host_key_policy.closest('label')?.after(knownHostsRow);
+  knownHostsRow.querySelector('[data-known-hosts]').onclick = async () => {
+    try {
+      const result = await invoke('ssh_known_hosts_status', { host: form.host.value.trim(), port: Number(form.port.value || 22) });
+      knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${result}`;
+    } catch (error) { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
+  };
   form.session_type.value = session.session_type || 'SSH';
   form.host_key_policy.value = session.host_key_policy || 'ask';
   overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();

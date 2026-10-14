@@ -54,6 +54,9 @@ of full third-party terminal workspace parity.
   UTF-8 limit. Editing remains open.
 - A migration regression test now covers legacy SQLite payloads and current
   default fields. Broader schema migration fixtures remain open.
+- SSH editing now checks whether a host entry exists in `known_hosts` without
+  exposing fingerprints. Explicit approval/change-warning UI and updates remain
+  open.
 
 ## P0: daily terminal and SSH workflow
 

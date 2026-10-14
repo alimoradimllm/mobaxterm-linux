@@ -70,6 +70,7 @@ observed behavior, public protocol tooling, and independent code.
 - The local SFTP pane now supports read-only UTF-8 previews capped at 1 MiB; remote preview and editing remain open.
 - Remote SFTP preview now downloads into a temporary file, enforces the same 1 MiB UTF-8 limit, and removes the temporary file after reading; editing remains open.
 - SQLite regression coverage now verifies that legacy session payloads load with current serde defaults for newer fields.
+- SSH session editing now provides a known-hosts presence check that returns only the file path and boolean entry status; fingerprints are not displayed or logged.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).
