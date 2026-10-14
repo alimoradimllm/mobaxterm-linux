@@ -338,10 +338,11 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button><button data-local-preview>Preview file</button></div><div data-drop-zone style="border:1px dashed var(--border);padding:8px;margin:6px 0">Drop local files here to upload</div><pre data-local-output>Loading…</pre><pre data-local-preview-output></pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><button data-remote-preview>Preview remote</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre><pre data-remote-preview-output></pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button><button data-local-preview>Preview file</button></div><div data-drop-zone style="border:1px dashed var(--border);padding:8px;margin:6px 0">Drop local files here to upload</div><pre data-local-output>Loading…</pre><pre data-local-preview-output></pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
+  const remotePreviewOutput = overlay.querySelector('[data-remote-preview-output]');
   const localPathInput = overlay.querySelector('[data-local-path]');
   const localOutput = overlay.querySelector('[data-local-output]');
   const resumeInput = overlay.querySelector('[data-resume]');
@@ -375,6 +376,12 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     if (!path) return;
     try { previewOutput.textContent = await invoke('local_preview', { path }); status(`Previewed local file: ${path}`); }
     catch (error) { previewOutput.textContent = String(error); status(`Preview failed: ${error}`, true); }
+  };
+  overlay.querySelector('[data-remote-preview]').onclick = async () => {
+    const path = (window.prompt('Remote text file path:', pathInput.value) || '').trim();
+    if (!path) return;
+    try { remotePreviewOutput.textContent = await invoke('sftp_preview', { host, username, port, remotePath: path }); status(`Previewed remote file: ${path}`); }
+    catch (error) { remotePreviewOutput.textContent = String(error); status(`Remote preview failed: ${error}`, true); }
   };
   dropZone.ondragover = event => { event.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; };
   dropZone.ondragleave = () => { dropZone.style.borderColor = 'var(--border)'; };

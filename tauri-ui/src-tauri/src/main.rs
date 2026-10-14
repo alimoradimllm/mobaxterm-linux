@@ -454,6 +454,65 @@ fn local_preview(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn sftp_preview(
+    host: String,
+    username: String,
+    port: u16,
+    remote_path: String,
+) -> Result<String, String> {
+    if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
+        return Err("SFTP requires host, username, and a valid port".into());
+    }
+    if remote_path.trim().is_empty() || remote_path.chars().any(|c| c.is_control() || c == '"') {
+        return Err("invalid remote preview path".into());
+    }
+    let temporary =
+        std::env::temp_dir().join(format!("moraxterm-preview-{}", chrono_like_timestamp()));
+    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
+    command.args([
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=8",
+        "-P",
+        &port.to_string(),
+        "-b",
+        "-",
+        &format!("{}@{}", username, host),
+    ]);
+    command
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = command
+        .spawn()
+        .map_err(|e| format!("cannot start sftp: {e}"))?;
+    if let Some(mut input) = child.stdin.take() {
+        input
+            .write_all(
+                format!("get \"{}\" \"{}\"\nbye\n", remote_path, temporary.display()).as_bytes(),
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let _ = fs::remove_file(&temporary);
+        return Err(if message.is_empty() {
+            "remote preview failed".into()
+        } else {
+            message
+        });
+    }
+    let data = fs::read(&temporary).map_err(|e| e.to_string())?;
+    let _ = fs::remove_file(&temporary);
+    if data.len() > 1_048_576 {
+        return Err("remote preview is limited to 1 MiB".into());
+    }
+    String::from_utf8(data).map_err(|_| "remote preview supports UTF-8 text files only".into())
+}
+
+#[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
@@ -1243,6 +1302,7 @@ pub fn run() {
             xserver_status,
             local_list,
             local_preview,
+            sftp_preview,
             sftp_list,
             sftp_transfer,
             start_sftp_transfer,

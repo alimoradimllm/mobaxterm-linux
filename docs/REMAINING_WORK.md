@@ -50,6 +50,8 @@ of full third-party terminal workspace parity.
   Byte-level progress remains open.
 - Local SFTP preview now supports read-only UTF-8 files up to 1 MiB. Remote
   preview and editing remain open.
+- Remote SFTP preview now uses a cleaned-up temporary file with the same 1 MiB
+  UTF-8 limit. Editing remains open.
 
 ## P0: daily terminal and SSH workflow
 

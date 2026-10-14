@@ -68,6 +68,7 @@ observed behavior, public protocol tooling, and independent code.
 - SFTP transfers now offer an explicit “Resume partial transfer” option using OpenSSH `reget`/`reput`; byte-level progress and drag-and-drop remain open.
 - The SFTP local pane now accepts dropped files and queues them for upload; byte-level progress remains open.
 - The local SFTP pane now supports read-only UTF-8 previews capped at 1 MiB; remote preview and editing remain open.
+- Remote SFTP preview now downloads into a temporary file, enforces the same 1 MiB UTF-8 limit, and removes the temporary file after reading; editing remains open.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).
