@@ -1080,13 +1080,10 @@ fn start_terminal(
         if session.host.trim().is_empty() || session.port == 0 {
             return Err("RDP session requires host and a valid port".into());
         }
-        let mut args = vec![format!("/v:{}:{}", session.host, session.port)];
-        if !session.username.trim().is_empty() {
-            args.push(format!("/u:{}", session.username));
-        }
+        let args = vec![format!("/v:{}:{}", session.host, session.port)];
         (
             if cfg!(windows) {
-                "xfreerdp.exe".into()
+                "mstsc.exe".into()
             } else {
                 "xfreerdp".into()
             },

@@ -132,6 +132,9 @@ of full third-party terminal workspace parity.
 
 - Add embedded or tightly integrated RDP/VNC windows where platform support
   allows it.
+- Windows RDP launch planning now uses the installed native `mstsc.exe`; Linux
+  continues to use `xfreerdp`. Embedded-window behavior and runtime connection
+  testing remain open.
 - Add Serial device discovery and baud/data/parity/flow-control configuration.
 - Add Telnet options, break signal, and file transfer controls.
 - Add WSL distribution, user, working-directory, and shell-profile selectors.
