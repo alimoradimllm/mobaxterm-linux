@@ -58,19 +58,27 @@ impl TerminalProcess {
     }
 
     pub fn take_reader(&mut self) -> anyhow::Result<Box<dyn Read + Send>> {
-        self.reader.take().ok_or_else(|| anyhow::anyhow!("terminal reader already detached"))
+        self.reader
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("terminal reader already detached"))
     }
 
     pub fn read_to_end(&mut self) -> anyhow::Result<Vec<u8>> {
         let mut output = Vec::new();
-        self.reader.as_mut().ok_or_else(|| anyhow::anyhow!("terminal reader already detached"))?.read_to_end(&mut output)?;
+        self.reader
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("terminal reader already detached"))?
+            .read_to_end(&mut output)?;
         let _ = self.child.wait();
         Ok(output)
     }
 
     pub fn read_chunk(&mut self) -> anyhow::Result<Vec<u8>> {
         let mut buffer = [0_u8; 8192];
-        let reader = self.reader.as_mut().ok_or_else(|| anyhow::anyhow!("terminal reader already detached"))?;
+        let reader = self
+            .reader
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("terminal reader already detached"))?;
         let count = reader.read(&mut buffer)?;
         Ok(buffer[..count].to_vec())
     }

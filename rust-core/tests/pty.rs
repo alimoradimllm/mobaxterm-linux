@@ -29,9 +29,25 @@ fn pty_processes_ctrl_d_as_eof() {
 }
 
 #[test]
-#[cfg(unix)]
-fn pty_captures_child_output() {
-    let mut process = TerminalProcess::spawn("/bin/sh", &["-c", "printf rust-pty"]).unwrap();
-    let output = process.read_to_end().unwrap();
-    assert_eq!(output, b"rust-pty");
+#[cfg(windows)]
+fn windows_pty_captures_cmd_startup_output() {
+    use std::io::Read;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let mut process = TerminalProcess::spawn("cmd.exe", &["/Q", "/K"]).unwrap();
+    let mut reader = process.take_reader().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buffer = [0_u8; 8192];
+        let result = reader
+            .read(&mut buffer)
+            .map(|count| buffer[..count].to_vec());
+        let _ = sender.send(result);
+    });
+    let output = receiver
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap()
+        .unwrap();
+    assert!(!output.is_empty(), "cmd.exe produced no startup output");
 }

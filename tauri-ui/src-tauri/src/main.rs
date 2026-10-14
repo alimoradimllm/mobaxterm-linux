@@ -289,7 +289,7 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Shell") && !value.shell.trim().is_empty()) {
         (session.shell.clone(), Vec::new())
     } else if cfg!(windows) {
-        ("cmd.exe".into(), vec!["/Q".into(), "/K".into()])
+        (std::env::var("ComSpec").unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".into()), vec!["/Q".into(), "/K".into()])
     } else {
         ("/bin/sh".into(), vec!["-l".into()])
     };
@@ -307,14 +307,38 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
         match result {
             Ok(data) if !data.is_empty() => {
                 if let Ok(mut active) = recordings.lock() {
-                    if let Some(file) = active.get_mut(&id) { let _ = file.write_all(&data); let _ = file.flush(); }
+                    if let Some(file) = active.get_mut(&id) {
+                        let _ = file.write_all(&data);
+                        let _ = file.flush();
+                    }
                 }
-                let event = TerminalEvent { id: id.clone(), data: String::from_utf8_lossy(&data).into_owned() };
+                let event = TerminalEvent {
+                    id: id.clone(),
+                    data: String::from_utf8_lossy(&data).into_owned(),
+                };
                 let _ = app.emit("terminal-output", event);
             }
-            _ => {
-                if let Ok(mut active) = recordings.lock() { active.remove(&id); }
-                if let Ok(mut active) = processes.lock() { active.remove(&id); }
+            Ok(_) => {
+                if let Ok(mut active) = recordings.lock() {
+                    active.remove(&id);
+                }
+                if let Ok(mut active) = processes.lock() {
+                    active.remove(&id);
+                }
+                let _ = app.emit("terminal-exit", TerminalEvent { id: id.clone(), data: String::new() });
+                break;
+            }
+            Err(error) => {
+                let _ = app.emit("terminal-output", TerminalEvent {
+                    id: id.clone(),
+                    data: format!("\r\n[terminal read error: {error}]\r\n"),
+                });
+                if let Ok(mut active) = recordings.lock() {
+                    active.remove(&id);
+                }
+                if let Ok(mut active) = processes.lock() {
+                    active.remove(&id);
+                }
                 let _ = app.emit("terminal-exit", TerminalEvent { id: id.clone(), data: String::new() });
                 break;
             }
