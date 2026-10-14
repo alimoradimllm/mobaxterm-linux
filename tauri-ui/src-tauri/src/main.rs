@@ -1426,6 +1426,15 @@ fn sftp_operation(
     Ok(text)
 }
 
+fn format_socket_address(target: &str, port: u16) -> String {
+    let target = target.trim().trim_matches(['[', ']']);
+    if target.contains(':') {
+        format!("[{}]:{}", target, port)
+    } else {
+        format!("{}:{}", target, port)
+    }
+}
+
 #[tauri::command]
 fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<String, String> {
     if target.trim().is_empty() {
@@ -1440,7 +1449,7 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
         if port == 0 {
             return Err("port must be non-zero".into());
         }
-        let address = format!("{}:{}", target, port);
+        let address = format_socket_address(&target, port);
         let resolved = address.to_socket_addrs().map_err(|e| e.to_string())?;
         for socket in resolved {
             if TcpStream::connect_timeout(&socket, Duration::from_secs(3)).is_ok() {
@@ -1518,7 +1527,7 @@ fn scan_ports(target: String, start_port: u16, end_port: u16) -> Result<String, 
     }
     let mut lines = Vec::new();
     for port in start_port..=end_port {
-        let address = format!("{}:{}", target.trim(), port);
+        let address = format_socket_address(&target, port);
         let started = Instant::now();
         let open = address
             .to_socket_addrs()
