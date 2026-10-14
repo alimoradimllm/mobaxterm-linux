@@ -167,7 +167,7 @@ of full third-party terminal workspace parity.
 ## P2: advanced tools and operations
 
 - Manage X-server lifecycle, tray state, XDMCP, and access control.
-- Network diagnostics now preflight platform ping/traceroute/DNS tools, use Rust sockets for TCP checks, bound ping to four one-second probes, and bound traceroute to 12 hops with 1-second per-hop waits; add network scanner and real bandwidth/latency panels.
+- Network diagnostics now preflight platform ping/traceroute/DNS tools, reject empty/oversized/control-character targets, use Rust sockets for TCP checks, bound ping to four one-second probes, and bound traceroute to 12 hops with 1-second per-hop waits; add network scanner and real bandwidth/latency panels.
 - Add local/remote process, service, and disk-usage viewers.
 - Add text and hex editor workflows with safe file boundaries.
 - Replace placeholder status values with measured CPU, memory, throughput,

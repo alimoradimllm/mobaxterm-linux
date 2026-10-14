@@ -1431,6 +1431,9 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
     if target.trim().is_empty() {
         return Err("network target cannot be empty".into());
     }
+    if target.len() > 255 || target.chars().any(|character| character.is_control()) {
+        return Err("network target is invalid or too long".into());
+    }
     let tool = tool.to_ascii_lowercase();
     if tool == "port" {
         let port = port.ok_or("port is required for a TCP check")?;
