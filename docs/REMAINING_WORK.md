@@ -105,9 +105,9 @@ of full third-party terminal workspace parity.
 
 - Local and remote browsers, rename/delete/mkdir/permissions, local metadata,
   transfer queue, progress, cancellation, retry, resume, drag/drop, previews,
-  bounded local editing, remote edit-copy, and non-resumable SCP fallback are
-  implemented. Reliable upload-byte progress and disposable-target runtime
-  coverage remain open.
+  bounded local editing, remote edit-copy, direct-operation SFTP preflight, and
+  non-resumable SCP fallback are implemented. Reliable upload-byte progress and
+  disposable-target runtime coverage remain open.
 - Add integration tests with a disposable local SSH/SFTP server.
 
 ## P1: workspace and protocol parity

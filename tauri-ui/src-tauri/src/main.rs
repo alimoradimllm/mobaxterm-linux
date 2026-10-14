@@ -844,6 +844,15 @@ fn serial_devices() -> Result<Vec<String>, String> {
     }
 }
 
+fn require_sftp_client() -> Result<(), String> {
+    let executable = if cfg!(windows) { "sftp.exe" } else { "sftp" };
+    if executable_available(executable) {
+        Ok(())
+    } else {
+        Err("SFTP client is unavailable: sftp".into())
+    }
+}
+
 #[tauri::command]
 fn sftp_preview(
     host: String,
@@ -854,6 +863,7 @@ fn sftp_preview(
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
     }
+    require_sftp_client()?;
     if remote_path.trim().is_empty() || remote_path.chars().any(|c| c.is_control() || c == '"') {
         return Err("invalid remote preview path".into());
     }
@@ -1060,6 +1070,7 @@ fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
     }
+    require_sftp_client()?;
     if path.trim().is_empty()
         || path
             .chars()
@@ -1111,6 +1122,7 @@ fn sftp_transfer(
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
     }
+    require_sftp_client()?;
     let direction = direction.to_ascii_lowercase();
     if !["upload", "download"].contains(&direction.as_str()) {
         return Err("SFTP transfer must be upload or download".into());
@@ -1362,6 +1374,7 @@ fn sftp_operation(
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
     }
+    require_sftp_client()?;
     let operation = operation.to_ascii_lowercase();
     if !["mkdir", "rename", "delete", "chmod"].contains(&operation.as_str()) {
         return Err("unsupported SFTP operation".into());
