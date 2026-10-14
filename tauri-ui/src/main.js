@@ -38,6 +38,18 @@ function status(message, error = false) {
   statusEl.style.color = error ? '#ff6b6b' : '#55d18a';
 }
 
+function debugLog(component, message) {
+  if (!invoke) return;
+  invoke('debug_log', { component, message: String(message) }).catch(() => {});
+}
+
+try {
+  const debugSettings = JSON.parse(localStorage.getItem('moraxterm-debug-settings') || '{}');
+  if (debugSettings.enabled) invoke('configure_debug_logging', { enabled: true, path: debugSettings.path || '' }).catch(() => {});
+} catch { /* ignore malformed local settings */ }
+
+debugLog('frontend', 'application initialized');
+
 function iconFor(type) {
   return { SSH: '🔑', Rdp: '▣', Vnc: '◉', WSL: '▸', Shell: '⌂', Serial: '⌁' }[type] || '▸';
 }
@@ -194,7 +206,10 @@ function terminalTheme() {
 
 function launchTerminal(id, session) {
   if (!invoke) return;
-  invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null }).catch(error => status(`Terminal start failed: ${error}`, true));
+  debugLog('frontend', `start_terminal requested id=${id} type=${session.session_type} name=${session.name}`);
+  invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null })
+    .then(() => debugLog('frontend', `start_terminal accepted id=${id}`))
+    .catch(error => { debugLog('frontend', `start_terminal failed id=${id} error=${error}`); status(`Terminal start failed: ${error}`, true); });
 }
 
 function resumeTab(id) {
@@ -452,6 +467,26 @@ function showSettings() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<section class="settings-modal"><header><strong>Moraxterm settings</strong><button data-close>×</button></header><nav class="settings-tabs"><button class="active" data-panel="general">◆ General</button><button data-panel="terminal">▣ Terminal</button><button data-panel="x11">⚔ X11</button><button data-panel="ssh">🔑 SSH</button><button data-panel="display">▣ Display</button><button data-panel="toolbar">⚒ Toolbar</button><button data-panel="misc">⚙ Misc</button></nav><div class="settings-panels"><div data-view="general" class="settings-view active"><h3>General</h3><label>Terminal home directory<input value="AppDataDir/Moraxterm/home"></label><label>Terminal root directory<input value="AppDataDir/Moraxterm/root"></label><label>Default text editor<input value="&lt;default&gt;"></label><label class="check"><input type="checkbox" checked> Automatically back up session configuration</label></div><div data-view="terminal" class="settings-view"><h3>Default terminal look and feel</h3><div class="setting-buttons"><button>Default font settings</button><button>Default color settings</button><button>Expert settings</button></div><label>Local shell environment<select><option>Windows shell</option><option>WSL</option><option>Custom executable</option></select></label><label class="check"><input type="checkbox" checked> Cursor blink</label></div><div data-view="x11" class="settings-view"><h3>Server settings</h3><label class="check"><input type="checkbox" checked> Automatically start X server on application startup</label><label>X11 display mode<select><option>Multiwindow mode</option><option>Fullscreen mode</option></select></label><label class="check"><input type="checkbox" checked> Clipboard integration</label></div><div data-view="ssh" class="settings-view"><h3>SSH settings</h3><label class="check"><input type="checkbox" checked> Enable graphical SSH browser</label><label class="check"><input type="checkbox" checked> Remote monitoring</label><label class="check"><input type="checkbox"> Validate host identity at first connection</label><label>SSH keepalive<select><option>Disabled</option><option>30 seconds</option><option>60 seconds</option></select></label></div><div data-view="display" class="settings-view"><h3>Display</h3><label>Interface density<select><option>Compact</option><option>Comfortable</option></select></label><label class="check"><input type="checkbox" checked> Show toolbar labels</label></div><div data-view="toolbar" class="settings-view"><h3>Toolbar</h3><label class="check"><input type="checkbox" checked> Show session toolbar</label><label class="check"><input type="checkbox" checked> Show quick connect bar</label></div><div data-view="misc" class="settings-view"><h3>Miscellaneous</h3><label class="check"><input type="checkbox" checked> Confirm terminal close</label><label class="check"><input type="checkbox"> Start minimized</label></div></div><footer><button data-close>Cancel</button><button class="primary" data-apply>OK</button></footer></section>`;
   document.body.appendChild(overlay);
+  const miscPanel = overlay.querySelector('[data-view="misc"]');
+  if (miscPanel) {
+    miscPanel.insertAdjacentHTML('beforeend', `<section class="settings-group debug-settings"><h3>Debug logging</h3><label><input type="checkbox" data-debug-enabled> Enable diagnostic logging</label><label>Log file path<input type="text" data-debug-path placeholder="Default application-data path"></label><p class="muted" data-debug-status>Logging is disabled.</p><button type="button" data-debug-apply>Apply logging settings</button></section>`);
+    const enabled = miscPanel.querySelector('[data-debug-enabled]');
+    const path = miscPanel.querySelector('[data-debug-path]');
+    const status = miscPanel.querySelector('[data-debug-status]');
+    const saved = JSON.parse(localStorage.getItem('moraxterm-debug-settings') || '{}');
+    enabled.checked = saved.enabled === true;
+    path.value = saved.path || '';
+    overlay.querySelector('[data-debug-apply]').onclick = async () => {
+      try {
+        const activePath = await invoke('configure_debug_logging', { enabled: enabled.checked, path: path.value });
+        path.value = activePath;
+        localStorage.setItem('moraxterm-debug-settings', JSON.stringify({ enabled: enabled.checked, path: activePath }));
+        status.textContent = enabled.checked ? `Logging enabled: ${activePath}` : 'Logging disabled.';
+      } catch (error) {
+        status.textContent = `Could not configure logging: ${error}`;
+      }
+    };
+  }
   const close = () => overlay.remove();
   overlay.querySelectorAll('[data-close]').forEach(button => button.onclick = close);
   overlay.querySelector('[data-apply]').onclick = close;
