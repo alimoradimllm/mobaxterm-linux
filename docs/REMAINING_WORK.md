@@ -46,6 +46,8 @@ of full third-party terminal workspace parity.
   progress and drag-and-drop remain open.
 - The SFTP browser now exposes a resume option backed by OpenSSH `reget` and
   `reput`. Byte-level progress and drag-and-drop remain open.
+- The SFTP local pane now accepts dropped files and queues them for upload.
+  Byte-level progress remains open.
 
 ## P0: daily terminal and SSH workflow
 
