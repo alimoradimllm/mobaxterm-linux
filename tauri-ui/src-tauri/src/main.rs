@@ -658,6 +658,36 @@ fn shell_available(shell: String) -> bool {
 }
 
 #[tauri::command]
+fn wsl_distributions() -> Result<Vec<String>, String> {
+    if !cfg!(windows) {
+        return Err("WSL distribution discovery is only available on Windows".into());
+    }
+    let output = Command::new("wsl.exe")
+        .args(["--list", "--quiet"])
+        .output()
+        .map_err(|e| format!("cannot run wsl.exe: {e}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    let text = if output.stdout.contains(&0) {
+        let units = output
+            .stdout
+            .chunks_exact(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect::<Vec<_>>();
+        String::from_utf16_lossy(&units)
+    } else {
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    };
+    let values = text
+        .lines()
+        .map(|line| line.trim_matches('\u{feff}').trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    Ok(values)
+}
+
+#[tauri::command]
 fn sftp_preview(
     host: String,
     username: String,
@@ -1766,6 +1796,7 @@ pub fn run() {
             local_preview,
             open_local_path,
             shell_available,
+            wsl_distributions,
             sftp_preview,
             ssh_known_hosts_status,
             ssh_known_hosts_remove,

@@ -282,7 +282,21 @@ function showEditor(session = {}) {
   const protocolFields = [['wsl_user', 'WSL user', session.wsl_user || '', 'Optional Linux user'], ['wsl_command', 'WSL command', session.wsl_command || '', 'Optional command'], ['telnet_mode', 'Telnet mode', session.telnet_mode || '', 'Raw / line']];
   const serialField = form.querySelector('[name="serial_flow_control"]');
   protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
-  form.querySelectorAll('[name="wsl_user"], [name="wsl_command"], [name="telnet_mode"]').forEach(field => field.closest('label')?.setAttribute('data-editor-section', 'advanced'));
+  const wslRow = document.createElement('label');
+  wslRow.innerHTML = 'WSL distribution <select data-wsl-distribution><option value="">Discover installed distributions</option></select><button type="button" data-wsl-refresh>Refresh</button><span data-wsl-status></span>';
+  serialField?.closest('label')?.after(wslRow);
+  wslRow.setAttribute('data-editor-section', 'advanced');
+  const wslDistribution = wslRow.querySelector('[data-wsl-distribution]');
+  const refreshWslDistributions = async () => {
+    try {
+      const values = await invoke('wsl_distributions');
+      wslDistribution.innerHTML = '<option value="">Select a distribution</option>' + values.map(value => `<option value="${value.replaceAll('"', '&quot;')}">${value}</option>`).join('');
+      if (values.includes(form.host.value)) wslDistribution.value = form.host.value;
+      wslRow.querySelector('[data-wsl-status]').textContent = ` ${values.length} found`;
+    } catch (error) { wslRow.querySelector('[data-wsl-status]').textContent = ` ${error}`; }
+  };
+  wslDistribution.onchange = () => { if (wslDistribution.value) form.host.value = wslDistribution.value; };
+  wslRow.querySelector('[data-wsl-refresh]').onclick = refreshWslDistributions;
   const knownHostsRow = document.createElement('label');
   knownHostsRow.innerHTML = 'Known-hosts status <button type="button" data-known-hosts>Check</button><button type="button" data-known-hosts-scan>Scan fingerprint</button><button type="button" data-known-hosts-approve disabled>Approve scanned key</button><span data-known-hosts-status></span>';
   form.host_key_policy.closest('label')?.after(knownHostsRow);
@@ -351,6 +365,7 @@ function showEditor(session = {}) {
   const protocolButtons = [...form.querySelectorAll('.editor-protocols button')];
   const protocolTypes = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell', 'Serial'];
   const selectProtocol = type => {
+    wslRow.hidden = type !== 'WSL';
     form.session_type.value = type;
     protocolButtons.forEach((button, index) => button.classList.toggle('active', protocolTypes[index] === type));
     showEditorSection(type === 'SSH' ? 'basic' : 'advanced');
