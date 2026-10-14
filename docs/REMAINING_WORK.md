@@ -116,7 +116,7 @@ of full third-party terminal workspace parity.
 - Add horizontal panes and draggable pane boundaries. *(Implemented in source; installed-app verification remains open.)*
 - Add tab movement, duplication, and detachment into a separate window. *(Tab movement and duplication implemented; detachment remains open.)*
 - Add close confirmation for active connections. *(Implemented in source; installed-app verification remains open.)*
-- Add selective MultiExec targets, per-session output, status, and stop controls.
+- Selective MultiExec targets, per-session output, status, and stop controls. *(Implemented in source; live desktop verification passed for banner, two tabs, exclusion control, and sent status.)*
 - Add multiple tunnel profiles and concurrent tunnel status/logs.
 - Persist macro libraries with explicit import/export and secure content handling.
 

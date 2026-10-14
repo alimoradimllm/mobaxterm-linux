@@ -544,6 +544,7 @@ function openTab(session) {
     else if (multiExec) multiExecTargets.add(id);
     tabState(id).excluded = event.target.checked;
     updateMultiExecBanner();
+    renderMultiExecManager();
   };
   const terminalHost = document.createElement('div');
   terminalHost.className = 'terminal-host';
@@ -1009,6 +1010,13 @@ async function stopMultiExecTarget(id) {
   } catch (error) { status(`Stop failed: ${error}`, true); }
 }
 
+function syncMultiExecTargetUi() {
+  tabs.forEach((tab, id) => {
+    const checkbox = tab.pane.querySelector(`[data-exclude-id="${id}"]`);
+    if (checkbox) checkbox.checked = Boolean(tab.excluded);
+  });
+}
+
 function renderMultiExecManager() {
   const overlay = document.querySelector('.multiexec-manager');
   if (!overlay) return;
@@ -1017,6 +1025,9 @@ function renderMultiExecManager() {
   overlay.querySelectorAll('[data-target-id]').forEach(input => input.onchange = () => {
     if (input.checked) multiExecTargets.add(input.dataset.targetId);
     else multiExecTargets.delete(input.dataset.targetId);
+    const target = tabs.get(input.dataset.targetId);
+    if (target) target.excluded = !input.checked;
+    syncMultiExecTargetUi();
     status(`${multiExecTargets.size} MultiExec target${multiExecTargets.size === 1 ? '' : 's'} selected`);
   });
   overlay.querySelectorAll('[data-stop-id]').forEach(button => button.onclick = () => stopMultiExecTarget(button.dataset.stopId));
@@ -1039,8 +1050,8 @@ function toggleMultiExec() {
   document.body.appendChild(overlay);
   const close = () => { overlay.remove(); };
   overlay.querySelectorAll('[data-close]').forEach(element => element.onclick = close);
-  overlay.querySelector('[data-select-all]').onclick = () => { multiExecTargets = new Set([...tabs.entries()].filter(([, tab]) => !tab.exited).map(([id]) => id)); renderMultiExecManager(); };
-  overlay.querySelector('[data-clear]').onclick = () => { multiExecTargets.clear(); renderMultiExecManager(); };
+  overlay.querySelector('[data-select-all]').onclick = () => { multiExecTargets = new Set([...tabs.entries()].filter(([, tab]) => !tab.exited).map(([id]) => id)); tabs.forEach(tab => { tab.excluded = false; }); syncMultiExecTargetUi(); renderMultiExecManager(); };
+  overlay.querySelector('[data-clear]').onclick = () => { multiExecTargets.clear(); tabs.forEach(tab => { tab.excluded = true; }); syncMultiExecTargetUi(); renderMultiExecManager(); };
   renderMultiExecManager();
   updateMultiExecBanner();
   status(`MultiExec enabled for ${tabs.size} open terminals`);
