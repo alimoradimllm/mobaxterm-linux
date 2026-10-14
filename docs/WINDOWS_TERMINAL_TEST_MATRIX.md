@@ -1,6 +1,6 @@
 # Windows terminal compatibility test matrix
 
-_Last reviewed: 2026-10-14. Release under test: `v0.1.13`._
+_Last reviewed: 2026-10-14. Release under test: `v0.1.14`._
 
 This matrix records tests that must be run in the real Windows desktop
 application. A build or Rust unit test is not sufficient evidence for these
