@@ -10,7 +10,7 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Default)]
@@ -1519,11 +1519,18 @@ fn scan_ports(target: String, start_port: u16, end_port: u16) -> Result<String, 
     let mut lines = Vec::new();
     for port in start_port..=end_port {
         let address = format!("{}:{}", target.trim(), port);
+        let started = Instant::now();
         let open = address
             .to_socket_addrs()
             .map_err(|error| error.to_string())?
             .any(|socket| TcpStream::connect_timeout(&socket, Duration::from_millis(250)).is_ok());
-        lines.push(format!("{} {}", port, if open { "open" } else { "closed" }));
+        let elapsed_ms = started.elapsed().as_millis();
+        lines.push(format!(
+            "{} {} {}ms",
+            port,
+            if open { "open" } else { "closed" },
+            elapsed_ms
+        ));
         std::thread::sleep(Duration::from_millis(25));
     }
     Ok(lines.join("\n"))
