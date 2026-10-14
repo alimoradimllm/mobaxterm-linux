@@ -157,6 +157,11 @@ of full third-party terminal workspace parity.
   automatic update support.
 - Add code signing, dependency scanning, secret scanning, reproducible builds,
   and signed release verification.
+- CI now runs `cargo audit` for both Rust lockfiles, `npm audit --audit-level=high`,
+  and Gitleaks on pushes, pull requests, and a weekly schedule. Local audit
+  results currently report no npm vulnerabilities, plus advisory warnings for
+  the unmaintained `serial`/`proc-macro-error` crates and the `glib` unsoundness
+  advisory; dependency replacement remains open.
 - Run installation tests in clean Windows and Linux virtual machines.
 
 ## P3: deferred

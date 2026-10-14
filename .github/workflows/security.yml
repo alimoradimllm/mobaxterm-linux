@@ -1,0 +1,37 @@
+name: Security checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-and-secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust audit tool
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit Rust dependencies
+        run: cargo audit --file rust-core/Cargo.lock && cargo audit --file tauri-ui/src-tauri/Cargo.lock
+
+      - name: Audit frontend dependencies
+        working-directory: tauri-ui
+        run: npm audit --audit-level=high
+
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
