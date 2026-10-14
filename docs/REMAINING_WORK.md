@@ -30,6 +30,9 @@ of full third-party terminal workspace parity.
   credentials must never be entered into logs or documentation.
 - v0.1.13 includes opt-in diagnostic logging from Settings at
   `%APPDATA%\\Moraxterm\\moraxterm-debug.log` by default.
+- Terminal state feedback now distinguishes startup, connected, failed, and
+  exited tabs. Full remote connection status, latency, retry policy, and
+  authenticated SSH lifecycle tests remain open.
 
 ## P0: daily terminal and SSH workflow
 

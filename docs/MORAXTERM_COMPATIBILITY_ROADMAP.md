@@ -60,6 +60,7 @@ observed behavior, public protocol tooling, and independent code.
 - The Windows Tauri bridge now stores SQLite data under `%APPDATA%\\Moraxterm`, while Linux keeps its XDG-style data path; the platform-specific path was verified by installing the corrected Windows build and loading persisted sessions.
 - v0.1.13 adds the Tauri event-listener permissions required for frontend terminal output delivery. Local Shell was verified with live Windows output, and saved SSH session `ge` was verified to reach the SSH password prompt without hanging or crashing. Credentials were not entered or retained.
 - v0.1.13 provides opt-in diagnostic logging from Settings. Logs default to `%APPDATA%\\Moraxterm\\moraxterm-debug.log` and sanitize sensitive values.
+- Terminal tabs now expose starting, connected, failed, and exited states in the UI; exited tabs show a reconnect instruction and no longer reference an unsafe raw event payload.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).
