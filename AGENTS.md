@@ -143,7 +143,8 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Macro library persistence/import/export is implemented in source; installed-app file-dialog runtime testing remains open.
 - Local Shell settings persist a selector for system default, cmd, PowerShell, Bash, Fish, Zsh, and Nushell; the Settings UI checks PATH and disables unavailable optional shells. Installed-build verification passed for system default `cmd.exe`; optional-shell runtime checks remain open.
 - WSL distribution discovery is implemented through `wsl.exe --list --verbose` with UTF-16LE decoding; the selector displays distro name, running state, and WSL version while saving the raw distro name. Runtime launch tests remain open.
-- Embedded RDP/VNC, Serial discovery, advanced Telnet, WSL selector testing.
+- Serial device discovery is implemented for Windows registry COM ports and Linux `/dev` serial devices; no serial device is present on the current host for runtime launch testing.
+- Embedded RDP/VNC, Serial hardware runtime testing, advanced Telnet, WSL selector testing.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.
 - Authenticode/package signing, updater implementation, reproducible builds, ARM64, AppImage, and Flatpak.

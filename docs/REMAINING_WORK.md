@@ -150,7 +150,9 @@ of full third-party terminal workspace parity.
 - Windows RDP launch planning now uses the installed native `mstsc.exe`; Linux
   continues to use `xfreerdp`. Embedded-window behavior and runtime connection
   testing remain open.
-- Add Serial device discovery and baud/data/parity/flow-control configuration.
+- Serial session editing now includes Refresh/discovery for Windows COM ports
+  through the registry and Linux `/dev/ttyUSB*`, `/dev/ttyACM*`, and `/dev/ttyS*`
+  devices. This host currently has no detected serial device.
 - Add Telnet options, break signal, and file transfer controls.
 - WSL session editing now includes a Refresh/discovery control backed by
   `wsl.exe --list --verbose`, with UTF-16LE Windows output decoding. The selector

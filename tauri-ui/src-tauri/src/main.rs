@@ -711,6 +711,44 @@ fn wsl_distributions() -> Result<Vec<WslDistribution>, String> {
 }
 
 #[tauri::command]
+fn serial_devices() -> Result<Vec<String>, String> {
+    #[cfg(windows)]
+    {
+        let output = Command::new("reg.exe")
+            .args(["query", "HKLM\\HARDWARE\\DEVICEMAP\\SERIALCOMM"])
+            .output()
+            .map_err(|e| format!("cannot query serial devices: {e}"))?;
+        if !output.status.success() {
+            return Ok(Vec::new());
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut devices = text
+            .lines()
+            .filter_map(|line| line.split_whitespace().last())
+            .filter(|value| value.to_ascii_uppercase().starts_with("COM"))
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        devices.sort_by_key(|value| value.to_ascii_lowercase());
+        devices.dedup();
+        return Ok(devices);
+    }
+    #[cfg(not(windows))]
+    {
+        let mut devices = fs::read_dir("/dev")
+            .map_err(|e| format!("cannot query serial devices: {e}"))?
+            .filter_map(Result::ok)
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .filter(|name| {
+                name.starts_with("ttyUSB") || name.starts_with("ttyACM") || name.starts_with("ttyS")
+            })
+            .map(|name| format!("/dev/{name}"))
+            .collect::<Vec<_>>();
+        devices.sort();
+        Ok(devices)
+    }
+}
+
+#[tauri::command]
 fn sftp_preview(
     host: String,
     username: String,
@@ -1820,6 +1858,7 @@ pub fn run() {
             open_local_path,
             shell_available,
             wsl_distributions,
+            serial_devices,
             sftp_preview,
             ssh_known_hosts_status,
             ssh_known_hosts_remove,

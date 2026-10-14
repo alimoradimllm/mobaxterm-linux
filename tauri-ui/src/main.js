@@ -297,6 +297,21 @@ function showEditor(session = {}) {
   };
   wslDistribution.onchange = () => { if (wslDistribution.value) form.host.value = wslDistribution.value; };
   wslRow.querySelector('[data-wsl-refresh]').onclick = refreshWslDistributions;
+  const serialRow = document.createElement('label');
+  serialRow.innerHTML = 'Serial device <select data-serial-device><option value="">Discover devices</option></select><button type="button" data-serial-refresh>Refresh</button><span data-serial-status></span>';
+  serialField?.closest('label')?.after(serialRow);
+  serialRow.setAttribute('data-editor-section', 'advanced');
+  const serialDevice = serialRow.querySelector('[data-serial-device]');
+  const refreshSerialDevices = async () => {
+    try {
+      const values = await invoke('serial_devices');
+      serialDevice.innerHTML = '<option value="">Select a device</option>' + values.map(value => `<option value="${value.replaceAll('"', '&quot;')}">${value}</option>`).join('');
+      if (values.includes(form.host.value)) serialDevice.value = form.host.value;
+      serialRow.querySelector('[data-serial-status]').textContent = ` ${values.length} found`;
+    } catch (error) { serialRow.querySelector('[data-serial-status]').textContent = ` ${error}`; }
+  };
+  serialDevice.onchange = () => { if (serialDevice.value) form.host.value = serialDevice.value; };
+  serialRow.querySelector('[data-serial-refresh]').onclick = refreshSerialDevices;
   const knownHostsRow = document.createElement('label');
   knownHostsRow.innerHTML = 'Known-hosts status <button type="button" data-known-hosts>Check</button><button type="button" data-known-hosts-scan>Scan fingerprint</button><button type="button" data-known-hosts-approve disabled>Approve scanned key</button><span data-known-hosts-status></span>';
   form.host_key_policy.closest('label')?.after(knownHostsRow);
@@ -366,6 +381,7 @@ function showEditor(session = {}) {
   const protocolTypes = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell', 'Serial'];
   const selectProtocol = type => {
     wslRow.hidden = type !== 'WSL';
+    serialRow.hidden = type !== 'Serial';
     form.session_type.value = type;
     protocolButtons.forEach((button, index) => button.classList.toggle('active', protocolTypes[index] === type));
     showEditorSection(type === 'SSH' ? 'basic' : 'advanced');
