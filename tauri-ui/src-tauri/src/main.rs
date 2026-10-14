@@ -729,6 +729,17 @@ fn wsl_distributions() -> Result<Vec<WslDistribution>, String> {
     Ok(values)
 }
 
+fn executable_available(executable: &str) -> bool {
+    let candidate = std::path::Path::new(executable);
+    if candidate.is_absolute() && candidate.is_file() {
+        return true;
+    }
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path).any(|directory| directory.join(executable).is_file())
+}
+
 #[tauri::command]
 fn protocol_client_available(protocol: String) -> bool {
     let executable = match protocol.trim().to_ascii_lowercase().as_str() {
@@ -1547,6 +1558,14 @@ fn start_terminal(
         if session.host.trim().is_empty() || session.port == 0 {
             return Err("RDP session requires host and a valid port".into());
         }
+        let executable = if cfg!(windows) {
+            "C:\\Windows\\System32\\mstsc.exe"
+        } else {
+            "xfreerdp"
+        };
+        if !executable_available(executable) {
+            return Err(format!("RDP client is unavailable: {executable}"));
+        }
         let args = vec![format!("/v:{}:{}", session.host, session.port)];
         (
             if cfg!(windows) {
@@ -1563,12 +1582,16 @@ fn start_terminal(
         if session.host.trim().is_empty() || session.port == 0 {
             return Err("VNC session requires host and a valid port".into());
         }
+        let executable = if cfg!(windows) {
+            "vncviewer.exe"
+        } else {
+            "vncviewer"
+        };
+        if !executable_available(executable) {
+            return Err(format!("VNC client is unavailable: {executable}"));
+        }
         (
-            if cfg!(windows) {
-                "vncviewer.exe".into()
-            } else {
-                "vncviewer".into()
-            },
+            executable.into(),
             vec![format!("{}:{}", session.host, session.port)],
         )
     } else if let Some(session) = session
@@ -1577,6 +1600,10 @@ fn start_terminal(
     {
         if session.host.trim().is_empty() {
             return Err("WSL session requires a distribution name".into());
+        }
+        let executable = if cfg!(windows) { "wsl.exe" } else { "wsl" };
+        if !executable_available(executable) {
+            return Err(format!("WSL client is unavailable: {executable}"));
         }
         let mut args = vec!["-d".into(), session.host.clone()];
         if !session.wsl_user.trim().is_empty() {
