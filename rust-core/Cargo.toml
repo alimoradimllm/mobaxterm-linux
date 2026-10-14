@@ -17,6 +17,9 @@ anyhow = "1"
 name = "moraxterm_core"
 path = "src/lib.rs"
 
+[dev-dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 [[bin]]
 name = "moraxterm-core"
 path = "src/main.rs"
