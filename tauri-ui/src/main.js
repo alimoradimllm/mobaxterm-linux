@@ -91,24 +91,31 @@ function renderSessions() {
       const heading = document.createElement('li');
       heading.className = 'session-group';
       heading.dataset.folder = folder;
+      heading.dataset.dropTarget = 'session-folder';
+      heading.title = 'Drop a session here to move it into this folder';
       heading.onclick = () => { selectedFolder = folder; sessionsEl.querySelectorAll('.session-group').forEach(item => item.classList.remove('selected')); heading.classList.add('selected'); };
       heading.style.paddingLeft = `${12 + depth * 14}px`;
       heading.textContent = `▾ ${part}`;
-      heading.ondragover = event => { event.preventDefault(); heading.style.outline = '1px solid var(--accent)'; };
-      heading.ondragleave = () => { heading.style.outline = ''; };
+      heading.ondragover = event => { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'; heading.classList.add('drop-target'); };
+      heading.ondragleave = () => { heading.classList.remove('drop-target'); };
       heading.ondrop = async event => {
         event.preventDefault();
-        heading.style.outline = '';
+        heading.classList.remove('drop-target');
         if (group === 'Recent') return;
         const name = event.dataTransfer?.getData('text/session-name');
         const session = sessions.find(item => item.name === name);
+        const previousFolder = session?.folder || '';
         if (!session || session.folder === folder) return;
         session.folder = folder;
         try {
           if (invoke) await invoke('save_session', { session });
           status(`Moved ${session.name} to ${folder}`);
           renderSessions();
-        } catch (error) { status(`Move failed: ${error}`, true); }
+        } catch (error) {
+          session.folder = previousFolder;
+          status(`Move failed: ${error}`, true);
+          renderSessions();
+        }
       };
       sessionsEl.appendChild(heading);
     });
@@ -116,10 +123,13 @@ function renderSessions() {
       const li = document.createElement('li');
       li.className = 'session-entry';
       li.draggable = true;
+      li.dataset.sessionName = session.name;
+      li.title = 'Drag this session onto a folder to move it';
       li.ondragstart = event => {
-        event.dataTransfer?.setData('text/session-name', session.name);
-        event.dataTransfer?.setData('text/plain', session.name);
+        if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/session-name', session.name); event.dataTransfer.setData('text/plain', session.name); }
+        li.classList.add('dragging');
       };
+      li.ondragend = () => li.classList.remove('dragging');
       li.innerHTML = `<button class="favorite-button" title="Toggle favorite">${session.favorite ? '★' : '☆'}</button><span class="session-icon">${iconFor(session.session_type)}</span><span>${session.name}</span><small>${session.host || ''}</small>`;
       li.querySelector('.favorite-button').onclick = async event => {
         event.stopPropagation();
