@@ -57,6 +57,9 @@ of full third-party terminal workspace parity.
 - SSH editing now checks whether a host entry exists in `known_hosts` without
   exposing fingerprints. Explicit approval/change-warning UI and updates remain
   open.
+- Strict SSH sessions now refuse launch when no matching `known_hosts` entry is
+  present. Native approval and changed-key warning UI remain delegated to
+  OpenSSH; managed in-app approval/update UI remains open.
 
 ## P0: daily terminal and SSH workflow
 

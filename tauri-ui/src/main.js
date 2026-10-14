@@ -235,7 +235,12 @@ function launchTerminal(id, session) {
   }
   status(`Starting ${session.name || session.session_type}...`);
   debugLog('frontend', `start_terminal requested id=${id} type=${session.session_type} name=${session.name}`);
-  invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null })
+  const preflight = session.session_type?.toUpperCase() === 'SSH' && session.host_key_policy === 'strict'
+    ? invoke('ssh_known_hosts_status', { host: session.host, port: Number(session.port || 22) }).then(result => {
+      if (!String(result).includes('entry_present=true')) throw new Error('strict host-key policy requires an existing known_hosts entry');
+    })
+    : Promise.resolve();
+  preflight.then(() => invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null }))
     .then(() => {
       const active = tabs.get(id);
       setTabConnectionState(id, 'connected');
