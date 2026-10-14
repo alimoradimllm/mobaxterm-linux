@@ -233,6 +233,7 @@ function showEditor(session = {}) {
   const protocolFields = [['wsl_user', 'WSL user', session.wsl_user || '', 'Optional Linux user'], ['wsl_command', 'WSL command', session.wsl_command || '', 'Optional command'], ['telnet_mode', 'Telnet mode', session.telnet_mode || '', 'Raw / line']];
   const serialField = form.querySelector('[name="serial_flow_control"]');
   protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
+  form.querySelectorAll('[name="wsl_user"], [name="wsl_command"], [name="telnet_mode"]').forEach(field => field.closest('label')?.setAttribute('data-editor-section', 'advanced'));
   const knownHostsRow = document.createElement('label');
   knownHostsRow.innerHTML = 'Known-hosts status <button type="button" data-known-hosts>Check</button><button type="button" data-known-hosts-scan>Scan fingerprint</button><button type="button" data-known-hosts-approve disabled>Approve scanned key</button><span data-known-hosts-status></span>';
   form.host_key_policy.closest('label')?.after(knownHostsRow);
@@ -274,12 +275,45 @@ function showEditor(session = {}) {
     try { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${await invoke('ssh_known_hosts_remove', { host: form.host.value.trim(), port: Number(form.port.value || 22) })}`; }
     catch (error) { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
   };
+  const sectionFields = {
+    basic: ['name', 'session_type', 'host', 'username', 'port', 'folder'],
+    advanced: ['working_directory', 'shell', 'proxy_jump', 'host_key_policy', 'keepalive_seconds', 'serial_baud', 'serial_data_bits', 'serial_parity', 'serial_stop_bits', 'serial_flow_control', 'wsl_user', 'wsl_command', 'telnet_mode', 'environment', 'startup_command'],
+    terminal: ['highlight_keywords', 'highlight_color'],
+    network: ['ssh_agent_monitor'],
+    bookmark: ['group', 'favorite']
+  };
+  const fieldSections = new Map(Object.entries(sectionFields).flatMap(([section, names]) => names.map(name => [name, section])));
+  form.querySelectorAll('input[name], select[name], textarea[name]').forEach(field => {
+    const label = field.closest('label');
+    const section = fieldSections.get(field.name) || 'advanced';
+    label?.setAttribute('data-editor-section', section);
+  });
+  knownHostsRow.setAttribute('data-editor-section', 'network');
+  credentialRow.setAttribute('data-editor-section', 'network');
+  const editorTabs = [...form.querySelectorAll('.editor-tabs button')];
+  const showEditorSection = section => {
+    form.querySelectorAll('[data-editor-section]').forEach(row => { row.hidden = row.dataset.editorSection !== section; });
+    editorTabs.forEach(button => button.classList.toggle('active', button.dataset.editorSection === section));
+  };
+  editorTabs.forEach((button, index) => {
+    button.dataset.editorSection = ['basic', 'advanced', 'terminal', 'network', 'bookmark'][index];
+    button.onclick = () => showEditorSection(button.dataset.editorSection);
+  });
+  showEditorSection('basic');
+  const checkAgent = async () => {
+    if (form.session_type.value.toUpperCase() !== 'SSH' || !sshAgentRow.querySelector('[name="ssh_agent_monitor"]').checked) return;
+    try { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${await invoke('ssh_agent_status')}`; }
+    catch (error) { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${error}`; }
+  };
+  const agentTimer = setInterval(checkAgent, 10000);
+  checkAgent();
+  const cleanupEditor = () => { clearInterval(agentTimer); overlay.remove(); };
   form.session_type.value = session.session_type || 'SSH';
   form.host_key_policy.value = session.host_key_policy || 'ask';
-  overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();
+  overlay.querySelector('[data-cancel]').onclick = cleanupEditor;
   overlay.querySelector('[data-delete]')?.addEventListener('click', async () => {
     if (invoke) await invoke('delete_session', { name: session.name });
-    overlay.remove();
+    cleanupEditor();
     await loadSessions();
   });
   form.onsubmit = async event => {
@@ -298,7 +332,7 @@ function showEditor(session = {}) {
         const secret = String(values.get('ssh_secret') || '');
         if (secret && record.session_type.toUpperCase() === 'SSH') await invoke('credential_store', { service: 'com.moraxterm.ssh', account: `${record.username.trim()}@${record.host.trim()}:${record.port}`, secret });
       }
-      overlay.remove();
+      cleanupEditor();
       await loadSessions();
       status(`Saved ${record.name}`);
     } catch (error) { status(`Save failed: ${error}`, true); }
