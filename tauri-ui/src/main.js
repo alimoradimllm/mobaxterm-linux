@@ -11,11 +11,12 @@ app.innerHTML = `
 <div class="toolbar"><button class="tool primary" data-action="new-shell"><span>▣</span><small>Session</small></button><button class="tool" data-action="sessions"><span>✣</span><small>Servers</small></button><button class="tool" data-action="tools"><span>⚒</span><small>Tools</small></button><button class="tool" data-action="load-sessions"><span>★</span><small>Sessions</small></button><button class="tool" data-action="view"><span>▣</span><small>View</small></button><button class="tool" data-action="split"><span>▤</span><small>Split</small></button><button class="tool" data-action="duplicate"><span>⧉</span><small>Duplicate</small></button><button class="tool" data-action="multiexec"><span>⇄</span><small>MultiExec</small></button><button class="tool" data-action="tunnel"><span>⇆</span><small>Tunneling</small></button><button class="tool" data-action="sftp"><span>⇅</span><small>Packages</small></button><button class="tool" data-action="settings"><span>⚙</span><small>Settings</small></button><button class="tool" data-action="help"><span>?</span><small>Help</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="xserver"><span>⚔</span><small>X server</small></button><button class="tool" data-action="close-app"><span>⏻</span><small>Exit</small></button></div>
 <div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
 <main><nav class="rail"><button class="rail-button active" title="Sessions" data-rail="sessions">★</button><button class="rail-button" title="Tools" data-rail="tools" data-action="tools">⚒</button><button class="rail-button" title="Macros" data-rail="macros" data-action="macros">➤</button><button class="rail-button" title="Favorites" data-rail="favorites">◆</button></nav><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Quick find sessions"/></div><div class="tree-header"><span>★ User sessions</span><button id="import-backup" title="Restore backup">⇩</button><button id="export-sessions" title="Export backup">⇧</button><button id="import-sessions" title="Import sessions">⇩</button><button id="new-session" title="New session">＋</button><button id="new-folder" title="New folder">📁＋</button><button id="rename-folder" title="Rename selected folder">✎</button><button id="delete-folder" title="Delete selected folder">🗑</button><button id="reload" title="Reload sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer"><span>▣ Remote monitoring</span><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
-<section class="workspace"><div id="home-screen" class="home-screen"><div class="welcome-mark">▣</div><h1>Moraxterm</h1><p class="welcome-subtitle">Your terminal workspace</p><div class="welcome-actions"><button data-action="new-shell">＋ Start local terminal</button><button data-action="load-sessions">↻ Recover previous sessions</button></div><input id="home-search" placeholder="Find existing session or server name..."/><h2>Recent sessions</h2><div id="recent-cards" class="recent-cards"></div></div><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
+<section class="workspace"><div id="multiexec-banner" class="multiexec-banner" hidden><span class="multiexec-symbol">⇄</span><strong>Multi-execution mode: commands are typed to all terminals</strong><button id="multi-paste">📋 Multi-paste</button><button id="multi-exit">✕ Exit multi-execution mode</button></div><div id="home-screen" class="home-screen"><div class="welcome-mark">▣</div><h1>Moraxterm</h1><p class="welcome-subtitle">Your terminal workspace</p><div class="welcome-actions"><button data-action="new-shell">＋ Start local terminal</button><button data-action="load-sessions">↻ Recover previous sessions</button></div><input id="home-search" placeholder="Find existing session or server name..."/><h2>Recent sessions</h2><div id="recent-cards" class="recent-cards"></div></div><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
 
 const sessionsEl = document.querySelector('#sessions');
 const tabsEl = document.querySelector('#tabs');
 const panesEl = document.querySelector('#panes');
+const multiExecBanner = document.querySelector('#multiexec-banner');
 const statusEl = document.querySelector('#status-message');
 let sessions = [];
 let sessionFolders = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-session-folders') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
@@ -48,6 +49,22 @@ const fallback = [
 function status(message, error = false) {
   statusEl.textContent = `${error ? '● Error' : '●'} ${message}`;
   statusEl.style.color = error ? '#ff6b6b' : '#55d18a';
+}
+
+function tabState(id) { return tabs.get(id) || {}; }
+function updateMultiExecBanner() {
+  multiExecBanner.hidden = !multiExec;
+  multiExecBanner.querySelector('strong').textContent = multiExec ? 'Multi-execution mode: commands are typed to all terminals' : '';
+}
+async function multiPaste() {
+  if (!multiExec) return;
+  try {
+    const data = await navigator.clipboard.readText();
+    if (!data) { status('Clipboard is empty', true); return; }
+    const destinations = [...(multiExecTargets.size ? multiExecTargets : tabs.keys())].filter(id => !tabState(id).excluded && !tabState(id).exited);
+    await Promise.all(destinations.map(id => invoke?.('write_terminal', { id, data })));
+    status(`Pasted to ${destinations.length} MultiExec terminal${destinations.length === 1 ? '' : 's'}`);
+  } catch (error) { status(`Multi-paste failed: ${error}`, true); }
 }
 
 function applyAppTheme() {
@@ -493,6 +510,16 @@ function openTab(session) {
   const pane = document.createElement('div');
   pane.className = 'pane';
   pane.dataset.id = id;
+  const paneControls = document.createElement('div');
+  paneControls.className = 'pane-controls';
+  paneControls.innerHTML = `<label><input type="checkbox" data-exclude-id="${id}"> Exclude "${session.name.replaceAll('"', '&quot;')}" from MultiExec mode</label><span data-command-status="${id}">● ready</span>`;
+  pane.appendChild(paneControls);
+  paneControls.querySelector('input').onchange = event => {
+    if (event.target.checked) multiExecTargets.delete(id);
+    else if (multiExec) multiExecTargets.add(id);
+    tabState(id).excluded = event.target.checked;
+    updateMultiExecBanner();
+  };
   const terminalHost = document.createElement('div');
   terminalHost.className = 'terminal-host';
   pane.appendChild(terminalHost);
@@ -513,9 +540,9 @@ function openTab(session) {
     if (macroRecording) macroBuffer.push(data);
     if (!invoke) return;
     const destinations = multiExec ? [...(multiExecTargets.size ? multiExecTargets : tabs.keys())] : [id];
-    await Promise.all(destinations.map(async target => {
-      try { await invoke('write_terminal', { id: target, data }); }
-      catch (error) { status(`Terminal input failed: ${error}`, true); }
+    await Promise.all(destinations.filter(target => !tabState(target).excluded && !tabState(target).exited).map(async target => {
+      try { await invoke('write_terminal', { id: target, data }); document.querySelector(`[data-command-status="${target}"]`)?.replaceChildren(document.createTextNode('✓ sent')); }
+      catch (error) { document.querySelector(`[data-command-status="${target}"]`)?.replaceChildren(document.createTextNode('✕ failed')); status(`Terminal input failed: ${error}`, true); }
     }));
   });
   tabs.set(id, { pane, terminal, fit, session, exited: false, outputSeen: false, connectionState: 'starting' });
@@ -969,6 +996,7 @@ function toggleMultiExec() {
   if (!multiExec) {
     multiExecTargets.clear();
     document.querySelector('.multiexec-manager')?.remove();
+    updateMultiExecBanner();
     status('MultiExec disabled');
     return;
   }
@@ -981,6 +1009,7 @@ function toggleMultiExec() {
   overlay.querySelector('[data-select-all]').onclick = () => { multiExecTargets = new Set([...tabs.entries()].filter(([, tab]) => !tab.exited).map(([id]) => id)); renderMultiExecManager(); };
   overlay.querySelector('[data-clear]').onclick = () => { multiExecTargets.clear(); renderMultiExecManager(); };
   renderMultiExecManager();
+  updateMultiExecBanner();
   status(`MultiExec enabled for ${tabs.size} open terminals`);
 }
 
@@ -1063,6 +1092,8 @@ document.querySelector('#connect').onclick = () => {
   const host = document.querySelector('#quick').value.trim();
   if (host) openTab({ name: host, session_type: 'SSH', host });
 };
+document.querySelector('#multi-paste').onclick = multiPaste;
+document.querySelector('#multi-exit').onclick = () => { if (multiExec) toggleMultiExec(); };
 document.querySelectorAll('[data-action]').forEach(button => button.onclick = () => {
   const action = button.dataset.action;
   if (action === 'new-shell') openTab({ name: 'Local Shell', session_type: 'Shell', host: '' });
