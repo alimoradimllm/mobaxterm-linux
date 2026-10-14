@@ -57,6 +57,8 @@ struct SftpTransferEvent {
     id: String,
     success: bool,
     message: String,
+    transferred_bytes: Option<u64>,
+    total_bytes: Option<u64>,
 }
 
 fn debug_write(logger: &Arc<Mutex<DebugConfig>>, component: &str, message: &str) {
@@ -722,8 +724,25 @@ fn start_sftp_transfer(
         .insert(id.clone(), child);
     let jobs = Arc::clone(&state.sftp_jobs);
     let job_id = id.clone();
+    let progress_app = app.clone();
+    let progress_path = local_path.clone();
+    let progress_direction = direction.clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(100));
+        if progress_direction == "download" {
+            if let Ok(metadata) = std::fs::metadata(&progress_path) {
+                let _ = progress_app.emit(
+                    "sftp-transfer-progress",
+                    SftpTransferEvent {
+                        id: job_id.clone(),
+                        success: false,
+                        message: "progress".into(),
+                        transferred_bytes: Some(metadata.len()),
+                        total_bytes: None,
+                    },
+                );
+            }
+        }
         let finished = {
             let mut active = match jobs.lock() {
                 Ok(value) => value,
@@ -761,6 +780,8 @@ fn start_sftp_transfer(
                 id: job_id.clone(),
                 success,
                 message,
+                transferred_bytes: None,
+                total_bytes: None,
             },
         );
         break;
@@ -788,6 +809,8 @@ fn cancel_sftp_transfer(
             id,
             success: false,
             message: "transfer cancelled".into(),
+            transferred_bytes: None,
+            total_bytes: None,
         },
     );
     Ok(true)

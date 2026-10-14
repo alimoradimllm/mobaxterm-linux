@@ -458,7 +458,8 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     if (!transferQueue.length) { queueOutput.textContent = 'No transfers queued.'; return; }
     queueOutput.innerHTML = transferQueue.map(item => {
       const cancel = ['queued', 'running'].includes(item.state) ? `<button data-cancel-transfer="${item.id}">Cancel</button>` : '';
-      return `<div><strong>${item.direction}</strong> ${item.localPath} → ${item.remotePath} <span>${item.state}</span>${cancel}</div>`;
+      const progress = Number.isFinite(item.transferredBytes) ? ` <small>${item.transferredBytes.toLocaleString()} bytes${Number.isFinite(item.totalBytes) ? ` / ${item.totalBytes.toLocaleString()}` : ''}</small>` : '';
+      return `<div><strong>${item.direction}</strong> ${item.localPath} → ${item.remotePath} <span>${item.state}</span>${progress}${cancel}</div>`;
     }).join('');
     queueOutput.querySelectorAll('[data-cancel-transfer]').forEach(button => {
       button.onclick = () => {
@@ -484,7 +485,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
         item.state = item.attempts > 1 ? 'retrying' : 'running';
         renderQueue();
         try {
-          const event = await startSftpTransferJob({ host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath, resume: item.resume });
+          const event = await startSftpTransferJob({ host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath, resume: item.resume }, progress => { item.transferredBytes = progress.transferred_bytes; item.totalBytes = progress.total_bytes; renderQueue(); });
           item.jobId = event.id;
           item.result = event.message;
           item.state = event.success ? 'completed' : (item.cancelRequested ? 'cancelled' : (item.attempts < 2 ? 'retrying' : 'failed'));
@@ -502,7 +503,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     }
   };
   const enqueueTransfer = (direction, localPath, remotePath) => {
-    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, resume: resumeInput.checked, state: 'queued', jobId: '', cancelRequested: false, attempts: 0 });
+    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, resume: resumeInput.checked, state: 'queued', jobId: '', cancelRequested: false, attempts: 0, transferredBytes: null, totalBytes: null });
     renderQueue();
     runTransferQueue();
   };
@@ -823,15 +824,19 @@ function normalizeTerminalEvent(event) {
   return payload && typeof payload === 'object' ? payload : {};
 }
 
-function startSftpTransferJob(options) {
+function startSftpTransferJob(options, onProgress) {
   return new Promise((resolve, reject) => {
     invoke('start_sftp_transfer', options)
-      .then(id => sftpTransferWaiters.set(id, { resolve, reject }))
+      .then(id => sftpTransferWaiters.set(id, { resolve, reject, onProgress }))
       .catch(reject);
   });
 }
 
 if (listen) {
+  listen('sftp-transfer-progress', event => {
+    const payload = normalizeTerminalEvent(event);
+    sftpTransferWaiters.get(payload.id)?.onProgress?.(payload);
+  }).catch(error => debugLog('frontend', `sftp-progress listener failed error=${error}`));
   listen('sftp-transfer-exit', event => {
     const payload = normalizeTerminalEvent(event);
     const waiter = sftpTransferWaiters.get(payload.id);

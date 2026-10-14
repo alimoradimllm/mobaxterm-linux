@@ -47,7 +47,9 @@ of full third-party terminal workspace parity.
 - The SFTP browser now exposes a resume option backed by OpenSSH `reget` and
   `reput`. Byte-level progress and drag-and-drop remain open.
 - The SFTP local pane now accepts dropped files and queues them for upload.
-  Byte-level progress remains open.
+  Download jobs display observed destination-file byte growth; upload progress
+  remains indeterminate because the native batch client exposes no reliable
+  remote byte counter.
 - Local SFTP preview now supports read-only UTF-8 files up to 1 MiB. Remote
   preview and editing remain open.
 - Remote SFTP preview now uses a cleaned-up temporary file with the same 1 MiB
