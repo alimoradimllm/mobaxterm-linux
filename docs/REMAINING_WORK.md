@@ -62,6 +62,8 @@ of full third-party terminal workspace parity.
   OpenSSH; managed in-app approval/update UI remains open.
 - Session folder paths now render as indented nested headings. Folder drag and
   drop, rename, and movement controls remain open.
+- Session entries can now be dragged onto persisted folder headings and saved
+  to SQLite. Folder rename/create/delete controls remain open.
 
 ## P0: daily terminal and SSH workflow
 

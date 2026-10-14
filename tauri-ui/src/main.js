@@ -82,13 +82,35 @@ function renderSessions() {
       renderedFolders.add(folder);
       const heading = document.createElement('li');
       heading.className = 'session-group';
+      heading.dataset.folder = folder;
       heading.style.paddingLeft = `${12 + depth * 14}px`;
       heading.textContent = `▾ ${part}`;
+      heading.ondragover = event => { event.preventDefault(); heading.style.outline = '1px solid var(--accent)'; };
+      heading.ondragleave = () => { heading.style.outline = ''; };
+      heading.ondrop = async event => {
+        event.preventDefault();
+        heading.style.outline = '';
+        if (group === 'Recent') return;
+        const name = event.dataTransfer?.getData('text/session-name');
+        const session = sessions.find(item => item.name === name);
+        if (!session || session.folder === folder) return;
+        session.folder = folder;
+        try {
+          if (invoke) await invoke('save_session', { session });
+          status(`Moved ${session.name} to ${folder}`);
+          renderSessions();
+        } catch (error) { status(`Move failed: ${error}`, true); }
+      };
       sessionsEl.appendChild(heading);
     });
     items.forEach(session => {
       const li = document.createElement('li');
       li.className = 'session-entry';
+      li.draggable = true;
+      li.ondragstart = event => {
+        event.dataTransfer?.setData('text/session-name', session.name);
+        event.dataTransfer?.setData('text/plain', session.name);
+      };
       li.innerHTML = `<button class="favorite-button" title="Toggle favorite">${session.favorite ? '★' : '☆'}</button><span class="session-icon">${iconFor(session.session_type)}</span><span>${session.name}</span><small>${session.host || ''}</small>`;
       li.querySelector('.favorite-button').onclick = async event => {
         event.stopPropagation();

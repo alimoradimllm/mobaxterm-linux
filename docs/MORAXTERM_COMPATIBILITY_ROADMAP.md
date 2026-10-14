@@ -73,6 +73,7 @@ observed behavior, public protocol tooling, and independent code.
 - SSH session editing now provides a known-hosts presence check that returns only the file path and boolean entry status; fingerprints are not displayed or logged.
 - Strict SSH host-key policy now performs a preflight and refuses to launch when the configured host is absent from `known_hosts`; `ask` and `accept-new` retain OpenSSH verification behavior.
 - Session folders now render as indented nested hierarchy headings when folder paths contain `/` or `\\`; drag-and-drop movement and folder mutation controls remain open.
+- Session entries are now draggable onto persisted folder headings and save their new folder path through the SQLite bridge; the synthetic Recent heading is not a move target.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).
