@@ -30,7 +30,7 @@ let multiExecTargets = new Set();
 let macroRecording = false;
 let macroBuffer = [];
 let recentSessionNames = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-recent-sessions') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
-let terminalSettings = (() => { try { return { fontSize: 13, cursorBlink: true, theme: 'dark', ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return { fontSize: 13, cursorBlink: true, theme: 'dark' }; } })();
+let terminalSettings = (() => { try { return { fontSize: 13, cursorBlink: true, theme: 'mobaxterm', appTheme: 'mobaxterm', highlightKeywords: true, highlightColor: '#ffd166', ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return { fontSize: 13, cursorBlink: true, theme: 'mobaxterm', appTheme: 'mobaxterm', highlightKeywords: true, highlightColor: '#ffd166' }; } })();
 const fallback = [
   { name: 'Local Shell', session_type: 'Shell', host: '' },
   { name: 'WSL-Debian', session_type: 'WSL', host: 'Debian' },
@@ -40,6 +40,11 @@ function status(message, error = false) {
   statusEl.textContent = `${error ? '● Error' : '●'} ${message}`;
   statusEl.style.color = error ? '#ff6b6b' : '#55d18a';
 }
+
+function applyAppTheme() {
+  document.documentElement.dataset.appTheme = terminalSettings.appTheme || 'mobaxterm';
+}
+applyAppTheme();
 
 function debugLog(component, message) {
   if (!invoke) return;
@@ -209,6 +214,22 @@ function showEditor(session = {}) {
   overlay.innerHTML = `<form class="session-editor"><h2>${session.name ? 'Edit session' : 'New session'}</h2><label>Name<input name="name" required value="${session.name || ''}"></label><label>Type<select name="session_type"><option>SSH</option><option>Rdp</option><option>Vnc</option><option>WSL</option><option>Shell</option><option>Telnet</option><option>Serial</option></select></label><label>Host<input name="host" value="${session.host || ''}"></label><label>Username<input name="username" value="${session.username || ''}"></label><label>Port<input name="port" type="number" min="0" max="65535" value="${session.port || 22}"></label><label>Folder<input name="folder" value="${session.folder || ''}" placeholder="Servers/Linux/Production"></label><label>Working directory<input name="working_directory" value="${session.working_directory || ''}"></label><label>Shell<input name="shell" value="${session.shell || ''}" placeholder="Auto / bash / PowerShell"></label><label>SSH gateway / ProxyJump<input name="proxy_jump" value="${session.proxy_jump || ''}" placeholder="user@gateway:22"></label><label>Host-key policy<select name="host_key_policy"><option value="ask">Ask before accepting</option><option value="strict">Strict known-hosts only</option><option value="accept-new">Accept new, reject changed</option></select></label><label>Keepalive seconds<input name="keepalive_seconds" type="number" min="0" max="3600" value="${session.keepalive_seconds ?? 30}"></label><label>Serial baud<input name="serial_baud" type="number" min="0" value="${session.serial_baud || 115200}"></label><label>Serial data bits<input name="serial_data_bits" type="number" min="5" max="8" value="${session.serial_data_bits || 8}"></label><label>Serial parity<input name="serial_parity" value="${session.serial_parity || 'none'}"></label><label>Serial stop bits<input name="serial_stop_bits" type="number" min="1" max="2" value="${session.serial_stop_bits || 1}"></label><label>Serial flow control<input name="serial_flow_control" value="${session.serial_flow_control || 'none'}"></label><label>Environment (non-secret KEY=VALUE, one per line)<textarea name="environment" rows="3">${Object.entries(session.environment || {}).map(([key, value]) => `${key}=${value}`).join('\\n')}</textarea></label><label>Startup command (non-secret)<input name="startup_command" value="${session.startup_command || ''}"></label><label>Bookmark group<input name="group" value="${session.group || ''}"></label><label><input name="favorite" type="checkbox" ${session.favorite ? 'checked' : ''}> Favorite</label><div class="editor-actions"><button type="button" data-cancel>Cancel</button>${session.name ? '<button type="button" data-delete>Delete</button>' : ''}<button type="submit">Save</button></div></form>`;
   document.body.appendChild(overlay);
   const form = overlay.querySelector('form');
+  form.classList.add('mobaxterm-session-editor');
+  form.insertAdjacentHTML('afterbegin', `<div class="editor-protocols"><button type="button" class="active">🔑 SSH</button><button type="button">⌁ Telnet</button><button type="button">▣ RDP</button><button type="button">◉ VNC</button><button type="button">▸ WSL</button><button type="button">⌂ Shell</button><button type="button">⌁ Serial</button></div><div class="editor-summary"><span class="editor-session-icon">${iconFor(session.session_type || 'SSH')}</span><div><strong>${session.name ? 'Edit session' : 'New session'}</strong><small>Configure connection, terminal, network, and bookmark behavior</small></div></div><nav class="editor-tabs"><button type="button" class="active">Basic settings</button><button type="button">Advanced settings</button><button type="button">Terminal settings</button><button type="button">Network settings</button><button type="button">Bookmark settings</button></nav>`);
+  const sshAgentRow = document.createElement('label');
+  sshAgentRow.className = 'editor-status-row';
+  sshAgentRow.innerHTML = `SSH agent monitoring <input type="checkbox" name="ssh_agent_monitor" ${session.ssh_agent_monitor !== false ? 'checked' : ''}><button type="button" data-agent-check>Check agent</button><span data-agent-status>Not checked</span>`;
+  form.querySelector('[name="username"]')?.closest('label')?.after(sshAgentRow);
+  sshAgentRow.querySelector('[data-agent-check]').onclick = async () => {
+    try { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${await invoke('ssh_agent_status')}`; }
+    catch (error) { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${error}`; }
+  };
+  const highlightRow = document.createElement('label');
+  highlightRow.className = 'editor-status-row';
+  highlightRow.innerHTML = 'Terminal keyword highlighting <input type="checkbox" name="highlight_keywords"><input type="color" name="highlight_color" title="Highlight color"> <span>error, warning, failed, connected, OK</span>';
+  form.querySelector('[name="shell"]')?.closest('label')?.after(highlightRow);
+  highlightRow.querySelector('[name="highlight_keywords"]').checked = terminalSettings.highlightKeywords !== false;
+  highlightRow.querySelector('[name="highlight_color"]').value = terminalSettings.highlightColor || '#ffd166';
   const protocolFields = [['wsl_user', 'WSL user', session.wsl_user || '', 'Optional Linux user'], ['wsl_command', 'WSL command', session.wsl_command || '', 'Optional command'], ['telnet_mode', 'Telnet mode', session.telnet_mode || '', 'Raw / line']];
   const serialField = form.querySelector('[name="serial_flow_control"]');
   protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
@@ -266,6 +287,11 @@ function showEditor(session = {}) {
     const values = new FormData(form);
     const environment = Object.fromEntries(String(values.get('environment') || '').split('\\n').map(line => line.trim()).filter(line => line && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1)]; }));
     const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), folder: values.get('folder') || '', working_directory: values.get('working_directory') || '', shell: values.get('shell') || '', proxy_jump: values.get('proxy_jump') || '', host_key_policy: values.get('host_key_policy') || 'ask', keepalive_seconds: Number(values.get('keepalive_seconds') || 0), serial_baud: Number(values.get('serial_baud') || 0), serial_data_bits: Number(values.get('serial_data_bits') || 0), serial_parity: values.get('serial_parity') || '', serial_stop_bits: Number(values.get('serial_stop_bits') || 0), serial_flow_control: values.get('serial_flow_control') || '', wsl_user: values.get('wsl_user') || '', wsl_command: values.get('wsl_command') || '', telnet_mode: values.get('telnet_mode') || '', environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
+    record.ssh_agent_monitor = form.querySelector('[name="ssh_agent_monitor"]')?.checked !== false;
+    terminalSettings.highlightKeywords = form.querySelector('[name="highlight_keywords"]')?.checked !== false;
+    terminalSettings.highlightColor = form.querySelector('[name="highlight_color"]')?.value || '#ffd166';
+    localStorage.setItem('moraxterm-settings', JSON.stringify(terminalSettings));
+    for (const tab of tabs.values()) tab.terminal.options.theme = terminalTheme();
     try {
       if (invoke) {
         await invoke('save_session', { session: record });
@@ -280,8 +306,21 @@ function showEditor(session = {}) {
 }
 
 function terminalTheme() {
-  if (terminalSettings.theme === 'amber') return { background: '#17120a', foreground: '#ffd27a', cursor: '#ffb000', black: '#17120a', green: '#d9b44a', cyan: '#e0b35a', blue: '#d99a3e', yellow: '#ffe08a', red: '#ff7657' };
-  return { background: '#101113', foreground: '#d7d7d7', cursor: '#00d084', black: '#101113', green: '#00d084', cyan: '#00c8d7', blue: '#4d9cff', yellow: '#e6d85a', red: '#ff5c57' };
+  const themes = {
+    mobaxterm: { background: '#050505', foreground: '#e8e8e8', cursor: '#24d66b', black: '#050505', green: '#24d66b', cyan: '#19c5d1', blue: '#4d9cff', yellow: '#ffd166', red: '#ff6259', magenta: '#d28cff', white: '#f4f4f4' },
+    dark: { background: '#101113', foreground: '#d7d7d7', cursor: '#00d084', black: '#101113', green: '#00d084', cyan: '#00c8d7', blue: '#4d9cff', yellow: '#e6d85a', red: '#ff5c57', magenta: '#d28cff', white: '#f5f5f5' },
+    amber: { background: '#17120a', foreground: '#ffd27a', cursor: '#ffb000', black: '#17120a', green: '#d9b44a', cyan: '#e0b35a', blue: '#d99a3e', yellow: '#ffe08a', red: '#ff7657', magenta: '#db9bff', white: '#fff1c7' },
+    light: { background: '#f4f6f8', foreground: '#1b2430', cursor: '#1769aa', black: '#1b2430', green: '#087f5b', cyan: '#087f8c', blue: '#1769aa', yellow: '#9a6700', red: '#c92a2a', magenta: '#862e9c', white: '#ffffff' },
+    neon: { background: '#090018', foreground: '#f4ecff', cursor: '#00f5d4', black: '#090018', green: '#00f5d4', cyan: '#00bbf9', blue: '#4361ee', yellow: '#fee440', red: '#f15bb5', magenta: '#c77dff', white: '#ffffff' }
+  };
+  return themes[terminalSettings.theme] || themes.mobaxterm;
+}
+
+function highlightTerminalText(data) {
+  if (!terminalSettings.highlightKeywords || !data) return data;
+  const color = terminalSettings.highlightColor || '#ffd166';
+  const words = /\\b(error|warning|failed|failure|success|successful|connected|disconnected|denied|permission|ok)\\b/gi;
+  return String(data).replace(words, match => `\\x1b[38;2;${parseInt(color.slice(1, 3), 16)};${parseInt(color.slice(3, 5), 16)};${parseInt(color.slice(5, 7), 16)}m${match}\\x1b[0m`);
 }
 
 function setTabConnectionState(id, state) {
@@ -687,6 +726,16 @@ function showSettings() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<section class="settings-modal"><header><strong>Moraxterm settings</strong><button data-close>×</button></header><nav class="settings-tabs"><button class="active" data-panel="general">◆ General</button><button data-panel="terminal">▣ Terminal</button><button data-panel="x11">⚔ X11</button><button data-panel="ssh">🔑 SSH</button><button data-panel="display">▣ Display</button><button data-panel="toolbar">⚒ Toolbar</button><button data-panel="misc">⚙ Misc</button></nav><div class="settings-panels"><div data-view="general" class="settings-view active"><h3>General</h3><label>Terminal home directory<input value="AppDataDir/Moraxterm/home"></label><label>Terminal root directory<input value="AppDataDir/Moraxterm/root"></label><label>Default text editor<input value="&lt;default&gt;"></label><label class="check"><input type="checkbox" checked> Automatically back up session configuration</label></div><div data-view="terminal" class="settings-view"><h3>Default terminal look and feel</h3><div class="setting-buttons"><button>Default font settings</button><button>Default color settings</button><button>Expert settings</button></div><label>Local shell environment<select><option>Windows shell</option><option>WSL</option><option>Custom executable</option></select></label><label class="check"><input type="checkbox" checked> Cursor blink</label></div><div data-view="x11" class="settings-view"><h3>Server settings</h3><label class="check"><input type="checkbox" checked> Automatically start X server on application startup</label><label>X11 display mode<select><option>Multiwindow mode</option><option>Fullscreen mode</option></select></label><label class="check"><input type="checkbox" checked> Clipboard integration</label></div><div data-view="ssh" class="settings-view"><h3>SSH settings</h3><label class="check"><input type="checkbox" checked> Enable graphical SSH browser</label><label class="check"><input type="checkbox" checked> Remote monitoring</label><label class="check"><input type="checkbox"> Validate host identity at first connection</label><label>SSH keepalive<select><option>Disabled</option><option>30 seconds</option><option>60 seconds</option></select></label></div><div data-view="display" class="settings-view"><h3>Display</h3><label>Interface density<select><option>Compact</option><option>Comfortable</option></select></label><label class="check"><input type="checkbox" checked> Show toolbar labels</label></div><div data-view="toolbar" class="settings-view"><h3>Toolbar</h3><label class="check"><input type="checkbox" checked> Show session toolbar</label><label class="check"><input type="checkbox" checked> Show quick connect bar</label></div><div data-view="misc" class="settings-view"><h3>Miscellaneous</h3><label class="check"><input type="checkbox" checked> Confirm terminal close</label><label class="check"><input type="checkbox"> Start minimized</label></div></div><footer><button data-close>Cancel</button><button class="primary" data-apply>OK</button></footer></section>`;
   document.body.appendChild(overlay);
+  const terminalPanel = overlay.querySelector('[data-view="terminal"]');
+  terminalPanel?.insertAdjacentHTML('afterbegin', '<label>Application theme<select data-app-theme><option value="mobaxterm">MobaXterm (default)</option><option value="dark">Midnight</option><option value="light">Light</option><option value="amber">Amber terminal</option><option value="neon">Neon terminal</option></select></label><label>Terminal theme<select data-terminal-theme><option value="mobaxterm">MobaXterm</option><option value="dark">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label><label class="check"><input type="checkbox" data-highlight-keywords> Highlight status words in terminal output</label><label>Highlight color<input type="color" data-highlight-color></label>');
+  const appTheme = overlay.querySelector('[data-app-theme]');
+  const terminalThemeSelect = overlay.querySelector('[data-terminal-theme]');
+  const highlightKeywords = overlay.querySelector('[data-highlight-keywords]');
+  const highlightColor = overlay.querySelector('[data-highlight-color]');
+  if (appTheme) appTheme.value = terminalSettings.appTheme || 'mobaxterm';
+  if (terminalThemeSelect) terminalThemeSelect.value = terminalSettings.theme || 'mobaxterm';
+  if (highlightKeywords) highlightKeywords.checked = terminalSettings.highlightKeywords !== false;
+  if (highlightColor) highlightColor.value = terminalSettings.highlightColor || '#ffd166';
   const miscPanel = overlay.querySelector('[data-view="misc"]');
   if (miscPanel) {
     miscPanel.insertAdjacentHTML('beforeend', `<section class="settings-group debug-settings"><h3>Debug logging</h3><label><input type="checkbox" data-debug-enabled> Enable diagnostic logging</label><label>Log file path<input type="text" data-debug-path placeholder="Default application-data path"></label><p class="muted" data-debug-status>Logging is disabled.</p><button type="button" data-debug-apply>Apply logging settings</button></section>`);
@@ -709,7 +758,17 @@ function showSettings() {
   }
   const close = () => overlay.remove();
   overlay.querySelectorAll('[data-close]').forEach(button => button.onclick = close);
-  overlay.querySelector('[data-apply]').onclick = close;
+  overlay.querySelector('[data-apply]').onclick = () => {
+    terminalSettings.appTheme = appTheme?.value || 'mobaxterm';
+    terminalSettings.theme = terminalThemeSelect?.value || 'mobaxterm';
+    terminalSettings.highlightKeywords = highlightKeywords?.checked !== false;
+    terminalSettings.highlightColor = highlightColor?.value || '#ffd166';
+    localStorage.setItem('moraxterm-settings', JSON.stringify(terminalSettings));
+    applyAppTheme();
+    for (const tab of tabs.values()) tab.terminal.options.theme = terminalTheme();
+    overlay.remove();
+    status(`Theme changed to ${terminalSettings.appTheme}`);
+  };
   overlay.querySelectorAll('[data-panel]').forEach(button => button.onclick = () => { overlay.querySelectorAll('[data-panel]').forEach(item => item.classList.toggle('active', item === button)); overlay.querySelectorAll('[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === button.dataset.panel)); });
 }
 
@@ -887,7 +946,7 @@ if (listen) {
     if (tab) {
       tab.outputSeen = true;
       setTabConnectionState(payload.id, 'connected');
-      tab.terminal.write(String(payload.data || ''));
+      tab.terminal.write(highlightTerminalText(String(payload.data || '')));
     } else {
       debugLog('frontend', `terminal-output dropped unknown id=${payload.id || 'missing'}`);
     }

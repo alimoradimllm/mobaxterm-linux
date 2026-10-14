@@ -8,7 +8,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
-use std::process::Child;
+use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
@@ -109,6 +109,37 @@ fn credential_status(service: String, account: String) -> Result<bool, String> {
         Ok(_) => Ok(true),
         Err(keyring::Error::NoEntry) => Ok(false),
         Err(error) => Err(format!("credential lookup failed: {error}")),
+    }
+}
+
+#[tauri::command]
+fn ssh_agent_status() -> Result<String, String> {
+    let output = if cfg!(windows) {
+        Command::new("ssh-add").arg("-l").output()
+    } else {
+        Command::new("ssh-add").arg("-l").output()
+    };
+    match output {
+        Ok(result) if result.status.success() => {
+            let count = String::from_utf8_lossy(&result.stdout)
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .count();
+            Ok(format!("agent available ({count} identities)"))
+        }
+        Ok(result) => {
+            let message = String::from_utf8_lossy(&result.stderr).to_lowercase();
+            if message.contains("no identities") {
+                Ok("agent available (no identities)".into())
+            } else if message.contains("could not open a connection")
+                || message.contains("connect to agent")
+            {
+                Ok("agent unavailable".into())
+            } else {
+                Ok("agent check failed".into())
+            }
+        }
+        Err(error) => Err(format!("ssh-agent check unavailable: {error}")),
     }
 }
 
@@ -1560,6 +1591,7 @@ pub fn run() {
             debug_log,
             debug_log_path,
             credential_status,
+            ssh_agent_status,
             credential_store,
             credential_delete,
             start_tunnel,

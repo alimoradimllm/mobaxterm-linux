@@ -171,6 +171,8 @@ pub struct Session {
     #[serde(default)]
     pub telnet_mode: String,
     #[serde(default)]
+    pub ssh_agent_monitor: bool,
+    #[serde(default)]
     pub favorite: bool,
 }
 
