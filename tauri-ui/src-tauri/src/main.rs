@@ -564,6 +564,25 @@ fn local_preview(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn local_write_text(path: String, content: String) -> Result<(), String> {
+    let path = path.trim();
+    if path.is_empty()
+        || path
+            .chars()
+            .any(|c| c.is_control() || c == '\n' || c == '\r')
+    {
+        return Err("invalid local text path".into());
+    }
+    if content.len() > 1_048_576 {
+        return Err("local text editor is limited to 1 MiB".into());
+    }
+    if !std::path::Path::new(path).is_file() {
+        return Err("local text file does not exist".into());
+    }
+    fs::write(path, content).map_err(|e| format!("cannot save local text file: {e}"))
+}
+
+#[tauri::command]
 fn open_local_path(path: String) -> Result<(), String> {
     let path = path.trim();
     if path.is_empty()
@@ -1855,6 +1874,7 @@ pub fn run() {
             xserver_status,
             local_list,
             local_preview,
+            local_write_text,
             open_local_path,
             shell_available,
             wsl_distributions,

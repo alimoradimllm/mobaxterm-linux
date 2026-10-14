@@ -714,7 +714,7 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><button data-remote-preview>Preview remote</button><button data-edit-remote>Edit remote copy</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre><pre data-remote-preview-output></pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button><button data-local-preview>Preview file</button></div><div data-drop-zone style="border:1px dashed var(--border);padding:8px;margin:6px 0">Drop local files here to upload</div><pre data-local-output>Loading…</pre><pre data-local-preview-output></pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><button data-remote-preview>Preview remote</button><button data-edit-remote>Edit remote copy</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre><pre data-remote-preview-output></pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button><button data-local-preview>Preview file</button><button data-local-edit>Edit file</button></div><div data-drop-zone style="border:1px dashed var(--border);padding:8px;margin:6px 0">Drop local files here to upload</div><pre data-local-output>Loading…</pre><pre data-local-preview-output></pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
@@ -752,6 +752,26 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     if (!path) return;
     try { previewOutput.textContent = await invoke('local_preview', { path }); status(`Previewed local file: ${path}`); }
     catch (error) { previewOutput.textContent = String(error); status(`Preview failed: ${error}`, true); }
+  };
+  overlay.querySelector('[data-local-edit]').onclick = async () => {
+    const path = (window.prompt('Local text file path:', localPathInput.value) || '').trim();
+    if (!path) return;
+    try {
+      const content = await invoke('local_preview', { path });
+      const editor = document.createElement('div');
+      editor.className = 'modal-overlay';
+      editor.innerHTML = `<section class="text-editor-modal"><header><strong>Edit local text file</strong><button type="button" data-editor-close>×</button></header><p class="muted">UTF-8 text only, maximum 1 MiB. Saving overwrites this local file.</p><textarea data-editor-content spellcheck="false"></textarea><footer><button type="button" data-editor-cancel>Cancel</button><button type="button" class="primary" data-editor-save>Save file</button></footer></section>`;
+      document.body.appendChild(editor);
+      editor.querySelector('[data-editor-content]').value = content;
+      const closeEditor = () => editor.remove();
+      editor.querySelector('[data-editor-close]').onclick = closeEditor;
+      editor.querySelector('[data-editor-cancel]').onclick = closeEditor;
+      editor.querySelector('[data-editor-save]').onclick = async () => {
+        if (!confirm(`Save changes to ${path}?`)) return;
+        try { await invoke('local_write_text', { path, content: editor.querySelector('[data-editor-content]').value }); status(`Saved local text file: ${path}`); closeEditor(); await invokeLocalList(); }
+        catch (error) { status(`Save failed: ${error}`, true); }
+      };
+    } catch (error) { status(`Edit failed: ${error}`, true); }
   };
   overlay.querySelector('[data-remote-preview]').onclick = async () => {
     const path = (window.prompt('Remote text file path:', pathInput.value) || '').trim();

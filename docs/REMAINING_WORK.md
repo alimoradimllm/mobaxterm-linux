@@ -50,10 +50,10 @@ of full third-party terminal workspace parity.
   Download jobs display observed destination-file byte growth; upload progress
   remains indeterminate because the native batch client exposes no reliable
   remote byte counter.
-- Local SFTP preview now supports read-only UTF-8 files up to 1 MiB. Remote
-  preview and editing remain open.
+- Local SFTP preview now supports read-only UTF-8 files up to 1 MiB. The local
+  text editor supports bounded UTF-8 editing with explicit overwrite confirmation.
 - Remote SFTP preview now uses a cleaned-up temporary file with the same 1 MiB
-  UTF-8 limit. Editing remains open.
+  UTF-8 limit. Remote editing uses the explicit edit-copy workflow below.
 - Remote SFTP edit-copy workflow now downloads to an explicit local path and
   opens it with the OS editor; uploading the edited copy remains an explicit
   user action.
@@ -103,12 +103,11 @@ of full third-party terminal workspace parity.
 
 ### SFTP
 
-- Add a local file browser beside the remote browser.
-- Add rename, delete, mkdir, permissions, and file metadata.
-- Add transfer queue, progress, cancellation, retry, and resume.
-- Add drag-and-drop transfers.
-- Add safe preview/editor behavior for text files.
-- Add SCP fallback when SFTP is unavailable.
+- Local and remote browsers, rename/delete/mkdir/permissions, local metadata,
+  transfer queue, progress, cancellation, retry, resume, drag/drop, previews,
+  bounded local editing, remote edit-copy, and non-resumable SCP fallback are
+  implemented. Reliable upload-byte progress and disposable-target runtime
+  coverage remain open.
 - Add integration tests with a disposable local SSH/SFTP server.
 
 ## P1: workspace and protocol parity
