@@ -167,7 +167,7 @@ of full third-party terminal workspace parity.
 ## P2: advanced tools and operations
 
 - Manage X-server lifecycle, tray state, XDMCP, and access control.
-- Add network scanner and real bandwidth/latency panels.
+- Network diagnostics now preflight platform ping/traceroute/DNS tools and use Rust sockets for TCP checks; add network scanner and real bandwidth/latency panels.
 - Add local/remote process, service, and disk-usage viewers.
 - Add text and hex editor workflows with safe file boundaries.
 - Replace placeholder status values with measured CPU, memory, throughput,

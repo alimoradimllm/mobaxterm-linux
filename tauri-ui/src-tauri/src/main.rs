@@ -1455,6 +1455,9 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
         "dns" => ("getent", vec!["hosts".into(), target]),
         _ => return Err("tool must be ping, traceroute, dns, or port".into()),
     };
+    if !executable_available(program) {
+        return Err(format!("network tool is unavailable: {program}"));
+    }
     let output = std::process::Command::new(program)
         .args(args)
         .output()
