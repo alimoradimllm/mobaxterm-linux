@@ -70,7 +70,7 @@ Expected status is clean and tracking `origin/main`.
 
 ### MobaXterm-style UI
 
-- The default application and terminal theme is colorful MobaXterm-inspired styling.
+- The desktop shell uses a dense MobaXterm-inspired hierarchy: menu row, icon toolbar, quick-connect strip, rail, session tree, tab strip, terminal pane, and status bar. Keep spacing and contrast optimized for a 1200px+ desktop window.
 - Application and terminal themes remain independently selectable.
 - Protocol icons must change the session type, highlight the selected icon, and show relevant fields.
 - Session editor sections are Basic, Advanced, Terminal, Network, and Bookmark.

@@ -18,7 +18,7 @@ of full third-party terminal workspace parity.
   resize, Ctrl+C, and Ctrl+D/EOF behavior.
 - Frontend production build and Tauri bridge `cargo check` pass.
 - Python suite contains 54 tests. On Windows, all runnable tests pass; four POSIX/fixture-dependent tests are explicitly skipped with platform guards.
-- The latest source includes the MobaXterm-style editor, functional protocol selector, functional editor tabs, selectable themes, terminal keyword highlighting, and SSH-agent monitoring. These source features still require installed-app runtime evidence.
+- The frontend shell now has a denser MobaXterm-comparison layout: stronger toolbar hierarchy, wider session navigation, clearer active tabs, readable session cards, improved empty/home dashboard, and explicit failed-pane treatment. This is a visual source-level improvement; full terminal interaction coverage remains open.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
 - Local Shell Settings now persist a selector for system default, cmd, PowerShell,
