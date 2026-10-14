@@ -549,6 +549,7 @@ fn start_sftp_transfer(
     direction: String,
     local_path: String,
     remote_path: String,
+    resume: bool,
 ) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
@@ -562,10 +563,27 @@ fn start_sftp_transfer(
             return Err("invalid SFTP transfer path".into());
         }
     }
-    let command_line = if direction == "upload" {
-        format!("put \"{}\" \"{}\"\nbye\n", local_path, remote_path)
+    let transfer_command = if direction == "upload" {
+        if resume {
+            "reput"
+        } else {
+            "put"
+        }
+    } else if resume {
+        "reget"
     } else {
-        format!("get \"{}\" \"{}\"\nbye\n", remote_path, local_path)
+        "get"
+    };
+    let command_line = if direction == "upload" {
+        format!(
+            "{} \"{}\" \"{}\"\nbye\n",
+            transfer_command, local_path, remote_path
+        )
+    } else {
+        format!(
+            "{} \"{}\" \"{}\"\nbye\n",
+            transfer_command, remote_path, local_path
+        )
     };
     let id = format!("sftp-{}", chrono_like_timestamp());
     let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });

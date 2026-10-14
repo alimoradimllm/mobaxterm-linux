@@ -41,9 +41,11 @@ of full third-party terminal workspace parity.
   Byte-level progress, resume, and drag-and-drop remain open.
 - Running SFTP jobs can now be cancelled through the backend, which terminates
   the native `sftp` process and reports a completion event. Byte-level
-  progress and resume remain open.
+  progress and drag-and-drop remain open.
 - Failed transfers now retry once and then stop with a failed state. Byte-level
-  progress and resume remain open.
+  progress and drag-and-drop remain open.
+- The SFTP browser now exposes a resume option backed by OpenSSH `reget` and
+  `reput`. Byte-level progress and drag-and-drop remain open.
 
 ## P0: daily terminal and SSH workflow
 

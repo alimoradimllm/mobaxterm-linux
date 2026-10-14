@@ -338,12 +338,13 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button></div><pre data-local-output>Loading…</pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button></div><pre data-local-output>Loading…</pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
   const localPathInput = overlay.querySelector('[data-local-path]');
   const localOutput = overlay.querySelector('[data-local-output]');
+  const resumeInput = overlay.querySelector('[data-resume]');
   const queueOutput = overlay.querySelector('[data-transfer-queue]');
   const transferQueue = [];
   let transferRunning = false;
@@ -397,7 +398,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
         item.state = item.attempts > 1 ? 'retrying' : 'running';
         renderQueue();
         try {
-          const event = await startSftpTransferJob({ host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath });
+          const event = await startSftpTransferJob({ host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath, resume: item.resume });
           item.jobId = event.id;
           item.result = event.message;
           item.state = event.success ? 'completed' : (item.cancelRequested ? 'cancelled' : (item.attempts < 2 ? 'retrying' : 'failed'));
@@ -415,7 +416,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     }
   };
   const enqueueTransfer = (direction, localPath, remotePath) => {
-    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, state: 'queued', jobId: '', cancelRequested: false, attempts: 0 });
+    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, resume: resumeInput.checked, state: 'queued', jobId: '', cancelRequested: false, attempts: 0 });
     renderQueue();
     runTransferQueue();
   };
