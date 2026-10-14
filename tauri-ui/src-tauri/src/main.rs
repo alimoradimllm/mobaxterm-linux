@@ -92,6 +92,46 @@ fn debug_write(logger: &Arc<Mutex<DebugConfig>>, component: &str, message: &str)
     }
 }
 
+fn credential_entry(service: &str, account: &str) -> Result<keyring::Entry, String> {
+    let service = service.trim();
+    let account = account.trim();
+    if service.is_empty() || account.is_empty() || service.len() > 128 || account.len() > 256 {
+        return Err("credential service and account are required".into());
+    }
+    keyring::Entry::new(service, account)
+        .map_err(|error| format!("credential store unavailable: {error}"))
+}
+
+#[tauri::command]
+fn credential_status(service: String, account: String) -> Result<bool, String> {
+    let entry = credential_entry(&service, &account)?;
+    match entry.get_password() {
+        Ok(_) => Ok(true),
+        Err(keyring::Error::NoEntry) => Ok(false),
+        Err(error) => Err(format!("credential lookup failed: {error}")),
+    }
+}
+
+#[tauri::command]
+fn credential_store(service: String, account: String, secret: String) -> Result<(), String> {
+    if secret.is_empty() {
+        return Err("credential cannot be empty".into());
+    }
+    credential_entry(&service, &account)?
+        .set_password(&secret)
+        .map_err(|error| format!("credential save failed: {error}"))
+}
+
+#[tauri::command]
+fn credential_delete(service: String, account: String) -> Result<bool, String> {
+    let entry = credential_entry(&service, &account)?;
+    match entry.delete_credential() {
+        Ok(()) => Ok(true),
+        Err(keyring::Error::NoEntry) => Ok(false),
+        Err(error) => Err(format!("credential delete failed: {error}")),
+    }
+}
+
 fn chrono_like_timestamp() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1350,6 +1390,9 @@ pub fn run() {
             configure_debug_logging,
             debug_log,
             debug_log_path,
+            credential_status,
+            credential_store,
+            credential_delete,
             start_tunnel,
             stop_tunnel,
             xserver_status,

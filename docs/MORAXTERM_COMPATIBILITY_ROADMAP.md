@@ -76,6 +76,7 @@ observed behavior, public protocol tooling, and independent code.
 - Session entries are now draggable onto persisted folder headings and save their new folder path through the SQLite bridge; the synthetic Recent heading is not a move target.
 - Folder create, recursive rename, and delete-to-parent controls are available; empty-folder metadata persists locally and session changes persist through SQLite.
 - SFTP downloads display observed destination-file byte counts during transfer; upload progress remains explicitly indeterminate until the native client exposes remote counters.
+- OS-backed credential commands now use Windows Credential Manager or the Linux-native keyring backend and never return stored secret values; SSH authentication-flow integration remains open.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).

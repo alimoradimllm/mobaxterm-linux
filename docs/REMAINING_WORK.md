@@ -122,6 +122,11 @@ of full third-party terminal workspace parity.
 
 ### Remote protocols
 
+- OS-backed credential commands now use the `keyring` crate with Windows-native
+  and Linux-native backends. They expose status/store/delete only; secret values
+  are never returned. Wiring these commands into SSH authentication and the
+  interactive credential editor remains open.
+
 - Add embedded or tightly integrated RDP/VNC windows where platform support
   allows it.
 - Add Serial device discovery and baud/data/parity/flow-control configuration.
