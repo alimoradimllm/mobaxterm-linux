@@ -258,6 +258,7 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("SSH")) {
         if session.host.trim().is_empty() || session.username.trim().is_empty() || session.port == 0 { return Err("SSH session requires host, username, and a valid port".into()); }
         let mut ssh_args = session.ssh_plan().map_err(|error| error.to_string())?.argv;
+        if ssh_args.first().is_some_and(|value| value == "ssh") { ssh_args.remove(0); }
         ssh_args.insert(0, "-X".into());
         ("ssh".into(), ssh_args)
     } else if let Some(session) = session.as_ref().filter(|value| value.session_type.eq_ignore_ascii_case("Rdp")) {

@@ -237,8 +237,7 @@ function openTab(session) {
   });
   new ResizeObserver(() => fit.fit()).observe(terminalHost);
   terminal.writeln(`\x1b[36mMoraxterm\x1b[0m — ${session.session_type} ${session.host || ''}`);
-  terminal.writeln('Persistent terminal ready.');
-  terminal.write('\r\n$ ');
+  terminal.writeln('Starting terminal process...');
   terminal.onData(async data => {
     if (macroRecording) macroBuffer.push(data);
     if (!invoke) return;
