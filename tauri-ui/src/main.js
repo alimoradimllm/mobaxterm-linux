@@ -390,29 +390,32 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     if (transferRunning) return;
     transferRunning = true;
     try {
-      for (const item of transferQueue) {
-        if (item.state !== 'queued') continue;
-        item.state = 'running';
+      while (true) {
+        const item = transferQueue.find(entry => ['queued', 'retrying'].includes(entry.state));
+        if (!item) break;
+        item.attempts += 1;
+        item.state = item.attempts > 1 ? 'retrying' : 'running';
         renderQueue();
         try {
           const event = await startSftpTransferJob({ host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath });
           item.jobId = event.id;
           item.result = event.message;
-          item.state = event.success ? 'completed' : (item.cancelRequested ? 'cancelled' : 'failed');
-          status(`SFTP ${item.direction} ${item.state}`, !event.success);
+          item.state = event.success ? 'completed' : (item.cancelRequested ? 'cancelled' : (item.attempts < 2 ? 'retrying' : 'failed'));
+          status(`SFTP ${item.direction} ${item.state}`, !event.success && item.state !== 'retrying');
         } catch (error) {
-          item.state = 'failed';
+          item.state = item.attempts < 2 ? 'retrying' : 'failed';
           item.result = String(error);
-          status(`SFTP ${item.direction} failed: ${error}`, true);
+          status(`SFTP ${item.direction} ${item.state}: ${error}`, item.state === 'failed');
         }
         renderQueue();
+        if (item.state === 'retrying') await new Promise(resolve => setTimeout(resolve, 500));
       }
     } finally {
       transferRunning = false;
     }
   };
   const enqueueTransfer = (direction, localPath, remotePath) => {
-    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, state: 'queued', jobId: '', cancelRequested: false });
+    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, state: 'queued', jobId: '', cancelRequested: false, attempts: 0 });
     renderQueue();
     runTransferQueue();
   };

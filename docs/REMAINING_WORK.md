@@ -38,11 +38,12 @@ of full third-party terminal workspace parity.
   drag-and-drop, preview/editor, and SCP fallback work remain open.
 - SFTP transfers now run through a serialized visible queue with explicit
   pending/running/completed/failed states and cancellation before a job starts.
-  Byte-level progress, cancellation of a running native transfer, resume, and
-  retry policy remain open.
+  Byte-level progress, resume, and drag-and-drop remain open.
 - Running SFTP jobs can now be cancelled through the backend, which terminates
   the native `sftp` process and reports a completion event. Byte-level
-  progress, resume, and retry policy remain open.
+  progress and resume remain open.
+- Failed transfers now retry once and then stop with a failed state. Byte-level
+  progress and resume remain open.
 
 ## P0: daily terminal and SSH workflow
 
