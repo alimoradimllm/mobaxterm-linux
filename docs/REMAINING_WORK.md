@@ -132,6 +132,8 @@ of full third-party terminal workspace parity.
 - Managed host-key removal is now available through a structured `ssh-keygen -R`
   bridge for the configured host/port. New-key approval remains delegated to
   OpenSSH so the application does not silently trust unverified key material.
+  The editor now supports scan, visible fingerprint confirmation, re-scan
+  comparison, and append to `known_hosts` only after a matching approval.
 
 - Add embedded or tightly integrated RDP/VNC windows where platform support
   allows it.

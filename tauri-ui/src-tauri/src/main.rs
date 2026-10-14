@@ -643,6 +643,96 @@ fn ssh_known_hosts_remove(host: String, port: u16) -> Result<String, String> {
     }
 }
 
+fn scan_host_key(host: &str, port: u16) -> Result<std::process::Output, String> {
+    if host.trim().is_empty()
+        || host.chars().any(|c| c.is_control() || c.is_whitespace())
+        || port == 0
+    {
+        return Err("invalid host or port".into());
+    }
+    std::process::Command::new(if cfg!(windows) {
+        "ssh-keyscan.exe"
+    } else {
+        "ssh-keyscan"
+    })
+    .args(["-T", "8", "-p", &port.to_string(), host])
+    .output()
+    .map_err(|e| format!("cannot run ssh-keyscan: {e}"))
+}
+
+#[tauri::command]
+fn ssh_known_hosts_scan(host: String, port: u16) -> Result<String, String> {
+    let output = scan_host_key(host.trim(), port)?;
+    if !output.status.success() || output.stdout.is_empty() {
+        return Err("host-key scan returned no key".into());
+    }
+    let mut fingerprint = std::process::Command::new(if cfg!(windows) {
+        "ssh-keygen.exe"
+    } else {
+        "ssh-keygen"
+    })
+    .args(["-lf", "-"])
+    .stdin(std::process::Stdio::piped())
+    .stdout(std::process::Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("cannot run ssh-keygen: {e}"))?;
+    if let Some(mut input) = fingerprint.stdin.take() {
+        input.write_all(&output.stdout).map_err(|e| e.to_string())?;
+    }
+    let result = fingerprint.wait_with_output().map_err(|e| e.to_string())?;
+    if !result.status.success() {
+        return Err("cannot calculate host-key fingerprint".into());
+    }
+    Ok(String::from_utf8_lossy(&result.stdout).trim().to_string())
+}
+
+#[tauri::command]
+fn ssh_known_hosts_add(
+    host: String,
+    port: u16,
+    expected_fingerprint: String,
+) -> Result<String, String> {
+    let output = scan_host_key(host.trim(), port)?;
+    if !output.status.success() || output.stdout.is_empty() {
+        return Err("host-key scan returned no key".into());
+    }
+    let mut fingerprint = std::process::Command::new(if cfg!(windows) {
+        "ssh-keygen.exe"
+    } else {
+        "ssh-keygen"
+    })
+    .args(["-lf", "-"])
+    .stdin(std::process::Stdio::piped())
+    .stdout(std::process::Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("cannot run ssh-keygen: {e}"))?;
+    if let Some(mut input) = fingerprint.stdin.take() {
+        input.write_all(&output.stdout).map_err(|e| e.to_string())?;
+    }
+    let result = fingerprint.wait_with_output().map_err(|e| e.to_string())?;
+    let actual = String::from_utf8_lossy(&result.stdout);
+    if !actual
+        .lines()
+        .any(|line| line.contains(expected_fingerprint.trim()))
+    {
+        return Err("host-key fingerprint changed or confirmation did not match".into());
+    }
+    let path = dirs::home_dir()
+        .ok_or("home directory unavailable")?
+        .join(".ssh")
+        .join("known_hosts");
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| e.to_string())?;
+    file.write_all(&output.stdout).map_err(|e| e.to_string())?;
+    Ok("host key added after fingerprint confirmation".into())
+}
+
 #[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
@@ -1480,6 +1570,8 @@ pub fn run() {
             sftp_preview,
             ssh_known_hosts_status,
             ssh_known_hosts_remove,
+            ssh_known_hosts_scan,
+            ssh_known_hosts_add,
             sftp_list,
             sftp_transfer,
             start_sftp_transfer,

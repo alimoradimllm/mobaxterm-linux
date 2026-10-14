@@ -213,13 +213,26 @@ function showEditor(session = {}) {
   const serialField = form.querySelector('[name="serial_flow_control"]');
   protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
   const knownHostsRow = document.createElement('label');
-  knownHostsRow.innerHTML = 'Known-hosts status <button type="button" data-known-hosts>Check without exposing fingerprints</button><span data-known-hosts-status></span>';
+  knownHostsRow.innerHTML = 'Known-hosts status <button type="button" data-known-hosts>Check</button><button type="button" data-known-hosts-scan>Scan fingerprint</button><button type="button" data-known-hosts-approve disabled>Approve scanned key</button><span data-known-hosts-status></span>';
   form.host_key_policy.closest('label')?.after(knownHostsRow);
   knownHostsRow.querySelector('[data-known-hosts]').onclick = async () => {
     try {
       const result = await invoke('ssh_known_hosts_status', { host: form.host.value.trim(), port: Number(form.port.value || 22) });
       knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${result}`;
     } catch (error) { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
+  };
+  let scannedFingerprint = '';
+  knownHostsRow.querySelector('[data-known-hosts-scan]').onclick = async () => {
+    try {
+      scannedFingerprint = await invoke('ssh_known_hosts_scan', { host: form.host.value.trim(), port: Number(form.port.value || 22) });
+      knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${scannedFingerprint}`;
+      knownHostsRow.querySelector('[data-known-hosts-approve]').disabled = false;
+    } catch (error) { scannedFingerprint = ''; knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
+  };
+  knownHostsRow.querySelector('[data-known-hosts-approve]').onclick = async () => {
+    if (!scannedFingerprint || !confirm(`Approve this scanned host key?\\n\\n${scannedFingerprint}`)) return;
+    try { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${await invoke('ssh_known_hosts_add', { host: form.host.value.trim(), port: Number(form.port.value || 22), expectedFingerprint: scannedFingerprint })}`; }
+    catch (error) { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
   };
   const credentialRow = document.createElement('label');
   credentialRow.innerHTML = 'SSH credential <input type="password" name="ssh_secret" autocomplete="new-password" placeholder="Leave blank to keep unchanged"><button type="button" data-credential-status>Check saved</button><button type="button" data-credential-delete>Delete saved</button><span data-credential-message></span>';

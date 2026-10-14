@@ -77,7 +77,7 @@ observed behavior, public protocol tooling, and independent code.
 - Folder create, recursive rename, and delete-to-parent controls are available; empty-folder metadata persists locally and session changes persist through SQLite.
 - SFTP downloads display observed destination-file byte counts during transfer; upload progress remains explicitly indeterminate until the native client exposes remote counters.
 - OS-backed credential commands now use Windows Credential Manager or the Linux-native keyring backend and never return stored secret values. The session editor provides masked save/status/delete controls, and SSH can consume a matching `username@host:port` entry through a temporary askpass helper that is removed on terminal exit; authenticated runtime testing remains open.
-- Managed stale-host removal now uses a structured `ssh-keygen -R` command; new-key approval remains delegated to OpenSSH verification.
+- Managed stale-host removal uses a structured `ssh-keygen -R` command, and the editor now supports scan, fingerprint confirmation, re-scan comparison, and safe `known_hosts` append for new keys.
 - Windows RDP sessions now select native `mstsc.exe` instead of the unavailable FreeRDP executable; embedded RDP/VNC and runtime tests remain open.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
