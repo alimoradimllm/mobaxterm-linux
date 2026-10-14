@@ -585,6 +585,38 @@ fn ssh_known_hosts_status(host: String, port: u16) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn ssh_known_hosts_remove(host: String, port: u16) -> Result<String, String> {
+    if host.trim().is_empty() || port == 0 {
+        return Err("host and port are required".into());
+    }
+    let path = dirs::home_dir()
+        .ok_or("home directory unavailable")?
+        .join(".ssh")
+        .join("known_hosts");
+    if !path.exists() {
+        return Ok("known_hosts entry absent".into());
+    }
+    let key = if port == 22 {
+        host.trim().to_string()
+    } else {
+        format!("[{}]:{}", host.trim(), port)
+    };
+    let output = std::process::Command::new(if cfg!(windows) {
+        "ssh-keygen.exe"
+    } else {
+        "ssh-keygen"
+    })
+    .args(["-R", &key, "-f", path.to_string_lossy().as_ref()])
+    .output()
+    .map_err(|e| format!("cannot run ssh-keygen: {e}"))?;
+    if output.status.success() {
+        Ok("known_hosts entry removed".into())
+    } else {
+        Err("known_hosts entry removal failed".into())
+    }
+}
+
+#[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
@@ -1400,6 +1432,7 @@ pub fn run() {
             local_preview,
             sftp_preview,
             ssh_known_hosts_status,
+            ssh_known_hosts_remove,
             sftp_list,
             sftp_transfer,
             start_sftp_transfer,

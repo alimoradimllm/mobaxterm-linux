@@ -126,6 +126,9 @@ of full third-party terminal workspace parity.
   and Linux-native backends. They expose status/store/delete only; secret values
   are never returned. Wiring these commands into SSH authentication and the
   interactive credential editor remains open.
+- Managed host-key removal is now available through a structured `ssh-keygen -R`
+  bridge for the configured host/port. New-key approval remains delegated to
+  OpenSSH so the application does not silently trust unverified key material.
 
 - Add embedded or tightly integrated RDP/VNC windows where platform support
   allows it.
