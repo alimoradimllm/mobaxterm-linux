@@ -153,8 +153,9 @@ of full third-party terminal workspace parity.
 - Add Serial device discovery and baud/data/parity/flow-control configuration.
 - Add Telnet options, break signal, and file transfer controls.
 - WSL session editing now includes a Refresh/discovery control backed by
-  `wsl.exe --list --quiet`, with UTF-16LE Windows output decoding. This host
-  currently reports AlmaLinux-8, Ubuntu, Debian, and Ubuntu-24.04.
+  `wsl.exe --list --verbose`, with UTF-16LE Windows output decoding. The selector
+  displays distro name, state, and WSL version; this host reports AlmaLinux-8,
+  Ubuntu, Debian, and Ubuntu-24.04.
 
 ## P2: advanced tools and operations
 

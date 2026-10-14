@@ -290,8 +290,8 @@ function showEditor(session = {}) {
   const refreshWslDistributions = async () => {
     try {
       const values = await invoke('wsl_distributions');
-      wslDistribution.innerHTML = '<option value="">Select a distribution</option>' + values.map(value => `<option value="${value.replaceAll('"', '&quot;')}">${value}</option>`).join('');
-      if (values.includes(form.host.value)) wslDistribution.value = form.host.value;
+      wslDistribution.innerHTML = '<option value="">Select a distribution</option>' + values.map(({ name, state, version }) => `<option value="${name.replaceAll('"', '&quot;')}">${name} — ${state}, WSL ${version}</option>`).join('');
+      if (values.some(value => value.name === form.host.value)) wslDistribution.value = form.host.value;
       wslRow.querySelector('[data-wsl-status]').textContent = ` ${values.length} found`;
     } catch (error) { wslRow.querySelector('[data-wsl-status]').textContent = ` ${error}`; }
   };

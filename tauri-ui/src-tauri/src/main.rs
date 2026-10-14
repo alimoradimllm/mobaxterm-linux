@@ -657,8 +657,15 @@ fn shell_available(shell: String) -> bool {
     std::env::split_paths(&path).any(|directory| directory.join(executable).is_file())
 }
 
+#[derive(Serialize)]
+struct WslDistribution {
+    name: String,
+    state: String,
+    version: String,
+}
+
 #[tauri::command]
-fn wsl_distributions() -> Result<Vec<String>, String> {
+fn wsl_distributions() -> Result<Vec<WslDistribution>, String> {
     if !cfg!(windows) {
         return Err("WSL distribution discovery is only available on Windows".into());
     }
@@ -681,8 +688,24 @@ fn wsl_distributions() -> Result<Vec<String>, String> {
     };
     let values = text
         .lines()
-        .map(|line| line.trim_matches('\u{feff}').trim().to_string())
-        .filter(|line| !line.is_empty())
+        .filter_map(|line| {
+            let line = line.trim_matches('\u{feff}').trim();
+            if line.is_empty() || line.to_ascii_uppercase().starts_with("NAME") {
+                return None;
+            }
+            let fields = line
+                .trim_start_matches('*')
+                .split_whitespace()
+                .collect::<Vec<_>>();
+            let name = fields.first()?.to_string();
+            let state = fields.get(1).unwrap_or(&"Unknown").to_string();
+            let version = fields.get(2).unwrap_or(&"?").to_string();
+            Some(WslDistribution {
+                name,
+                state,
+                version,
+            })
+        })
         .collect::<Vec<_>>();
     Ok(values)
 }
