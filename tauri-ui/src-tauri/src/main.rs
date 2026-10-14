@@ -294,14 +294,16 @@ fn start_terminal(app: AppHandle, state: State<'_, TerminalManager>, id: String,
         ("/bin/sh".into(), vec!["-l".into()])
     };
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let process = TerminalProcess::spawn_with_env_and_cwd(&program_name, &arg_refs, &environment, Some(&working_directory)).map_err(|e| e.to_string())?;
+    let mut process = TerminalProcess::spawn_with_env_and_cwd(&program_name, &arg_refs, &environment, Some(&working_directory)).map_err(|e| e.to_string())?;
+    let mut reader = process.take_reader().map_err(|e| e.to_string())?;
     let shared = Arc::new(Mutex::new(process));
     state.processes.lock().map_err(|_| "terminal manager poisoned")?.insert(id.clone(), Arc::clone(&shared));
     if !startup_command.trim().is_empty() { shared.lock().map_err(|_| "terminal poisoned")?.write(format!("{}\n", startup_command).as_bytes()).map_err(|e| e.to_string())?; }
     let recordings = Arc::clone(&state.recordings);
     let processes = Arc::clone(&state.processes);
     std::thread::spawn(move || loop {
-        let result = shared.lock().map_err(|_| "terminal poisoned".to_string()).and_then(|mut process| process.read_chunk().map_err(|e| e.to_string()));
+        let mut buffer = [0_u8; 8192];
+        let result = reader.read(&mut buffer).map(|count| buffer[..count].to_vec()).map_err(|e| e.to_string());
         match result {
             Ok(data) if !data.is_empty() => {
                 if let Ok(mut active) = recordings.lock() {
