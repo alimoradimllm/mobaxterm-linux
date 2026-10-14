@@ -159,9 +159,10 @@ of full third-party terminal workspace parity.
   and signed release verification.
 - CI now runs `cargo audit` for both Rust lockfiles, `npm audit --audit-level=high`,
   and Gitleaks on pushes, pull requests, and a weekly schedule. Local audit
-  results currently report no npm vulnerabilities, plus advisory warnings for
-  the unmaintained `serial`/`proc-macro-error` crates and the `glib` unsoundness
-  advisory; dependency replacement remains open.
+  results currently report no npm vulnerabilities. Upgrading `portable-pty` to
+  0.9 removed the unmaintained `serial` dependency from both lockfiles; the
+  Tauri lockfile still reports transitive `proc-macro-error` and `glib`
+  advisories for future upstream replacement.
 - Run installation tests in clean Windows and Linux virtual machines.
 
 ## P3: deferred
