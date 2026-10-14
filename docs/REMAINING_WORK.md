@@ -124,8 +124,10 @@ of full third-party terminal workspace parity.
 
 - OS-backed credential commands now use the `keyring` crate with Windows-native
   and Linux-native backends. They expose status/store/delete only; secret values
-  are never returned. Wiring these commands into SSH authentication and the
-  interactive credential editor remains open.
+  are never returned. SSH now looks up the account key
+  `username@host:port` and, when present, uses a temporary restricted askpass
+  helper that is removed when the terminal exits. Authenticated runtime testing
+  and interactive credential-editor controls remain open.
 - Managed host-key removal is now available through a structured `ssh-keygen -R`
   bridge for the configured host/port. New-key approval remains delegated to
   OpenSSH so the application does not silently trust unverified key material.

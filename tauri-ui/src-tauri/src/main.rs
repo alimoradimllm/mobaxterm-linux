@@ -132,6 +132,33 @@ fn credential_delete(service: String, account: String) -> Result<bool, String> {
     }
 }
 
+fn create_ssh_askpass(secret: &str) -> Result<std::path::PathBuf, String> {
+    let suffix = chrono_like_timestamp().replace('.', "-");
+    let path = std::env::temp_dir().join(if cfg!(windows) {
+        format!("moraxterm-askpass-{suffix}.cmd")
+    } else {
+        format!("moraxterm-askpass-{suffix}.sh")
+    });
+    let content = if cfg!(windows) {
+        "@echo off\r\necho %MORAXTERM_SSH_SECRET%\r\n"
+    } else {
+        "#!/bin/sh\nprintf '%s\\n' \"$MORAXTERM_SSH_SECRET\"\n"
+    };
+    std::fs::write(&path, content)
+        .map_err(|error| format!("cannot create askpass helper: {error}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(&path)
+            .map_err(|error| error.to_string())?
+            .permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&path, permissions).map_err(|error| error.to_string())?;
+    }
+    let _ = secret;
+    Ok(path)
+}
+
 fn chrono_like_timestamp() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1045,10 +1072,27 @@ fn start_terminal(
             program.as_deref().unwrap_or("default")
         ),
     );
-    let environment = session
+    let mut environment = session
         .as_ref()
         .map(|value| value.environment.clone())
         .unwrap_or_default();
+    let mut askpass_path = None;
+    if let Some(ssh) = session
+        .as_ref()
+        .filter(|value| value.session_type.eq_ignore_ascii_case("SSH"))
+    {
+        let account = format!("{}@{}:{}", ssh.username.trim(), ssh.host.trim(), ssh.port);
+        if let Ok(entry) = keyring::Entry::new("com.moraxterm.ssh", &account) {
+            if let Ok(secret) = entry.get_password() {
+                let helper = create_ssh_askpass(&secret)?;
+                environment.insert("MORAXTERM_SSH_SECRET".into(), secret);
+                environment.insert("SSH_ASKPASS".into(), helper.to_string_lossy().into_owned());
+                environment.insert("SSH_ASKPASS_REQUIRE".into(), "force".into());
+                environment.insert("DISPLAY".into(), "moraxterm:0".into());
+                askpass_path = Some(helper);
+            }
+        }
+    }
     let startup_command = session
         .as_ref()
         .map(|value| value.startup_command.clone())
@@ -1277,6 +1321,9 @@ fn start_terminal(
                         data: String::new(),
                     },
                 );
+                if let Some(path) = askpass_path.as_ref() {
+                    let _ = std::fs::remove_file(path);
+                }
                 break;
             }
             Err(error) => {
@@ -1300,6 +1347,9 @@ fn start_terminal(
                         data: String::new(),
                     },
                 );
+                if let Some(path) = askpass_path.as_ref() {
+                    let _ = std::fs::remove_file(path);
+                }
                 break;
             }
         }
