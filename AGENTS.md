@@ -140,6 +140,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Detached terminal windows.
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
 - Multiple tunnel profiles/status/logs are implemented in source; disposable-target runtime testing remains open.
+- Macro library persistence/import/export is implemented in source; installed-app file-dialog runtime testing remains open.
 - Embedded RDP/VNC, Serial discovery, advanced Telnet, WSL selector testing.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.

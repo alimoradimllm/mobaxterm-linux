@@ -118,7 +118,7 @@ of full third-party terminal workspace parity.
 - Add close confirmation for active connections. *(Implemented in source; installed-app verification remains open.)*
 - Selective MultiExec targets, per-session output, status, and stop controls. *(Implemented in source; live desktop verification passed for banner, two tabs, exclusion control, and sent status.)*
 - Multiple tunnel profiles and concurrent tunnel status/logs. *(Implemented in source with saved profiles, independent start/stop/delete controls, and per-profile status/log text; disposable-target runtime testing remains open.)*
-- Persist macro libraries with explicit import/export and secure content handling.
+- Persist macro libraries with explicit import/export and secure content handling. *(Implemented in source with named local macros, validated JSON import, JSON export, replay, deletion, and bounded storage.)*
 
 ### Remote protocols
 

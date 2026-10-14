@@ -40,6 +40,8 @@ let multiExec = false;
 let multiExecTargets = new Set();
 let macroRecording = false;
 let macroBuffer = [];
+let macroLibrary = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-macro-library') || '[]'); return Array.isArray(value) ? value.filter(item => item && typeof item.name === 'string' && Array.isArray(item.events)) : []; } catch { return []; } })();
+function saveMacroLibrary() { localStorage.setItem('moraxterm-macro-library', JSON.stringify(macroLibrary.slice(0, 50))); }
 let recentSessionNames = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-recent-sessions') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
 let terminalSettings = (() => { try { return { fontSize: 13, cursorBlink: true, theme: 'mobaxterm', appTheme: 'mobaxterm', highlightKeywords: true, highlightColor: '#ffd166', ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return { fontSize: 13, cursorBlink: true, theme: 'mobaxterm', appTheme: 'mobaxterm', highlightKeywords: true, highlightColor: '#ffd166' }; } })();
 const fallback = [
@@ -1005,25 +1007,58 @@ function showSettings() {
 }
 
 
+async function playMacro(macro, id) {
+  if (!invoke || !macro) return;
+  for (const data of macro.events) await invoke('write_terminal', { id, data });
+  status(`Macro played: ${macro.name} (${macro.events.length} input events)`);
+}
+
+function exportMacros() {
+  const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify({ version: 1, macros: macroLibrary }, null, 2)], { type: 'application/json' })); link.download = 'moraxterm-macros.json'; link.click(); URL.revokeObjectURL(link.href); status(`Exported ${macroLibrary.length} macro${macroLibrary.length === 1 ? '' : 's'}`);
+}
+
+function importMacros() {
+  const input = document.createElement('input'); input.type = 'file'; input.accept = 'application/json';
+  input.onchange = async () => {
+    const file = input.files?.[0]; if (!file || file.size > 2 * 1024 * 1024) { status('Macro import is limited to 2 MiB', true); return; }
+    try {
+      const parsed = JSON.parse(await file.text()); const items = Array.isArray(parsed) ? parsed : parsed.macros;
+      if (!Array.isArray(items)) throw new Error('Expected a macros array');
+      const valid = items.filter(item => item && typeof item.name === 'string' && item.name.length <= 120 && Array.isArray(item.events) && item.events.length <= 10000 && item.events.every(event => typeof event === 'string' && event.length <= 10000)).map(item => ({ name: item.name, events: item.events }));
+      macroLibrary = [...valid, ...macroLibrary].slice(0, 50); saveMacroLibrary(); renderMacroManager(); status(`Imported ${valid.length} macro${valid.length === 1 ? '' : 's'}`);
+    } catch (error) { status(`Macro import failed: ${error}`, true); }
+  }; input.click();
+}
+
+function renderMacroManager() {
+  const overlay = document.querySelector('.macro-manager'); if (!overlay) return;
+  overlay.querySelector('[data-macro-list]').innerHTML = macroLibrary.map((macro, index) => `<div class="macro-row"><div><strong>${macro.name}</strong><small>${macro.events.length} input events</small></div><button type="button" data-play-macro="${index}">Play</button><button type="button" data-delete-macro="${index}">Delete</button></div>`).join('') || '<p>No saved macros.</p>';
+  overlay.querySelectorAll('[data-play-macro]').forEach(button => button.onclick = () => { const id = activeTab(); if (!id) { status('Open a terminal before playing a macro', true); return; } playMacro(macroLibrary[Number(button.dataset.playMacro)], id); });
+  overlay.querySelectorAll('[data-delete-macro]').forEach(button => button.onclick = () => { macroLibrary.splice(Number(button.dataset.deleteMacro), 1); saveMacroLibrary(); renderMacroManager(); });
+}
+
+function showMacroManager() {
+  const overlay = document.createElement('div'); overlay.className = 'modal-overlay macro-manager';
+  overlay.innerHTML = `<section class="chooser-modal macro-panel"><header><strong>Macro library</strong><button type="button" data-close>×</button></header><div data-macro-list></div><footer><button type="button" data-record-macro>Record new</button><button type="button" data-import-macros>Import</button><button type="button" data-export-macros>Export</button><button type="button" data-close>Done</button></footer></section>`;
+  document.body.appendChild(overlay); overlay.querySelectorAll('[data-close]').forEach(button => button.onclick = () => overlay.remove()); overlay.querySelector('[data-record-macro]').onclick = beginMacroRecording; overlay.querySelector('[data-import-macros]').onclick = importMacros; overlay.querySelector('[data-export-macros]').onclick = exportMacros; renderMacroManager();
+}
+
+function beginMacroRecording() {
+  const id = activeTab(); if (!id || !invoke) { status('Open a native terminal before recording', true); return; }
+  macroBuffer = []; macroRecording = true; document.querySelector('[data-action="macros"]')?.classList.add('active'); document.querySelector('.macro-manager')?.remove(); status('Macro recording started');
+}
+
 async function macroAction() {
   const button = document.querySelector('[data-action="macros"]');
   const id = activeTab();
-  if (!id || !invoke) { status('Open a native terminal before using macros', true); return; }
+  if (!id || !invoke) { showMacroManager(); return; }
   if (macroRecording) {
-    macroRecording = false;
-    button?.classList.remove('active');
-    status(`Macro stopped (${macroBuffer.length} input events)`);
-    return;
+    macroRecording = false; button?.classList.remove('active');
+    const name = (window.prompt('Macro name:', `macro ${macroLibrary.length + 1}`) || '').trim();
+    if (name) { macroLibrary = [{ name, events: macroBuffer.slice(0, 10000) }, ...macroLibrary].slice(0, 50); saveMacroLibrary(); }
+    status(`Macro stopped (${macroBuffer.length} input events)`); macroBuffer = []; return;
   }
-  if (macroBuffer.length && window.confirm('Play the last macro? Choose Cancel to record a new macro.')) {
-    for (const data of macroBuffer) await invoke('write_terminal', { id, data });
-    status(`Macro played into terminal (${macroBuffer.length} input events)`);
-    return;
-  }
-  macroBuffer = [];
-  macroRecording = true;
-  button?.classList.add('active');
-  status('Macro recording started');
+  showMacroManager();
 }
 
 function duplicateActive() {
