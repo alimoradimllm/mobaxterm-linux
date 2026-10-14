@@ -1738,6 +1738,13 @@ fn start_terminal(
     } else {
         ("/bin/sh".into(), vec!["-l".into()])
     };
+    if session
+        .as_ref()
+        .is_some_and(|value| value.session_type.eq_ignore_ascii_case("Shell"))
+        && !executable_available(&program_name)
+    {
+        return Err(format!("Local shell is unavailable: {}", program_name));
+    }
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
     debug_write(
         &state.debug,
