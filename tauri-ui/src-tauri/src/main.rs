@@ -1449,8 +1449,13 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
     let (program, args): (&str, Vec<String>) = match tool.as_str() {
         "ping" if cfg!(windows) => ("ping", vec!["-n".into(), "4".into(), target]),
         "ping" => ("ping", vec!["-c".into(), "4".into(), target]),
-        "traceroute" if cfg!(windows) => ("tracert", vec![target]),
-        "traceroute" => ("traceroute", vec!["-m".into(), "12".into(), target]),
+        "traceroute" if cfg!(windows) => {
+            ("tracert", vec!["/w:1000".into(), "/h:12".into(), target])
+        }
+        "traceroute" => (
+            "traceroute",
+            vec!["-m".into(), "12".into(), "-w".into(), "1".into(), target],
+        ),
         "dns" if cfg!(windows) => ("nslookup", vec![target]),
         "dns" => ("getent", vec!["hosts".into(), target]),
         _ => return Err("tool must be ping, traceroute, dns, or port".into()),
