@@ -1503,6 +1503,33 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
 }
 
 #[tauri::command]
+fn scan_ports(target: String, start_port: u16, end_port: u16) -> Result<String, String> {
+    if target.trim().is_empty()
+        || target.len() > 255
+        || target.chars().any(|character| character.is_control())
+    {
+        return Err("network target is invalid or too long".into());
+    }
+    if start_port == 0 || end_port == 0 || end_port < start_port {
+        return Err("port range is invalid".into());
+    }
+    if u32::from(end_port) - u32::from(start_port) + 1 > 32 {
+        return Err("port range cannot exceed 32 ports".into());
+    }
+    let mut lines = Vec::new();
+    for port in start_port..=end_port {
+        let address = format!("{}:{}", target.trim(), port);
+        let open = address
+            .to_socket_addrs()
+            .map_err(|error| error.to_string())?
+            .any(|socket| TcpStream::connect_timeout(&socket, Duration::from_millis(250)).is_ok());
+        lines.push(format!("{} {}", port, if open { "open" } else { "closed" }));
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    Ok(lines.join("\n"))
+}
+
+#[tauri::command]
 fn start_recording(
     state: State<'_, TerminalManager>,
     id: String,
@@ -2071,6 +2098,7 @@ pub fn run() {
             cancel_sftp_transfer,
             sftp_operation,
             run_network_tool,
+            scan_ports,
             start_recording,
             stop_recording,
             start_terminal,

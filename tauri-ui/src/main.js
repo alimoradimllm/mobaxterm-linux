@@ -959,13 +959,17 @@ async function runSftpList() {
 
 async function runNetworkTool() {
   if (!invoke) { status('Network tools are available in the native Tauri app', true); return; }
-  const tool = (window.prompt('Tool: ping, traceroute, dns, or port', 'ping') || '').trim().toLowerCase();
+  const tool = (window.prompt('Tool: ping, traceroute, dns, port, or scan', 'ping') || '').trim().toLowerCase();
   if (!tool) return;
   const target = (window.prompt('Target host or IP:') || '').trim();
   if (!target) return;
   const port = tool === 'port' ? Number(window.prompt('TCP port:', '22') || '0') : null;
+  const startPort = tool === 'scan' ? Number(window.prompt('Start TCP port:', '1') || '0') : null;
+  const endPort = tool === 'scan' ? Number(window.prompt('End TCP port:', String((startPort || 1) + 9)) || '0') : null;
   try {
-    const result = await invoke('run_network_tool', { tool, target, port });
+    const result = tool === 'scan'
+      ? await invoke('scan_ports', { target, startPort, endPort })
+      : await invoke('run_network_tool', { tool, target, port });
     const id = activeTab();
     const tab = id && tabs.get(id);
     if (tab) { tab.terminal.writeln(`\\r\\n\\x1b[36m[${tool} ${target}]\\x1b[0m`); tab.terminal.write(result.replaceAll('\\n', '\\r\\n')); }
