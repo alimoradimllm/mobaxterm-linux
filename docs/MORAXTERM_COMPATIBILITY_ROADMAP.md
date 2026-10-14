@@ -80,6 +80,7 @@ observed behavior, public protocol tooling, and independent code.
 - Managed stale-host removal uses a structured `ssh-keygen -R` command, and the editor now supports scan, fingerprint confirmation, re-scan comparison, and safe `known_hosts` append for new keys.
 - Windows RDP sessions now select native `mstsc.exe` instead of the unavailable FreeRDP executable; embedded RDP/VNC and runtime tests remain open.
 - Security CI now runs RustSec, npm, and Gitleaks checks. The `portable-pty` 0.9 upgrade removed the unmaintained `serial` dependency; only transitive Tauri `proc-macro-error` and `glib` advisories remain.
+- Published releases now have a workflow for SHA-256 manifests and keyless Sigstore signing/verification; installer certificate signing and a completed production release run remain open.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).

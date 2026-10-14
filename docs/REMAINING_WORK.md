@@ -156,7 +156,10 @@ of full third-party terminal workspace parity.
   uninstaller, Start Menu registration, Add/Remove Programs metadata, and
   automatic update support.
 - Add code signing, dependency scanning, secret scanning, reproducible builds,
-  and signed release verification.
+  and signed release verification. Security and dependency scans are now in CI;
+  the release workflow now generates SHA-256 checksums and keyless Sigstore
+  signatures for published assets. Platform installer code-signing certificates,
+  updater signing keys, and a completed release run remain open.
 - CI now runs `cargo audit` for both Rust lockfiles, `npm audit --audit-level=high`,
   and Gitleaks on pushes, pull requests, and a weekly schedule. Local audit
   results currently report no npm vulnerabilities. Upgrading `portable-pty` to

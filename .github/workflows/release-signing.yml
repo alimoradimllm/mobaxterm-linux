@@ -1,0 +1,55 @@
+name: Verify and sign release assets
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  sign-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts
+          gh release download "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --dir artifacts
+
+      - name: Generate checksums
+        working-directory: artifacts
+        run: sha256sum -- * > SHA256SUMS
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Sign checksum manifest with Sigstore
+        run: |
+          cosign sign-blob --yes \
+            --output-signature artifacts/SHA256SUMS.sig \
+            --output-certificate artifacts/SHA256SUMS.pem \
+            artifacts/SHA256SUMS
+
+      - name: Verify checksum manifest signature
+        run: |
+          cosign verify-blob artifacts/SHA256SUMS \
+            --signature artifacts/SHA256SUMS.sig \
+            --certificate artifacts/SHA256SUMS.pem \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Upload checksums and signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            artifacts/SHA256SUMS \
+            artifacts/SHA256SUMS.sig \
+            artifacts/SHA256SUMS.pem \
+            --repo "${{ github.repository }}" \
+            --clobber
