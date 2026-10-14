@@ -36,6 +36,10 @@ of full third-party terminal workspace parity.
 - The SFTP modal now provides a read-only local directory listing with
   refresh/up navigation. Transfer queue, progress, cancellation, resume,
   drag-and-drop, preview/editor, and SCP fallback work remain open.
+- SFTP transfers now run through a serialized visible queue with explicit
+  pending/running/completed/failed states and cancellation before a job starts.
+  Byte-level progress, cancellation of a running native transfer, resume, and
+  retry policy remain open.
 
 ## P0: daily terminal and SSH workflow
 

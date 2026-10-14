@@ -62,6 +62,7 @@ observed behavior, public protocol tooling, and independent code.
 - v0.1.13 provides opt-in diagnostic logging from Settings. Logs default to `%APPDATA%\\Moraxterm\\moraxterm-debug.log` and sanitize sensitive values.
 - Terminal tabs now expose starting, connected, failed, and exited states in the UI; exited tabs show a reconnect instruction and no longer reference an unsafe raw event payload.
 - The SFTP modal now includes a read-only local directory browser with refresh/up navigation, and transfer prompts default to the selected local path. Transfer queues, progress, cancellation, resume, and drag-and-drop remain open.
+- SFTP uploads and downloads now use a serialized visible transfer queue with pending, running, completed, failed, and queued-cancelled states. Percentage progress and cancellation of an already-running native transfer still require backend streaming/process control.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).

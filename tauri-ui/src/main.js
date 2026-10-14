@@ -337,12 +337,15 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button></div><pre data-local-output>Loading…</pre></section></div></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button></div><pre data-local-output>Loading…</pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
   const localPathInput = overlay.querySelector('[data-local-path]');
   const localOutput = overlay.querySelector('[data-local-output]');
+  const queueOutput = overlay.querySelector('[data-transfer-queue]');
+  const transferQueue = [];
+  let transferRunning = false;
   const invokeList = async () => {
     const path = pathInput.value.trim() || '.';
     try { output.textContent = await invoke('sftp_list', { host, username, port, path }); status(`SFTP listing: ${path}`); }
@@ -363,19 +366,58 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     localPathInput.value = path.replace(/[\\/]+$/, '').split(/[\\/]/).slice(0, -1).join(separator) || '.';
     invokeLocalList();
   };
+  const renderQueue = () => {
+    if (!transferQueue.length) { queueOutput.textContent = 'No transfers queued.'; return; }
+    queueOutput.innerHTML = transferQueue.map(item => {
+      const cancel = item.state === 'queued' ? `<button data-cancel-transfer="${item.id}">Cancel</button>` : '';
+      return `<div><strong>${item.direction}</strong> ${item.localPath} → ${item.remotePath} <span>${item.state}</span>${cancel}</div>`;
+    }).join('');
+    queueOutput.querySelectorAll('[data-cancel-transfer]').forEach(button => {
+      button.onclick = () => {
+        const item = transferQueue.find(entry => entry.id === button.dataset.cancelTransfer);
+        if (item?.state === 'queued') { item.state = 'cancelled'; renderQueue(); }
+      };
+    });
+  };
+  const runTransferQueue = async () => {
+    if (transferRunning) return;
+    transferRunning = true;
+    try {
+      for (const item of transferQueue) {
+        if (item.state !== 'queued') continue;
+        item.state = 'running';
+        renderQueue();
+        try {
+          item.result = await invoke('sftp_transfer', { host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath });
+          item.state = 'completed';
+          status(`SFTP ${item.direction} completed`);
+        } catch (error) {
+          item.state = 'failed';
+          item.result = String(error);
+          status(`SFTP ${item.direction} failed: ${error}`, true);
+        }
+        renderQueue();
+      }
+    } finally {
+      transferRunning = false;
+    }
+  };
+  const enqueueTransfer = (direction, localPath, remotePath) => {
+    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, state: 'queued' });
+    renderQueue();
+    runTransferQueue();
+  };
   overlay.querySelector('[data-upload]').onclick = async () => {
     const localPath = (window.prompt('Local file path:', localPathInput.value) || '').trim();
     const remotePath = (window.prompt('Remote destination path:', `${pathInput.value}/`) || '').trim();
     if (!localPath || !remotePath) return;
-    try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'upload', localPath, remotePath }); status('SFTP upload completed'); invokeList(); }
-    catch (error) { output.textContent = String(error); status(`SFTP upload failed: ${error}`, true); }
+    enqueueTransfer('upload', localPath, remotePath);
   };
   overlay.querySelector('[data-download]').onclick = async () => {
     const remotePath = (window.prompt('Remote source path:', pathInput.value) || '').trim();
     const localPath = (window.prompt('Local destination path:', localPathInput.value) || '').trim();
     if (!localPath || !remotePath) return;
-    try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'download', localPath, remotePath }); status('SFTP download completed'); }
-    catch (error) { output.textContent = String(error); status(`SFTP download failed: ${error}`, true); }
+    enqueueTransfer('download', localPath, remotePath);
   };
   overlay.querySelector('[data-mkdir]').onclick = () => runSftpOperation('mkdir', window.prompt('Remote folder name:', `${pathInput.value.replace(/\/+$/, '')}/new-folder`));
   overlay.querySelector('[data-rename]').onclick = () => { const source = window.prompt('Remote source path:', pathInput.value); const target = source && window.prompt('New remote path:', source); return runSftpOperation('rename', source, target); };
