@@ -299,7 +299,19 @@ function showEditor(session = {}) {
     button.dataset.editorSection = ['basic', 'advanced', 'terminal', 'network', 'bookmark'][index];
     button.onclick = () => showEditorSection(button.dataset.editorSection);
   });
+  const protocolButtons = [...form.querySelectorAll('.editor-protocols button')];
+  const protocolTypes = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell', 'Serial'];
+  const selectProtocol = type => {
+    form.session_type.value = type;
+    protocolButtons.forEach((button, index) => button.classList.toggle('active', protocolTypes[index] === type));
+    showEditorSection(type === 'SSH' ? 'basic' : 'advanced');
+  };
+  protocolButtons.forEach((button, index) => {
+    button.dataset.protocol = protocolTypes[index];
+    button.onclick = () => selectProtocol(button.dataset.protocol);
+  });
   showEditorSection('basic');
+  selectProtocol(session.session_type || 'SSH');
   const checkAgent = async () => {
     if (form.session_type.value.toUpperCase() !== 'SSH' || !sshAgentRow.querySelector('[name="ssh_agent_monitor"]').checked) return;
     try { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${await invoke('ssh_agent_status')}`; }
