@@ -167,7 +167,7 @@ of full third-party terminal workspace parity.
 ## P2: advanced tools and operations
 
 - Manage X-server lifecycle, tray state, XDMCP, and access control.
-- Network diagnostics use Rust DNS resolution on Windows and Linux, format IPv4/IPv6 socket targets safely, preflight platform ping/traceroute tools, use Rust sockets for TCP checks, reject empty/oversized/control-character targets, and bound ping/traceroute execution. The opt-in bounded TCP port-range diagnostic through Tools → `scan` reports open/closed state plus measured milliseconds, with a maximum 32 ports, 250 ms connection timeout, and 25 ms spacing.
+- Rust regression tests now cover IPv4/IPv6 socket formatting and rejection of scan ranges over 32 ports. Network diagnostics use Rust DNS resolution on Windows and Linux, preflight platform ping/traceroute tools, use Rust sockets for TCP checks, reject empty/oversized/control-character targets, and bound ping/traceroute execution. The opt-in bounded TCP port-range diagnostic through Tools → `scan` reports open/closed state plus measured milliseconds, with a maximum 32 ports, 250 ms connection timeout, and 25 ms spacing.
 - Add local/remote process, service, and disk-usage viewers.
 - Add text and hex editor workflows with safe file boundaries.
 - Replace placeholder status values with measured CPU, memory, throughput,

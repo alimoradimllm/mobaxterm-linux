@@ -2131,3 +2131,25 @@ pub fn run() {
 fn main() {
     run();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{format_socket_address, scan_ports};
+
+    #[test]
+    fn formats_ipv4_socket_addresses() {
+        assert_eq!(format_socket_address("127.0.0.1", 22), "127.0.0.1:22");
+    }
+
+    #[test]
+    fn formats_ipv6_socket_addresses() {
+        assert_eq!(format_socket_address("::1", 443), "[::1]:443");
+        assert_eq!(format_socket_address("[::1]", 443), "[::1]:443");
+    }
+
+    #[test]
+    fn rejects_scan_ranges_over_32_ports() {
+        let result = scan_ports("127.0.0.1".into(), 1, 33);
+        assert_eq!(result, Err("port range cannot exceed 32 ports".into()));
+    }
+}
