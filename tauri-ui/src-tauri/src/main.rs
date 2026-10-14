@@ -554,6 +554,43 @@ fn local_preview(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn open_local_path(path: String) -> Result<(), String> {
+    let path = path.trim();
+    if path.is_empty()
+        || path
+            .chars()
+            .any(|c| c.is_control() || c == '\n' || c == '\r')
+    {
+        return Err("invalid local path".into());
+    }
+    if !std::path::Path::new(path).exists() {
+        return Err("local file does not exist".into());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer.exe")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("cannot open local file: {e}"))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("cannot open local file: {e}"))?;
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("cannot open local file: {e}"))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn sftp_preview(
     host: String,
     username: String,
@@ -1599,6 +1636,7 @@ pub fn run() {
             xserver_status,
             local_list,
             local_preview,
+            open_local_path,
             sftp_preview,
             ssh_known_hosts_status,
             ssh_known_hosts_remove,

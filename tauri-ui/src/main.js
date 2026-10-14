@@ -670,7 +670,7 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><button data-remote-preview>Preview remote</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre><pre data-remote-preview-output></pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button><button data-local-preview>Preview file</button></div><div data-drop-zone style="border:1px dashed var(--border);padding:8px;margin:6px 0">Drop local files here to upload</div><pre data-local-output>Loading…</pre><pre data-local-preview-output></pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button><button data-remote-preview>Preview remote</button><button data-edit-remote>Edit remote copy</button><label><input type="checkbox" data-resume> Resume partial transfer</label></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre><pre data-remote-preview-output></pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button><button data-local-preview>Preview file</button></div><div data-drop-zone style="border:1px dashed var(--border);padding:8px;margin:6px 0">Drop local files here to upload</div><pre data-local-output>Loading…</pre><pre data-local-preview-output></pre></section></div><section><h3>Transfer queue</h3><div data-transfer-queue>No transfers queued.</div></section></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
@@ -714,6 +714,15 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     if (!path) return;
     try { remotePreviewOutput.textContent = await invoke('sftp_preview', { host, username, port, remotePath: path }); status(`Previewed remote file: ${path}`); }
     catch (error) { remotePreviewOutput.textContent = String(error); status(`Remote preview failed: ${error}`, true); }
+  };
+  overlay.querySelector('[data-edit-remote]').onclick = () => {
+    const remotePath = (window.prompt('Remote text file path:', pathInput.value) || '').trim();
+    const localPath = remotePath && (window.prompt('Local editable copy path:', `${localPathInput.value.replace(/[\\/]$/, '')}/${remotePath.split('/').pop()}`) || '').trim();
+    if (!remotePath || !localPath) return;
+    enqueueTransfer('download', localPath, remotePath, async () => {
+      try { await invoke('open_local_path', { path: localPath }); status(`Opened local editable copy: ${localPath}`); }
+      catch (error) { status(`Could not open local copy: ${error}`, true); }
+    });
   };
   dropZone.ondragover = event => { event.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; };
   dropZone.ondragleave = () => { dropZone.style.borderColor = 'var(--border)'; };
@@ -761,6 +770,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
           item.jobId = event.id;
           item.result = event.message;
           item.state = event.success ? 'completed' : (item.cancelRequested ? 'cancelled' : (item.attempts < 2 ? 'retrying' : 'failed'));
+          if (item.state === 'completed') item.onComplete?.();
           status(`SFTP ${item.direction} ${item.state}`, !event.success && item.state !== 'retrying');
         } catch (error) {
           item.state = item.attempts < 2 ? 'retrying' : 'failed';
@@ -774,8 +784,8 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
       transferRunning = false;
     }
   };
-  const enqueueTransfer = (direction, localPath, remotePath) => {
-    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, resume: resumeInput.checked, state: 'queued', jobId: '', cancelRequested: false, attempts: 0, transferredBytes: null, totalBytes: null });
+  const enqueueTransfer = (direction, localPath, remotePath, onComplete = null) => {
+    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, resume: resumeInput.checked, state: 'queued', jobId: '', cancelRequested: false, attempts: 0, transferredBytes: null, totalBytes: null, onComplete });
     renderQueue();
     runTransferQueue();
   };

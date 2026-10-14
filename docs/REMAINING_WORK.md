@@ -50,6 +50,9 @@ of full third-party terminal workspace parity.
   preview and editing remain open.
 - Remote SFTP preview now uses a cleaned-up temporary file with the same 1 MiB
   UTF-8 limit. Editing remains open.
+- Remote SFTP edit-copy workflow now downloads to an explicit local path and
+  opens it with the OS editor; uploading the edited copy remains an explicit
+  user action.
 - A migration regression test now covers legacy SQLite payloads and current
   default fields. Broader schema migration fixtures remain open.
 - SSH editing now checks whether a host entry exists in `known_hosts` without

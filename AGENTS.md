@@ -136,7 +136,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Full Windows terminal matrix: PowerShell, WSL/Bash, Unicode, resize, paste, control keys, ANSI/VT behavior, alternate-screen applications, mouse reporting, and long output.
 - Authenticated SSH/SFTP testing against a disposable target.
 - Runtime validation of host-key approval/change warnings and SSH-agent authentication.
-- SFTP SCP fallback, remote editing, metadata, and reliable upload-byte progress.
+- SFTP SCP fallback, metadata, and reliable upload-byte progress remain open. Remote editing uses an explicit download/open/edit/upload workflow.
 - Detached terminal windows.
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
 - Multiple tunnel profiles/status/logs are implemented in source; disposable-target runtime testing remains open.
