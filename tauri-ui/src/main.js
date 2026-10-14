@@ -73,11 +73,19 @@ function renderSessions() {
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(session);
   });
+  const renderedFolders = new Set();
   for (const [group, items] of groups) {
-    const heading = document.createElement('li');
-    heading.className = 'session-group';
-    heading.textContent = `▾ ${group}`;
-    sessionsEl.appendChild(heading);
+    const parts = group.split(/[\\/]/).filter(Boolean);
+    parts.forEach((part, depth) => {
+      const folder = parts.slice(0, depth + 1).join('/');
+      if (renderedFolders.has(folder)) return;
+      renderedFolders.add(folder);
+      const heading = document.createElement('li');
+      heading.className = 'session-group';
+      heading.style.paddingLeft = `${12 + depth * 14}px`;
+      heading.textContent = `▾ ${part}`;
+      sessionsEl.appendChild(heading);
+    });
     items.forEach(session => {
       const li = document.createElement('li');
       li.className = 'session-entry';

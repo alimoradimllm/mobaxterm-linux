@@ -60,6 +60,8 @@ of full third-party terminal workspace parity.
 - Strict SSH sessions now refuse launch when no matching `known_hosts` entry is
   present. Native approval and changed-key warning UI remain delegated to
   OpenSSH; managed in-app approval/update UI remains open.
+- Session folder paths now render as indented nested headings. Folder drag and
+  drop, rename, and movement controls remain open.
 
 ## P0: daily terminal and SSH workflow
 
