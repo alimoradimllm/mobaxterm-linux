@@ -292,7 +292,7 @@ function showEditor(session = {}) {
   credentialRow.setAttribute('data-editor-section', 'network');
   const editorTabs = [...form.querySelectorAll('.editor-tabs button')];
   const showEditorSection = section => {
-    form.querySelectorAll('[data-editor-section]').forEach(row => { row.hidden = row.dataset.editorSection !== section; });
+    form.querySelectorAll('[data-editor-section]:not(.editor-tabs button)').forEach(row => { row.hidden = row.dataset.editorSection !== section; });
     editorTabs.forEach(button => button.classList.toggle('active', button.dataset.editorSection === section));
   };
   editorTabs.forEach((button, index) => {
