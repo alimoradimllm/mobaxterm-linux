@@ -978,7 +978,17 @@ function showSettings() {
   const highlightKeywords = overlay.querySelector('[data-highlight-keywords]');
   const highlightColor = overlay.querySelector('[data-highlight-color]');
   const localShell = overlay.querySelector('[data-local-shell]');
-  if (localShell) localShell.value = terminalSettings.localShell || 'default';
+  if (localShell) {
+    localShell.value = terminalSettings.localShell || 'default';
+    [...localShell.options].filter(option => option.value !== 'default').forEach(option => {
+      invoke('shell_available', { shell: option.value }).then(available => {
+        option.disabled = !available;
+        if (!available && !option.textContent.includes('not found')) option.textContent += ' (not found on PATH)';
+        option.title = available ? 'Available' : 'Install this shell and add it to PATH';
+        if (!available && option.value === localShell.value) localShell.value = 'default';
+      }).catch(() => {});
+    });
+  }
   if (appTheme) appTheme.value = terminalSettings.appTheme || 'mobaxterm';
   if (terminalThemeSelect) terminalThemeSelect.value = terminalSettings.theme || 'mobaxterm';
   if (highlightKeywords) highlightKeywords.checked = terminalSettings.highlightKeywords !== false;

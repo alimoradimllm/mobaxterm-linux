@@ -141,7 +141,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
 - Multiple tunnel profiles/status/logs are implemented in source; disposable-target runtime testing remains open.
 - Macro library persistence/import/export is implemented in source; installed-app file-dialog runtime testing remains open.
-- Local Shell settings now provide a persistent selector for system default, cmd, PowerShell, Bash, Fish, Zsh, and Nushell; selected executables must be installed and available on PATH.
+- Local Shell settings persist a selector for system default, cmd, PowerShell, Bash, Fish, Zsh, and Nushell; the Settings UI now checks PATH and disables unavailable optional shells.
 - Embedded RDP/VNC, Serial discovery, advanced Telnet, WSL selector testing.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.

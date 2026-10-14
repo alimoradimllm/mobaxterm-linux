@@ -601,6 +601,63 @@ fn open_local_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn shell_available(shell: String) -> bool {
+    let normalized = shell.trim().to_ascii_lowercase();
+    if normalized.is_empty() || normalized == "default" || normalized == "system" {
+        return true;
+    }
+    let executable = match normalized.as_str() {
+        "cmd" => {
+            if cfg!(windows) {
+                "cmd.exe"
+            } else {
+                "sh"
+            }
+        }
+        "powershell" => {
+            if cfg!(windows) {
+                "powershell.exe"
+            } else {
+                "powershell"
+            }
+        }
+        "bash" => {
+            if cfg!(windows) {
+                "bash.exe"
+            } else {
+                "bash"
+            }
+        }
+        "fish" => {
+            if cfg!(windows) {
+                "fish.exe"
+            } else {
+                "fish"
+            }
+        }
+        "zsh" => {
+            if cfg!(windows) {
+                "zsh.exe"
+            } else {
+                "zsh"
+            }
+        }
+        "nu" | "nushell" => {
+            if cfg!(windows) {
+                "nu.exe"
+            } else {
+                "nu"
+            }
+        }
+        _ => return false,
+    };
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path).any(|directory| directory.join(executable).is_file())
+}
+
+#[tauri::command]
 fn sftp_preview(
     host: String,
     username: String,
@@ -1708,6 +1765,7 @@ pub fn run() {
             local_list,
             local_preview,
             open_local_path,
+            shell_available,
             sftp_preview,
             ssh_known_hosts_status,
             ssh_known_hosts_remove,

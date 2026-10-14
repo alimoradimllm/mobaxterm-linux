@@ -22,8 +22,8 @@ of full third-party terminal workspace parity.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
 - Local Shell Settings now persist a selector for system default, cmd, PowerShell,
-  Bash, Fish, Zsh, and Nushell. Optional shells must be installed and available
-  on PATH; runtime checks for each optional shell remain open.
+  Bash, Fish, Zsh, and Nushell. The UI checks PATH and disables unavailable
+  optional shells; runtime checks for each optional shell remain open.
 - v0.1.13 saved SSH session `ge` runtime verification passed through process
   startup and the SSH password prompt. Authentication was not attempted because
   credentials must never be entered into logs or documentation.
