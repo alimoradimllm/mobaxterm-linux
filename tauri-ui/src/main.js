@@ -2,6 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
+import { iconFor, protocolIconTypes } from './icons.js';
 
 const invoke = window.__TAURI__?.core?.invoke;
 const listen = window.__TAURI__?.event?.listen;
@@ -86,10 +87,6 @@ try {
 } catch { /* ignore malformed local settings */ }
 
 debugLog('frontend', 'application initialized');
-
-function iconFor(type) {
-  return { SSH: '🔑', Rdp: '▣', Vnc: '◉', WSL: '▸', Shell: '⌂', Serial: '⌁' }[type] || '▸';
-}
 
 function rememberRecent(session) {
   recentSessionNames = [session.name, ...recentSessionNames.filter(name => name !== session.name)].slice(0, 8);
@@ -272,11 +269,20 @@ function showEditor(session = {}) {
     const available = await invoke('protocol_client_available', { protocol: type });
     clientStatus.textContent = available ? `${type} client is available` : `${type} client is not available on PATH`;
   };
-  form.insertAdjacentHTML('afterbegin', `<div class="editor-protocols"><button type="button" class="active">🔑 SSH</button><button type="button">⌁ Telnet</button><button type="button">▣ RDP</button><button type="button">◉ VNC</button><button type="button">▸ WSL</button><button type="button">⌂ Shell</button><button type="button">⌁ Serial</button></div><div class="editor-summary"><span class="editor-session-icon">${iconFor(session.session_type || 'SSH')}</span><div><strong>${session.name ? 'Edit session' : 'New session'}</strong><small>Configure connection, terminal, network, and bookmark behavior</small></div></div><nav class="editor-tabs"><button type="button" class="active">Basic settings</button><button type="button">Advanced settings</button><button type="button">Terminal settings</button><button type="button">Network settings</button><button type="button">Bookmark settings</button></nav>`);
+  form.insertAdjacentHTML('afterbegin', `<div class="editor-protocols">${protocolIconTypes.map(type => `<button type="button" data-protocol="${type}">${iconFor(type)}<span>${type}</span></button>`).join('')}</div><div class="editor-summary"><span class="editor-session-icon">${iconFor(session.session_type || 'SSH')}</span><div><strong>${session.name ? 'Edit session' : 'New session'}</strong><small>Configure connection, terminal, network, and bookmark behavior</small></div></div><nav class="editor-tabs"><button type="button" class="active">Basic settings</button><button type="button">Advanced settings</button><button type="button">Terminal settings</button><button type="button">Network settings</button><button type="button">Bookmark settings</button></nav>`);
   form.querySelector('.editor-summary')?.after(clientStatus);  const sshAgentRow = document.createElement('label');
   sshAgentRow.className = 'editor-status-row';
   sshAgentRow.innerHTML = `SSH agent monitoring <input type="checkbox" name="ssh_agent_monitor" ${session.ssh_agent_monitor !== false ? 'checked' : ''}><button type="button" data-agent-check>Check agent</button><span data-agent-status>Not checked</span>`;
   form.querySelector('[name="username"]')?.closest('label')?.after(sshAgentRow);
+  const sshForwardRow = document.createElement('label');
+  sshForwardRow.className = 'editor-status-row';
+  sshForwardRow.innerHTML = 'SSH agent forwarding <input type="checkbox" name="ssh_agent_forwarding"><span>Trusted hosts only; exposes the local agent to the server</span>';
+  sshAgentRow.after(sshForwardRow);
+  sshForwardRow.querySelector('[name="ssh_agent_forwarding"]').checked = session.ssh_agent_forwarding === true;
+  const remoteShellRow = document.createElement('label');
+  remoteShellRow.innerHTML = 'Remote shell <select name="remote_shell"><option value="default">Server default login shell</option><option value="fish">Fish (fish -l)</option><option value="bash">Bash (bash -l)</option><option value="zsh">Zsh (zsh -l)</option><option value="sh">POSIX sh (sh -l)</option></select><span>Starts a shell after login; does not change the server account shell</span>';
+  form.querySelector('[name="shell"]')?.closest('label')?.after(remoteShellRow);
+  remoteShellRow.querySelector('[name="remote_shell"]').value = session.remote_shell || 'default';
   sshAgentRow.querySelector('[data-agent-check]').onclick = async () => {
     try { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${await invoke('ssh_agent_status')}`; }
     catch (error) { sshAgentRow.querySelector('[data-agent-status]').textContent = ` ${error}`; }
@@ -387,9 +393,9 @@ function showEditor(session = {}) {
   };
   const sectionFields = {
     basic: ['name', 'session_type', 'host', 'username', 'port', 'folder'],
-    advanced: ['working_directory', 'shell', 'proxy_jump', 'host_key_policy', 'keepalive_seconds', 'serial_baud', 'serial_data_bits', 'serial_parity', 'serial_stop_bits', 'serial_flow_control', 'wsl_user', 'wsl_command', 'telnet_mode', 'environment', 'startup_command'],
+    advanced: ['working_directory', 'shell', 'remote_shell', 'proxy_jump', 'host_key_policy', 'keepalive_seconds', 'serial_baud', 'serial_data_bits', 'serial_parity', 'serial_stop_bits', 'serial_flow_control', 'wsl_user', 'wsl_command', 'telnet_mode', 'environment', 'startup_command'],
     terminal: ['highlight_keywords', 'highlight_color'],
-    network: ['ssh_agent_monitor'],
+    network: ['ssh_agent_monitor', 'ssh_agent_forwarding'],
     bookmark: ['group', 'favorite']
   };
   const fieldSections = new Map(Object.entries(sectionFields).flatMap(([section, names]) => names.map(name => [name, section])));
@@ -445,8 +451,9 @@ function showEditor(session = {}) {
     event.preventDefault();
     const values = new FormData(form);
     const environment = Object.fromEntries(String(values.get('environment') || '').split('\\n').map(line => line.trim()).filter(line => line && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1)]; }));
-    const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), folder: values.get('folder') || '', working_directory: values.get('working_directory') || '', shell: values.get('shell') || '', proxy_jump: values.get('proxy_jump') || '', host_key_policy: values.get('host_key_policy') || 'ask', keepalive_seconds: Number(values.get('keepalive_seconds') || 0), serial_baud: Number(values.get('serial_baud') || 0), serial_data_bits: Number(values.get('serial_data_bits') || 0), serial_parity: values.get('serial_parity') || '', serial_stop_bits: Number(values.get('serial_stop_bits') || 0), serial_flow_control: values.get('serial_flow_control') || '', wsl_user: values.get('wsl_user') || '', wsl_command: values.get('wsl_command') || '', telnet_mode: values.get('telnet_mode') || '', environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
+    const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), folder: values.get('folder') || '', working_directory: values.get('working_directory') || '', shell: values.get('shell') || '', remote_shell: values.get('remote_shell') || 'default', proxy_jump: values.get('proxy_jump') || '', host_key_policy: values.get('host_key_policy') || 'ask', keepalive_seconds: Number(values.get('keepalive_seconds') || 0), serial_baud: Number(values.get('serial_baud') || 0), serial_data_bits: Number(values.get('serial_data_bits') || 0), serial_parity: values.get('serial_parity') || '', serial_stop_bits: Number(values.get('serial_stop_bits') || 0), serial_flow_control: values.get('serial_flow_control') || '', wsl_user: values.get('wsl_user') || '', wsl_command: values.get('wsl_command') || '', telnet_mode: values.get('telnet_mode') || '', environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
     record.ssh_agent_monitor = form.querySelector('[name="ssh_agent_monitor"]')?.checked !== false;
+    record.ssh_agent_forwarding = form.querySelector('[name="ssh_agent_forwarding"]')?.checked === true;
     terminalSettings.highlightKeywords = form.querySelector('[name="highlight_keywords"]')?.checked !== false;
     terminalSettings.highlightColor = form.querySelector('[name="highlight_color"]')?.value || '#ffd166';
     localStorage.setItem('moraxterm-settings', JSON.stringify(terminalSettings));
@@ -643,6 +650,22 @@ function openTab(session) {
   terminal.open(terminalHost);
   terminal.focus();
   fit.fit();
+  terminal.onSelectionChange(async () => {
+    const selection = terminal.getSelection();
+    if (!selection || !navigator.clipboard?.writeText) return;
+    try { await navigator.clipboard.writeText(selection); status('Copied terminal selection'); }
+    catch (error) { status(`Clipboard copy failed: ${error}`, true); }
+  });
+  terminalHost.addEventListener('contextmenu', async event => {
+    event.preventDefault();
+    if (!navigator.clipboard?.readText) { status('Clipboard paste is unavailable', true); return; }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) { status('Clipboard is empty', true); return; }
+      await sendTerminalData(id, text);
+      status('Pasted clipboard text');
+    } catch (error) { status(`Clipboard paste failed: ${error}`, true); }
+  });
   terminal.onResize(({ cols, rows }) => {
     if (invoke) invoke('resize_terminal', { id, cols, rows }).catch(error => status(`Terminal resize failed: ${error}`, true));
   });
@@ -659,12 +682,7 @@ function openTab(session) {
   terminal.writeln('Starting terminal process...');
   terminal.onData(async data => {
     if (macroRecording) macroBuffer.push(data);
-    if (!invoke) return;
-    const destinations = multiExec ? [...(multiExecTargets.size ? multiExecTargets : tabs.keys())] : [id];
-    await Promise.all(destinations.filter(target => !tabState(target).excluded && !tabState(target).exited).map(async target => {
-      try { await invoke('write_terminal', { id: target, data }); document.querySelector(`[data-command-status="${target}"]`)?.replaceChildren(document.createTextNode('✓ sent')); }
-      catch (error) { document.querySelector(`[data-command-status="${target}"]`)?.replaceChildren(document.createTextNode('✕ failed')); status(`Terminal input failed: ${error}`, true); }
-    }));
+    await sendTerminalData(id, data);
   });
   tabs.set(id, { pane, terminal, fit, session, exited: false, outputSeen: false, connectionState: 'starting' });
   button.querySelector('em').onclick = event => { event.stopPropagation(); resumeTab(id); };
@@ -720,6 +738,15 @@ function activate(id) {
 
 function activeTab() {
   return [...tabs.entries()].find(([, tab]) => tab.pane.classList.contains('active'))?.[0];
+}
+
+async function sendTerminalData(id, data) {
+  if (!invoke) return;
+  const destinations = multiExec ? [...(multiExecTargets.size ? multiExecTargets : tabs.keys())] : [id];
+  await Promise.all(destinations.filter(target => !tabState(target).excluded && !tabState(target).exited).map(async target => {
+    try { await invoke('write_terminal', { id: target, data }); document.querySelector(`[data-command-status="${target}"]`)?.replaceChildren(document.createTextNode('✓ sent')); }
+    catch (error) { document.querySelector(`[data-command-status="${target}"]`)?.replaceChildren(document.createTextNode('✕ failed')); status(`Terminal input failed: ${error}`, true); }
+  }));
 }
 
 function closeTab(id, { confirmClose = true } = {}) {

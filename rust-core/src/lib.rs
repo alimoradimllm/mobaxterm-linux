@@ -173,6 +173,10 @@ pub struct Session {
     #[serde(default)]
     pub ssh_agent_monitor: bool,
     #[serde(default)]
+    pub ssh_agent_forwarding: bool,
+    #[serde(default)]
+    pub remote_shell: String,
+    #[serde(default)]
     pub favorite: bool,
 }
 
@@ -230,7 +234,18 @@ impl Session {
                 "ServerAliveCountMax=3".into(),
             ]);
         }
+        if self.ssh_agent_forwarding {
+            argv.extend(["-o".into(), "ForwardAgent=yes".into()]);
+        }
         argv.push(format!("{}@{}", self.username, self.host));
+        match self.remote_shell.trim().to_ascii_lowercase().as_str() {
+            "fish" => argv.extend(["fish".into(), "-l".into()]),
+            "bash" => argv.extend(["bash".into(), "-l".into()]),
+            "zsh" => argv.extend(["zsh".into(), "-l".into()]),
+            "sh" => argv.extend(["sh".into(), "-l".into()]),
+            "" | "default" | "server" => {}
+            _ => return Err(ValidationError::InvalidRemoteShell),
+        }
         Ok(CommandPlan::new(argv))
     }
 }
@@ -270,6 +285,7 @@ pub enum ValidationError {
     EmptyHost,
     EmptyUsername,
     InvalidPort,
+    InvalidRemoteShell,
 }
 
 impl fmt::Display for ValidationError {
@@ -278,6 +294,10 @@ impl fmt::Display for ValidationError {
             Self::EmptyHost => write!(f, "host cannot be empty"),
             Self::EmptyUsername => write!(f, "username cannot be empty"),
             Self::InvalidPort => write!(f, "port must be non-zero"),
+            Self::InvalidRemoteShell => write!(
+                f,
+                "remote shell must be fish, bash, zsh, sh, or server default"
+            ),
         }
     }
 }

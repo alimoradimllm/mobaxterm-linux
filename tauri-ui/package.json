@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:icons": "node --test tests/icons.test.mjs",
     "tauri": "tauri"
   },
   "devDependencies": {

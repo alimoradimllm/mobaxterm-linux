@@ -1,0 +1,40 @@
+use moraxterm_core::Session;
+
+#[test]
+fn ssh_agent_forwarding_is_opt_in() {
+    let session = Session::ssh("test", "example.test", "alice");
+    let plan = session.ssh_plan().unwrap();
+    assert!(!plan
+        .argv
+        .windows(2)
+        .any(|pair| pair == ["-o", "ForwardAgent=yes"]));
+}
+
+#[test]
+fn enabled_ssh_agent_forwarding_adds_forward_agent_option() {
+    let mut session = Session::ssh("test", "example.test", "alice");
+    session.ssh_agent_forwarding = true;
+    let plan = session.ssh_plan().unwrap();
+    assert!(plan
+        .argv
+        .windows(2)
+        .any(|pair| pair == ["-o", "ForwardAgent=yes"]));
+}
+
+#[test]
+fn default_remote_shell_does_not_append_a_command() {
+    let session = Session::ssh("test", "example.test", "alice");
+    let plan = session.ssh_plan().unwrap();
+    assert_eq!(plan.argv.last().unwrap(), "alice@example.test");
+}
+
+#[test]
+fn fish_remote_shell_is_structured_as_argv() {
+    let mut session = Session::ssh("test", "example.test", "alice");
+    session.remote_shell = "fish".into();
+    let plan = session.ssh_plan().unwrap();
+    assert_eq!(
+        &plan.argv[plan.argv.len() - 3..],
+        ["alice@example.test", "fish", "-l"]
+    );
+}
