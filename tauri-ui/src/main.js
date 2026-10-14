@@ -227,6 +227,12 @@ function reconnectTab(id) {
 }
 
 function openTab(session) {
+  const existing = [...tabs.entries()].find(([, tab]) => !tab.exited && tab.session.name === session.name && tab.session.session_type === session.session_type);
+  if (existing) {
+    activate(existing[0]);
+    debugLog('frontend', `reused existing terminal id=${existing[0]} name=${session.name}`);
+    return existing[0];
+  }
   document.querySelector('#home-screen')?.classList.add('hidden');
   rememberRecent(session);
   const id = `tab-${Date.now()}-${tabs.size}`;
@@ -246,6 +252,7 @@ function openTab(session) {
   const fit = new FitAddon();
   terminal.loadAddon(fit);
   terminal.open(terminalHost);
+  terminal.focus();
   fit.fit();
   terminal.onResize(({ cols, rows }) => {
     if (invoke) invoke('resize_terminal', { id, cols, rows }).catch(error => status(`Terminal resize failed: ${error}`, true));
@@ -262,7 +269,7 @@ function openTab(session) {
       catch (error) { status(`Terminal input failed: ${error}`, true); }
     }));
   });
-  tabs.set(id, { pane, terminal, fit, session, exited: false });
+  tabs.set(id, { pane, terminal, fit, session, exited: false, outputSeen: false });
   button.querySelector('em').onclick = event => { event.stopPropagation(); resumeTab(id); };
   button.querySelector('i').onclick = event => { event.stopPropagation(); reconnectTab(id); };
   launchTerminal(id, session);
@@ -578,13 +585,30 @@ document.addEventListener('keydown', event => {
   if (event.key.toLowerCase() === 'f') { event.preventDefault(); document.querySelector('#search').focus(); }
 });
 
+function normalizeTerminalEvent(event) {
+  let payload = event?.payload;
+  if (typeof payload === 'string') {
+    try { payload = JSON.parse(payload); } catch { return {}; }
+  }
+  return payload && typeof payload === 'object' ? payload : {};
+}
+
 if (listen) {
   listen('terminal-output', event => {
-    const tab = tabs.get(event.payload.id);
-    if (tab) tab.terminal.write(event.payload.data);
-  });
+    const payload = normalizeTerminalEvent(event);
+    debugLog('frontend', `terminal-output received id=${payload.id || 'missing'} bytes=${String(payload.data || '').length}`);
+    const tab = tabs.get(payload.id);
+    if (tab) {
+      tab.outputSeen = true;
+      tab.terminal.write(String(payload.data || ''));
+    } else {
+      debugLog('frontend', `terminal-output dropped unknown id=${payload.id || 'missing'}`);
+    }
+  }).then(() => debugLog('frontend', 'terminal-output listener registered')).catch(error => debugLog('frontend', `terminal-output listener failed error=${error}`));
   listen('terminal-exit', event => {
-    const tab = tabs.get(event.payload.id);
+    const payload = normalizeTerminalEvent(event);
+    debugLog('frontend', `terminal-exit received id=${payload.id || 'missing'}`);
+    const tab = tabs.get(payload.id);
     if (tab) {
       tab.exited = true;
       tab.terminal.options.disableStdin = true;
