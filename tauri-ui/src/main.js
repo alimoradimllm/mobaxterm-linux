@@ -337,10 +337,12 @@ function closeActiveTab() {
 async function showSftpBrowser(host, username, port, initialPath = '.') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button></div><pre data-output>Loading…</pre></section>`;
+  overlay.innerHTML = `<section class="sftp-browser"><header><strong>SFTP — ${host}</strong><button data-close>×</button></header><div class="sftp-controls"><input data-path value="${initialPath}"/><button data-refresh>Refresh</button><button data-up>Up</button><button data-upload>Upload</button><button data-download>Download</button><button data-mkdir>New folder</button><button data-rename>Rename</button><button data-delete>Delete</button><button data-chmod>Permissions</button></div><div class="sftp-columns"><section><h3>Remote</h3><pre data-output>Loading…</pre></section><section><h3>Local</h3><div class="sftp-controls"><input data-local-path value="."/><button data-local-refresh>Refresh</button><button data-local-up>Up</button></div><pre data-local-output>Loading…</pre></section></div></section>`;
   document.body.appendChild(overlay);
   const pathInput = overlay.querySelector('[data-path]');
   const output = overlay.querySelector('[data-output]');
+  const localPathInput = overlay.querySelector('[data-local-path]');
+  const localOutput = overlay.querySelector('[data-local-output]');
   const invokeList = async () => {
     const path = pathInput.value.trim() || '.';
     try { output.textContent = await invoke('sftp_list', { host, username, port, path }); status(`SFTP listing: ${path}`); }
@@ -349,8 +351,20 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
   overlay.querySelector('[data-close]').onclick = () => overlay.remove();
   overlay.querySelector('[data-refresh]').onclick = invokeList;
   overlay.querySelector('[data-up]').onclick = () => { pathInput.value = pathInput.value.replace(/\/+$/, '').split('/').slice(0, -1).join('/') || '.'; invokeList(); };
+  const invokeLocalList = async () => {
+    const path = localPathInput.value.trim() || '.';
+    try { localOutput.textContent = await invoke('local_list', { path }); status(`Local listing: ${path}`); }
+    catch (error) { localOutput.textContent = String(error); status(`Local listing failed: ${error}`, true); }
+  };
+  overlay.querySelector('[data-local-refresh]').onclick = invokeLocalList;
+  overlay.querySelector('[data-local-up]').onclick = () => {
+    const path = localPathInput.value.trim() || '.';
+    const separator = path.includes('\\') ? '\\' : '/';
+    localPathInput.value = path.replace(/[\\/]+$/, '').split(/[\\/]/).slice(0, -1).join(separator) || '.';
+    invokeLocalList();
+  };
   overlay.querySelector('[data-upload]').onclick = async () => {
-    const localPath = (window.prompt('Local file path:') || '').trim();
+    const localPath = (window.prompt('Local file path:', localPathInput.value) || '').trim();
     const remotePath = (window.prompt('Remote destination path:', `${pathInput.value}/`) || '').trim();
     if (!localPath || !remotePath) return;
     try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'upload', localPath, remotePath }); status('SFTP upload completed'); invokeList(); }
@@ -358,7 +372,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
   };
   overlay.querySelector('[data-download]').onclick = async () => {
     const remotePath = (window.prompt('Remote source path:', pathInput.value) || '').trim();
-    const localPath = (window.prompt('Local destination path:') || '').trim();
+    const localPath = (window.prompt('Local destination path:', localPathInput.value) || '').trim();
     if (!localPath || !remotePath) return;
     try { output.textContent = await invoke('sftp_transfer', { host, username, port, direction: 'download', localPath, remotePath }); status('SFTP download completed'); }
     catch (error) { output.textContent = String(error); status(`SFTP download failed: ${error}`, true); }
@@ -373,6 +387,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     catch (error) { output.textContent = String(error); status(`SFTP ${operation} failed: ${error}`, true); }
   }
   await invokeList();
+  await invokeLocalList();
 }
 
 async function showXserverStatus() {

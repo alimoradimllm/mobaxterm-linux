@@ -391,6 +391,45 @@ fn xserver_status() -> Result<String, String> {
 }
 
 #[tauri::command]
+fn local_list(path: String) -> Result<String, String> {
+    if path.trim().is_empty()
+        || path
+            .chars()
+            .any(|c| c.is_control() || c == '\n' || c == '\r')
+    {
+        return Err("invalid local path".into());
+    }
+    let directory = PathBuf::from(path.trim());
+    let metadata =
+        fs::metadata(&directory).map_err(|e| format!("cannot access local path: {e}"))?;
+    if !metadata.is_dir() {
+        return Err("local path is not a directory".into());
+    }
+    let mut entries = fs::read_dir(&directory)
+        .map_err(|e| format!("cannot list local path: {e}"))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let kind = entry
+                .file_type()
+                .map(|value| if value.is_dir() { "DIR" } else { "FILE" })
+                .unwrap_or("UNKNOWN");
+            Some((name, kind.to_string()))
+        })
+        .collect::<Vec<_>>();
+    entries.sort_by(|left, right| {
+        left.0
+            .to_ascii_lowercase()
+            .cmp(&right.0.to_ascii_lowercase())
+    });
+    let mut output = format!("LOCAL PATH: {}\n", directory.display());
+    for (name, kind) in entries {
+        output.push_str(&format!("{kind:7} {name}\n"));
+    }
+    Ok(output)
+}
+
+#[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
@@ -802,14 +841,26 @@ fn start_terminal(
         ("/bin/sh".into(), vec!["-l".into()])
     };
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    debug_write(&state.debug, "terminal", &format!("spawning program={} arg_count={} cwd_set={}", program_name, args.len(), !working_directory.trim().is_empty()));
+    debug_write(
+        &state.debug,
+        "terminal",
+        &format!(
+            "spawning program={} arg_count={} cwd_set={}",
+            program_name,
+            args.len(),
+            !working_directory.trim().is_empty()
+        ),
+    );
     let mut process = TerminalProcess::spawn_with_env_and_cwd(
         &program_name,
         &arg_refs,
         &environment,
         Some(&working_directory),
     )
-    .map_err(|e| { debug_write(&state.debug, "terminal", &format!("spawn failed error={e}")); e.to_string() })?;
+    .map_err(|e| {
+        debug_write(&state.debug, "terminal", &format!("spawn failed error={e}"));
+        e.to_string()
+    })?;
     debug_write(&state.debug, "terminal", "spawn succeeded");
     let mut reader = process.take_reader().map_err(|e| e.to_string())?;
     let shared = Arc::new(Mutex::new(process));
@@ -828,7 +879,11 @@ fn start_terminal(
     let recordings = Arc::clone(&state.recordings);
     let processes = Arc::clone(&state.processes);
     let debug = Arc::clone(&state.debug);
-    debug_write(&debug, "terminal", &format!("reader thread starting id={id}"));
+    debug_write(
+        &debug,
+        "terminal",
+        &format!("reader thread starting id={id}"),
+    );
     std::thread::spawn(move || loop {
         let mut buffer = [0_u8; 8192];
         let result = reader
@@ -837,7 +892,11 @@ fn start_terminal(
             .map_err(|e| e.to_string());
         match result {
             Ok(data) if !data.is_empty() => {
-                debug_write(&debug, "terminal", &format!("reader data id={} bytes={}", id, data.len()));
+                debug_write(
+                    &debug,
+                    "terminal",
+                    &format!("reader data id={} bytes={}", id, data.len()),
+                );
                 if let Ok(mut active) = recordings.lock() {
                     if let Some(file) = active.get_mut(&id) {
                         let _ = file.write_all(&data);
@@ -1009,6 +1068,7 @@ pub fn run() {
             start_tunnel,
             stop_tunnel,
             xserver_status,
+            local_list,
             sftp_list,
             sftp_transfer,
             sftp_operation,

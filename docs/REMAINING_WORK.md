@@ -33,6 +33,9 @@ of full third-party terminal workspace parity.
 - Terminal state feedback now distinguishes startup, connected, failed, and
   exited tabs. Full remote connection status, latency, retry policy, and
   authenticated SSH lifecycle tests remain open.
+- The SFTP modal now provides a read-only local directory listing with
+  refresh/up navigation. Transfer queue, progress, cancellation, resume,
+  drag-and-drop, preview/editor, and SCP fallback work remain open.
 
 ## P0: daily terminal and SSH workflow
 
