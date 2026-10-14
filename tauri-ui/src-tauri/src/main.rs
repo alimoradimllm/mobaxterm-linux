@@ -522,7 +522,14 @@ fn local_list(path: String) -> Result<String, String> {
                 .file_type()
                 .map(|value| if value.is_dir() { "DIR" } else { "FILE" })
                 .unwrap_or("UNKNOWN");
-            Some((name, kind.to_string()))
+            let file_metadata = entry.metadata().ok();
+            let size = file_metadata.as_ref().map(|value| value.len()).unwrap_or(0);
+            let modified = file_metadata
+                .and_then(|value| value.modified().ok())
+                .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
+                .map(|value| value.as_secs())
+                .unwrap_or(0);
+            Some((name, kind.to_string(), size, modified))
         })
         .collect::<Vec<_>>();
     entries.sort_by(|left, right| {
@@ -530,9 +537,12 @@ fn local_list(path: String) -> Result<String, String> {
             .to_ascii_lowercase()
             .cmp(&right.0.to_ascii_lowercase())
     });
-    let mut output = format!("LOCAL PATH: {}\n", directory.display());
-    for (name, kind) in entries {
-        output.push_str(&format!("{kind:7} {name}\n"));
+    let mut output = format!(
+        "LOCAL PATH: {}\nTYPE    SIZE(bytes)  MODIFIED(epoch)  NAME\n",
+        directory.display()
+    );
+    for (name, kind, size, modified) in entries {
+        output.push_str(&format!("{kind:7} {size:11} {modified:15}  {name}\n"));
     }
     Ok(output)
 }

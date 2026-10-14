@@ -53,6 +53,7 @@ of full third-party terminal workspace parity.
 - Remote SFTP edit-copy workflow now downloads to an explicit local path and
   opens it with the OS editor; uploading the edited copy remains an explicit
   user action.
+- Local SFTP listings now include entry type, byte size, and modification epoch.
 - A migration regression test now covers legacy SQLite payloads and current
   default fields. Broader schema migration fixtures remain open.
 - SSH editing now checks whether a host entry exists in `known_hosts` without
