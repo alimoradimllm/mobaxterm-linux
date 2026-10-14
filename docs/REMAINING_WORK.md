@@ -1,6 +1,6 @@
 # Moraxterm remaining work and verification status
 
-_Last reviewed: 2026-10-15. Repository: `alimoradimllm/moraxterm`. Current release target: `v0.1.15`._
+_Last reviewed: 2026-10-15. Repository: `alimoradimllm/moraxterm`. Current release: `v0.1.15`._
 
 This document separates verified behavior from planned work. It is not a claim
 of full third-party terminal workspace parity.
@@ -194,6 +194,8 @@ of full third-party terminal workspace parity.
 ## P3: deferred
 
 Android remains deferred until Windows and Linux desktop behavior is stable.
+
+The user-requested `v0.1.15` Windows test release was published from commit `650a866` with MSI/NSIS assets and successful checksum/Sigstore read-back. This does not close the installed-app runtime or clean-VM gates below.
 
 ## Release gate
 

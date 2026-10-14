@@ -11,8 +11,7 @@ This file is the handoff document for any AI agent, coding model, or human contr
 - Native bridge: `tauri-ui/src-tauri/` — Rust/Tauri commands and process management.
 - Shared Rust core: `rust-core/` — sessions, persistence, terminal abstractions, and tests.
 - Documentation: `docs/REMAINING_WORK.md` and `docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`.
-- Current source head before the `v0.1.15` release commit: `e0354b9`.
-- Release being prepared: `v0.1.15`.
+- Latest published release: `v0.1.15`.
 
 ## How to continue the work
 
