@@ -435,12 +435,8 @@ function renderPaneLifecycle(id, state) {
   if (!panel) { panel = document.createElement('div'); panel.className = 'pane-lifecycle'; tab.pane.appendChild(panel); }
   if (!['failed', 'exited'].includes(state)) { panel.hidden = true; return; }
   panel.hidden = false;
-  panel.innerHTML = `<strong>${state === 'failed' ? 'Session failed' : 'Session stopped'}</strong><span>• Press Return to exit tab</span><span>• Press R to restart session</span><span>• Press S to save terminal output to file</span>`;
-  panel.onclick = event => {
-    if (event.target === panel) return;
-    const key = event.target.textContent?.match(/\b(Return|R|S)\b/)?.[1];
-    if (key) handlePaneLifecycleAction(id, key);
-  };
+  panel.innerHTML = `<strong>${state === 'failed' ? 'Session failed' : 'Session stopped'}</strong><button type="button" data-lifecycle-action="Return">Press Return to exit tab</button><button type="button" data-lifecycle-action="R">Restart session (R)</button><button type="button" data-lifecycle-action="S">Save terminal output (S)</button>`;
+  panel.querySelectorAll('[data-lifecycle-action]').forEach(button => button.onclick = () => handlePaneLifecycleAction(id, button.dataset.lifecycleAction));
 }
 
 function setTabConnectionState(id, state) {

@@ -94,7 +94,7 @@ Do not replace this with a prompt-only or hidden implementation. MultiExec must 
 ### Terminal lifecycle
 
 - States are `starting`, `connected`, `failed`, and `exited`.
-- A stopped/failed pane must show clear actions to exit the tab, restart/reconnect, and save output.
+- A stopped/failed pane must show clear, clickable actions to exit the tab, restart/reconnect, and save output.
 - Enter/Return, R, and S keyboard actions must remain consistent with those visible actions.
 - Do not claim authenticated SSH success without a disposable test target and explicit runtime evidence.
 
