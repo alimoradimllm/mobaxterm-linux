@@ -150,9 +150,9 @@ of full third-party terminal workspace parity.
   continues to use `xfreerdp`. The editor reports client availability without
   launching it, and terminal launch preflights the selected RDP/VNC/WSL,
   Telnet, Serial, or Local Shell executable before creating a process. WSL
-  launch also probes the selected distribution using structured `wsl.exe
-  --distribution <name> -- true` arguments. Embedded-window behavior and
-  runtime connection testing remain open.
+  launch also probes the selected distribution and optional user using
+  structured `wsl.exe --distribution <name> --user <user> -- true` arguments.
+  Embedded-window behavior and runtime connection testing remain open.
 - Serial session editing now includes Refresh/discovery for Windows COM ports
   through the registry and Linux `/dev/ttyUSB*`, `/dev/ttyACM*`, and `/dev/ttyS*`
   devices. This host currently has no detected serial device.
