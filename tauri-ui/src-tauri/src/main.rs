@@ -1447,8 +1447,14 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
         return Ok(format!("TCP {} is closed or unreachable", address));
     }
     let (program, args): (&str, Vec<String>) = match tool.as_str() {
-        "ping" if cfg!(windows) => ("ping", vec!["-n".into(), "4".into(), target]),
-        "ping" => ("ping", vec!["-c".into(), "4".into(), target]),
+        "ping" if cfg!(windows) => (
+            "ping",
+            vec!["-n".into(), "4".into(), "-w".into(), "1000".into(), target],
+        ),
+        "ping" => (
+            "ping",
+            vec!["-c".into(), "4".into(), "-W".into(), "1".into(), target],
+        ),
         "traceroute" if cfg!(windows) => {
             ("tracert", vec!["/w:1000".into(), "/h:12".into(), target])
         }
