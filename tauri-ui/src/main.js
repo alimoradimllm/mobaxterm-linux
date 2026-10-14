@@ -205,11 +205,23 @@ function terminalTheme() {
   return { background: '#101113', foreground: '#d7d7d7', cursor: '#00d084', black: '#101113', green: '#00d084', cyan: '#00c8d7', blue: '#4d9cff', yellow: '#e6d85a', red: '#ff5c57' };
 }
 
+function setTabConnectionState(id, state) {
+  const button = tabsEl.querySelector(`[data-id="${id}"]`);
+  const colors = { starting: '#d6a84f', connected: '#42c883', failed: '#e05b63', exited: '#7d8791' };
+  if (button) {
+    button.dataset.connectionState = state;
+    button.style.borderBottom = `2px solid ${colors[state] || colors.exited}`;
+    button.title = `${button.textContent.replace(/[▶↻×]/g, '').trim()} — ${state}`;
+  }
+  const tab = tabs.get(id);
+  if (tab) tab.connectionState = state;
+}
+
 function launchTerminal(id, session) {
   if (!invoke) return;
   const tab = tabs.get(id);
   if (tab) {
-    tab.connectionState = 'starting';
+    setTabConnectionState(id, 'starting');
     tab.terminal.options.disableStdin = false;
   }
   status(`Starting ${session.name || session.session_type}...`);
@@ -217,14 +229,14 @@ function launchTerminal(id, session) {
   invoke('start_terminal', { id, session: ['SSH', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Telnet', 'Serial'].includes(session.session_type) ? session : null, program: null })
     .then(() => {
       const active = tabs.get(id);
-      if (active) active.connectionState = 'connected';
+      setTabConnectionState(id, 'connected');
       debugLog('frontend', `start_terminal accepted id=${id}`);
       status(`${session.name || session.session_type} started`);
     })
     .catch(error => {
       const active = tabs.get(id);
       if (active) {
-        active.connectionState = 'failed';
+        setTabConnectionState(id, 'failed');
         active.exited = true;
         active.terminal.options.disableStdin = true;
       }
@@ -731,7 +743,7 @@ if (listen) {
     const tab = tabs.get(payload.id);
     if (tab) {
       tab.outputSeen = true;
-      tab.connectionState = 'connected';
+      setTabConnectionState(payload.id, 'connected');
       tab.terminal.write(String(payload.data || ''));
     } else {
       debugLog('frontend', `terminal-output dropped unknown id=${payload.id || 'missing'}`);
@@ -743,7 +755,7 @@ if (listen) {
     const tab = tabs.get(payload.id);
     if (tab) {
       tab.exited = true;
-      tab.connectionState = 'exited';
+      setTabConnectionState(payload.id, 'exited');
       tab.terminal.options.disableStdin = true;
       tab.terminal.writeln('\r\n\x1b[33mterminal exited; click ↻ to reconnect\x1b[0m');
       status(`Terminal ${payload.id} exited`, true);
