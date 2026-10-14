@@ -282,6 +282,14 @@ function showEditor(session = {}) {
   const protocolFields = [['wsl_user', 'WSL user', session.wsl_user || '', 'Optional Linux user'], ['wsl_command', 'WSL command', session.wsl_command || '', 'Optional command'], ['telnet_mode', 'Telnet mode', session.telnet_mode || '', 'Raw / line']];
   const serialField = form.querySelector('[name="serial_flow_control"]');
   protocolFields.forEach(([name, label, value, placeholder]) => { const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.value = value; input.placeholder = placeholder; wrapper.appendChild(input); serialField?.closest('label')?.after(wrapper); });
+  const telnetModeField = form.querySelector('[name="telnet_mode"]');
+  if (telnetModeField) {
+    const select = document.createElement('select');
+    select.name = 'telnet_mode';
+    select.innerHTML = '<option value="auto">Auto negotiate</option><option value="raw">Raw mode</option><option value="line">Line mode</option>';
+    select.value = telnetModeField.value || 'auto';
+    telnetModeField.replaceWith(select);
+  }
   const wslRow = document.createElement('label');
   wslRow.innerHTML = 'WSL distribution <select data-wsl-distribution><option value="">Discover installed distributions</option></select><button type="button" data-wsl-refresh>Refresh</button><span data-wsl-status></span>';
   serialField?.closest('label')?.after(wslRow);
@@ -572,7 +580,7 @@ function openTab(session) {
   pane.dataset.id = id;
   const paneControls = document.createElement('div');
   paneControls.className = 'pane-controls';
-  paneControls.innerHTML = `<label><input type="checkbox" data-exclude-id="${id}"> Exclude "${session.name.replaceAll('"', '&quot;')}" from MultiExec mode</label><span data-command-status="${id}">● ready</span>`;
+  paneControls.innerHTML = `<label><input type="checkbox" data-exclude-id="${id}"> Exclude "${session.name.replaceAll('"', '&quot;')}" from MultiExec mode</label>${session.session_type?.toLowerCase() === 'telnet' ? '<button type="button" data-telnet-break>Send Break (Ctrl+C)</button>' : ''}<span data-command-status="${id}">● ready</span>`;
   pane.appendChild(paneControls);
   paneControls.querySelector('input').onchange = event => {
     if (event.target.checked) multiExecTargets.delete(id);
@@ -581,6 +589,10 @@ function openTab(session) {
     updateMultiExecBanner();
     renderMultiExecManager();
   };
+  paneControls.querySelector('[data-telnet-break]')?.addEventListener('click', async () => {
+    try { await invoke('write_terminal', { id, data: '\u0003' }); document.querySelector(`[data-command-status="${id}"]`)?.replaceChildren(document.createTextNode('✓ break sent')); }
+    catch (error) { status(`Telnet break failed: ${error}`, true); }
+  });
   const terminalHost = document.createElement('div');
   terminalHost.className = 'terminal-host';
   pane.appendChild(terminalHost);

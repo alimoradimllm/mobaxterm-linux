@@ -153,7 +153,7 @@ of full third-party terminal workspace parity.
 - Serial session editing now includes Refresh/discovery for Windows COM ports
   through the registry and Linux `/dev/ttyUSB*`, `/dev/ttyACM*`, and `/dev/ttyS*`
   devices. This host currently has no detected serial device.
-- Add Telnet options, break signal, and file transfer controls.
+- Telnet sessions now expose persisted Auto/Raw/Line mode metadata and an active-pane `Send Break (Ctrl+C)` control. Native Telnet runtime testing remains open.
 - WSL session editing now includes a Refresh/discovery control backed by
   `wsl.exe --list --verbose`, with UTF-16LE Windows output decoding. The selector
   displays distro name, state, and WSL version; this host reports AlmaLinux-8,
