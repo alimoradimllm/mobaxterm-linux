@@ -127,7 +127,8 @@ of full third-party terminal workspace parity.
   are never returned. SSH now looks up the account key
   `username@host:port` and, when present, uses a temporary restricted askpass
   helper that is removed when the terminal exits. Authenticated runtime testing
-  and interactive credential-editor controls remain open.
+  remains open. The session editor now provides masked save, status, and delete
+  controls for that credential account.
 - Managed host-key removal is now available through a structured `ssh-keygen -R`
   bridge for the configured host/port. New-key approval remains delegated to
   OpenSSH so the application does not silently trust unverified key material.

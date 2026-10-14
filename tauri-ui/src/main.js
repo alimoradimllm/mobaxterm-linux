@@ -221,6 +221,25 @@ function showEditor(session = {}) {
       knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${result}`;
     } catch (error) { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
   };
+  const credentialRow = document.createElement('label');
+  credentialRow.innerHTML = 'SSH credential <input type="password" name="ssh_secret" autocomplete="new-password" placeholder="Leave blank to keep unchanged"><button type="button" data-credential-status>Check saved</button><button type="button" data-credential-delete>Delete saved</button><span data-credential-message></span>';
+  knownHostsRow.after(credentialRow);
+  const credentialAccount = () => `${form.username.value.trim()}@${form.host.value.trim()}:${Number(form.port.value || 22)}`;
+  const credentialMessage = message => { credentialRow.querySelector('[data-credential-message]').textContent = ` ${message}`; };
+  credentialRow.querySelector('[data-credential-status]').onclick = async () => {
+    try { const saved = await invoke('credential_status', { service: 'com.moraxterm.ssh', account: credentialAccount() }); credentialMessage(saved ? 'saved credential exists' : 'no saved credential'); }
+    catch (error) { credentialMessage(String(error)); }
+  };
+  credentialRow.querySelector('[data-credential-delete]').onclick = async () => {
+    try { const deleted = await invoke('credential_delete', { service: 'com.moraxterm.ssh', account: credentialAccount() }); credentialMessage(deleted ? 'saved credential deleted' : 'no saved credential'); }
+    catch (error) { credentialMessage(String(error)); }
+  };
+  knownHostsRow.querySelector('[data-known-hosts]').insertAdjacentHTML('afterend', '<button type="button" data-known-hosts-remove>Remove stale entry</button>');
+  knownHostsRow.querySelector('[data-known-hosts-remove]').onclick = async () => {
+    if (!confirm('Remove this host entry from known_hosts?')) return;
+    try { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${await invoke('ssh_known_hosts_remove', { host: form.host.value.trim(), port: Number(form.port.value || 22) })}`; }
+    catch (error) { knownHostsRow.querySelector('[data-known-hosts-status]').textContent = ` ${error}`; }
+  };
   form.session_type.value = session.session_type || 'SSH';
   form.host_key_policy.value = session.host_key_policy || 'ask';
   overlay.querySelector('[data-cancel]').onclick = () => overlay.remove();
@@ -235,7 +254,11 @@ function showEditor(session = {}) {
     const environment = Object.fromEntries(String(values.get('environment') || '').split('\\n').map(line => line.trim()).filter(line => line && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1)]; }));
     const record = { name: values.get('name'), session_type: values.get('session_type'), host: values.get('host') || '', username: values.get('username') || '', port: Number(values.get('port') || 0), folder: values.get('folder') || '', working_directory: values.get('working_directory') || '', shell: values.get('shell') || '', proxy_jump: values.get('proxy_jump') || '', host_key_policy: values.get('host_key_policy') || 'ask', keepalive_seconds: Number(values.get('keepalive_seconds') || 0), serial_baud: Number(values.get('serial_baud') || 0), serial_data_bits: Number(values.get('serial_data_bits') || 0), serial_parity: values.get('serial_parity') || '', serial_stop_bits: Number(values.get('serial_stop_bits') || 0), serial_flow_control: values.get('serial_flow_control') || '', wsl_user: values.get('wsl_user') || '', wsl_command: values.get('wsl_command') || '', telnet_mode: values.get('telnet_mode') || '', environment, startup_command: values.get('startup_command') || '', group: values.get('group') || '', favorite: form.favorite.checked };
     try {
-      if (invoke) await invoke('save_session', { session: record });
+      if (invoke) {
+        await invoke('save_session', { session: record });
+        const secret = String(values.get('ssh_secret') || '');
+        if (secret && record.session_type.toUpperCase() === 'SSH') await invoke('credential_store', { service: 'com.moraxterm.ssh', account: `${record.username.trim()}@${record.host.trim()}:${record.port}`, secret });
+      }
       overlay.remove();
       await loadSessions();
       status(`Saved ${record.name}`);
