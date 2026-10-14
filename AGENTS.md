@@ -145,7 +145,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - WSL distribution discovery is implemented through `wsl.exe --list --verbose` with UTF-16LE decoding; the selector displays distro name, running state, and WSL version while saving the raw distro name. Runtime launch tests remain open.
 - WSL user discovery is implemented through `wsl.exe --distribution <name> -- cat /etc/passwd`; the editor populates a username datalist while preserving manual entry. Live Debian query succeeded; authenticated WSL launch testing remains open.
 - Serial device discovery is implemented for Windows registry COM ports and Linux `/dev` serial devices; no serial device is present on the current host for runtime launch testing.
-- Telnet editor mode selection (Auto/Raw/Line) and active-pane Ctrl+C break control are implemented; disposable Telnet runtime testing remains open.
+- Telnet editor mode selection (Auto/Raw/Line), active-pane Ctrl+C break control, and bounded UTF-8 text-file streaming (1 MiB) are implemented; binary transfer and disposable Telnet runtime testing remain open.
 - Embedded RDP/VNC, Serial hardware runtime testing, advanced Telnet, WSL selector testing.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.

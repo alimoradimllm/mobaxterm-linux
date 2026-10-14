@@ -596,7 +596,7 @@ function openTab(session) {
   pane.dataset.id = id;
   const paneControls = document.createElement('div');
   paneControls.className = 'pane-controls';
-  paneControls.innerHTML = `<label><input type="checkbox" data-exclude-id="${id}"> Exclude "${session.name.replaceAll('"', '&quot;')}" from MultiExec mode</label>${session.session_type?.toLowerCase() === 'telnet' ? '<button type="button" data-telnet-break>Send Break (Ctrl+C)</button>' : ''}<span data-command-status="${id}">● ready</span>`;
+  paneControls.innerHTML = `<label><input type="checkbox" data-exclude-id="${id}"> Exclude "${session.name.replaceAll('"', '&quot;')}" from MultiExec mode</label>${session.session_type?.toLowerCase() === 'telnet' ? '<button type="button" data-telnet-break>Send Break (Ctrl+C)</button><button type="button" data-telnet-file>Send UTF-8 text file</button>' : ''}<span data-command-status="${id}">● ready</span>`;
   pane.appendChild(paneControls);
   paneControls.querySelector('input').onchange = event => {
     if (event.target.checked) multiExecTargets.delete(id);
@@ -608,6 +608,21 @@ function openTab(session) {
   paneControls.querySelector('[data-telnet-break]')?.addEventListener('click', async () => {
     try { await invoke('write_terminal', { id, data: '\u0003' }); document.querySelector(`[data-command-status="${id}"]`)?.replaceChildren(document.createTextNode('✓ break sent')); }
     catch (error) { status(`Telnet break failed: ${error}`, true); }
+  });
+  paneControls.querySelector('[data-telnet-file]')?.addEventListener('click', () => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.txt,text/plain';
+    input.onchange = async () => {
+      const file = input.files?.[0]; if (!file) return;
+      if (file.size > 1_048_576) { status('Telnet text send is limited to 1 MiB', true); return; }
+      if (!confirm(`Send UTF-8 text file ${file.name} to this Telnet session?`)) return;
+      try {
+        const text = await file.text();
+        if (new TextEncoder().encode(text).length > 1_048_576) { status('Telnet text send is limited to 1 MiB UTF-8', true); return; }
+        for (let offset = 0; offset < text.length; offset += 4096) await invoke('write_terminal', { id, data: text.slice(offset, offset + 4096) });
+        document.querySelector(`[data-command-status="${id}"]`)?.replaceChildren(document.createTextNode('✓ file sent'));
+      } catch (error) { status(`Telnet file send failed: ${error}`, true); }
+    };
+    input.click();
   });
   const terminalHost = document.createElement('div');
   terminalHost.className = 'terminal-host';
