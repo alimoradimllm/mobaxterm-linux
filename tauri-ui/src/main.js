@@ -19,7 +19,16 @@ const panesEl = document.querySelector('#panes');
 const statusEl = document.querySelector('#status-message');
 let sessions = [];
 let sessionFolders = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-session-folders') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
+let collapsedSessionFolders = (() => {
+  try {
+    const value = JSON.parse(localStorage.getItem('moraxterm-collapsed-folders') || '[]');
+    return new Set(Array.isArray(value) ? value : []);
+  } catch { return new Set(); }
+})();
 let selectedFolder = '';
+function persistCollapsedSessionFolders() {
+  localStorage.setItem('moraxterm-collapsed-folders', JSON.stringify([...collapsedSessionFolders]));
+}
 const tabs = new Map();
 const tunnels = new Set();
 let tunnelProfiles = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-tunnel-profiles') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
@@ -85,6 +94,8 @@ function renderSessions() {
   for (const [group, items] of groups) {
     const parts = group.split(/[\\/]/).filter(Boolean);
     parts.forEach((part, depth) => {
+      const parentFolders = parts.slice(0, depth).map((_, index) => parts.slice(0, index + 1).join('/'));
+      if (parentFolders.some(folder => collapsedSessionFolders.has(folder))) return;
       const folder = parts.slice(0, depth + 1).join('/');
       if (renderedFolders.has(folder)) return;
       renderedFolders.add(folder);
@@ -92,10 +103,16 @@ function renderSessions() {
       heading.className = 'session-group';
       heading.dataset.folder = folder;
       heading.dataset.dropTarget = 'session-folder';
-      heading.title = 'Drop a session here to move it into this folder';
-      heading.onclick = () => { selectedFolder = folder; sessionsEl.querySelectorAll('.session-group').forEach(item => item.classList.remove('selected')); heading.classList.add('selected'); };
+      heading.title = 'Click to expand/collapse; drop a session here to move it into this folder';
+      heading.onclick = () => {
+        selectedFolder = folder;
+        if (collapsedSessionFolders.has(folder)) collapsedSessionFolders.delete(folder);
+        else collapsedSessionFolders.add(folder);
+        persistCollapsedSessionFolders();
+        renderSessions();
+      };
       heading.style.paddingLeft = `${12 + depth * 14}px`;
-      heading.textContent = `▾ ${part}`;
+      heading.textContent = `${collapsedSessionFolders.has(folder) ? '▸' : '▾'} ${part}`;
       heading.ondragover = event => { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'; heading.classList.add('drop-target'); };
       heading.ondragleave = () => { heading.classList.remove('drop-target'); };
       heading.ondrop = async event => {
@@ -119,6 +136,8 @@ function renderSessions() {
       };
       sessionsEl.appendChild(heading);
     });
+    const groupFolders = parts.map((_, index) => parts.slice(0, index + 1).join('/'));
+    if (groupFolders.some(folder => collapsedSessionFolders.has(folder))) continue;
     items.forEach(session => {
       const li = document.createElement('li');
       li.className = 'session-entry';
