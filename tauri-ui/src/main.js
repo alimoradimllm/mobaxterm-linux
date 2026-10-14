@@ -290,6 +290,22 @@ function showEditor(session = {}) {
     select.value = telnetModeField.value || 'auto';
     telnetModeField.replaceWith(select);
   }
+  const wslUserField = form.querySelector('[name="wsl_user"]');
+  if (wslUserField) {
+    const userListId = `wsl-users-${Date.now()}`;
+    wslUserField.setAttribute('list', userListId);
+    const userList = document.createElement('datalist'); userList.id = userListId;
+    const userButton = document.createElement('button'); userButton.type = 'button'; userButton.textContent = 'Refresh users';
+    const userStatus = document.createElement('span');
+    wslUserField.closest('label')?.append(userList, userButton, userStatus);
+    userButton.onclick = async () => {
+      try {
+        const values = await invoke('wsl_users', { distribution: form.host.value.trim() });
+        userList.replaceChildren(...values.map(value => { const option = document.createElement('option'); option.value = value; return option; }));
+        userStatus.textContent = ` ${values.length} found`;
+      } catch (error) { userStatus.textContent = ` ${error}`; }
+    };
+  }
   const wslRow = document.createElement('label');
   wslRow.innerHTML = 'WSL distribution <select data-wsl-distribution><option value="">Discover installed distributions</option></select><button type="button" data-wsl-refresh>Refresh</button><span data-wsl-status></span>';
   serialField?.closest('label')?.after(wslRow);

@@ -157,6 +157,8 @@ of full third-party terminal workspace parity.
   `wsl.exe --list --verbose`, with UTF-16LE Windows output decoding. The selector
   displays distro name, state, and WSL version; this host reports AlmaLinux-8,
   Ubuntu, Debian, and Ubuntu-24.04.
+- WSL user discovery populates the editable WSL user field from `/etc/passwd`;
+  live Debian query succeeded. Authenticated WSL launch testing remains open.
 
 ## P2: advanced tools and operations
 

@@ -730,6 +730,44 @@ fn wsl_distributions() -> Result<Vec<WslDistribution>, String> {
 }
 
 #[tauri::command]
+fn wsl_users(distribution: String) -> Result<Vec<String>, String> {
+    let distribution = distribution.trim();
+    if distribution.is_empty()
+        || distribution
+            .chars()
+            .any(|c| c.is_control() || c == '\n' || c == '\r')
+    {
+        return Err("invalid WSL distribution".into());
+    }
+    if !cfg!(windows) {
+        return Err("WSL user discovery is only available on Windows".into());
+    }
+    let output = Command::new("wsl.exe")
+        .args(["--distribution", distribution, "--", "cat", "/etc/passwd"])
+        .output()
+        .map_err(|e| format!("cannot query WSL users: {e}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut users = text
+        .lines()
+        .filter_map(|line| {
+            let fields = line.split(':').collect::<Vec<_>>();
+            let name = fields.first()?.trim();
+            let uid = fields.get(2)?.parse::<u32>().ok()?;
+            if name.is_empty() || (uid != 0 && uid < 1000) {
+                return None;
+            }
+            Some(name.to_string())
+        })
+        .collect::<Vec<_>>();
+    users.sort();
+    users.dedup();
+    Ok(users)
+}
+
+#[tauri::command]
 fn serial_devices() -> Result<Vec<String>, String> {
     #[cfg(windows)]
     {
@@ -1878,6 +1916,7 @@ pub fn run() {
             open_local_path,
             shell_available,
             wsl_distributions,
+            wsl_users,
             serial_devices,
             sftp_preview,
             ssh_known_hosts_status,
