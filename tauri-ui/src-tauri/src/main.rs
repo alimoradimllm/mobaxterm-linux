@@ -1627,6 +1627,14 @@ fn start_terminal(
         if session.host.trim().is_empty() || session.port == 0 {
             return Err("Telnet session requires host and a valid port".into());
         }
+        let executable = if cfg!(windows) {
+            "telnet.exe"
+        } else {
+            "telnet"
+        };
+        if !executable_available(executable) {
+            return Err(format!("Telnet client is unavailable: {executable}"));
+        }
         (
             if cfg!(windows) {
                 "telnet.exe".into()
@@ -1644,6 +1652,9 @@ fn start_terminal(
         }
         if cfg!(windows) {
             return Err("Serial Tauri sessions currently require a Linux socat environment".into());
+        }
+        if !executable_available("socat") {
+            return Err("Serial client is unavailable: socat".into());
         }
         let baud = if session.serial_baud == 0 {
             115200

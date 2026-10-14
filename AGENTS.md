@@ -146,7 +146,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - WSL user discovery is implemented through `wsl.exe --distribution <name> -- cat /etc/passwd`; the editor populates a username datalist while preserving manual entry. Live Debian query succeeded; authenticated WSL launch testing remains open.
 - Serial device discovery is implemented for Windows registry COM ports and Linux `/dev` serial devices; no serial device is present on the current host for runtime launch testing.
 - Telnet editor mode selection (Auto/Raw/Line), active-pane Ctrl+C break control, and bounded UTF-8 text-file streaming (1 MiB) are implemented; binary transfer and disposable Telnet runtime testing remain open.
-- Terminal launch now performs executable preflight for RDP, VNC, and WSL sessions after validating required fields. Missing native clients return a clear error before process creation; SSH, Telnet, and Serial runtime prerequisites remain separately tracked.
+- Terminal launch now performs executable preflight for RDP, VNC, WSL, Telnet, and Serial sessions after validating required fields. Missing native clients return a clear error before process creation; this host currently has no `telnet.exe` or `socat`.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.
 - Authenticode/package signing, updater implementation, reproducible builds, ARM64, AppImage, and Flatpak.
