@@ -415,6 +415,29 @@ function highlightTerminalText(data) {
   return String(data).replace(words, match => `\\x1b[38;2;${parseInt(color.slice(1, 3), 16)};${parseInt(color.slice(3, 5), 16)};${parseInt(color.slice(5, 7), 16)}m${match}\\x1b[0m`);
 }
 
+function renderPaneLifecycle(id, state) {
+  const tab = tabs.get(id);
+  if (!tab?.pane) return;
+  let panel = tab.pane.querySelector('.pane-lifecycle');
+  if (!panel) { panel = document.createElement('div'); panel.className = 'pane-lifecycle'; tab.pane.appendChild(panel); }
+  if (!['failed', 'exited'].includes(state)) { panel.hidden = true; return; }
+  panel.hidden = false;
+  panel.innerHTML = `<strong>${state === 'failed' ? 'Session failed' : 'Session stopped'}</strong><span>• Press Return to exit tab</span><span>• Press R to restart session</span><span>• Press S to save terminal output to file</span>`;
+  const exit = () => closeTab(id, { confirmClose: false });
+  panel.onclick = event => {
+    if (event.target === panel) return;
+    const key = event.target.textContent?.match(/\b(Return|R|S)\b/)?.[1];
+    if (key === 'Return') exit();
+    else if (key === 'R') reconnectTab(id);
+    else if (key === 'S') {
+      const lines = [];
+      for (let i = 0; i < tab.terminal.buffer.active.length; i++) lines.push(tab.terminal.buffer.active.getLine(i)?.translateToString() || '');
+      const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([lines.join('\\n')], { type: 'text/plain' })); link.download = `${tab.session.name || 'terminal'}-output.txt`; link.click(); URL.revokeObjectURL(link.href);
+      status('Terminal output saved');
+    }
+  };
+}
+
 function setTabConnectionState(id, state) {
   const button = tabsEl.querySelector(`[data-id="${id}"]`);
   const colors = { starting: '#d6a84f', connected: '#42c883', failed: '#e05b63', exited: '#7d8791' };
@@ -425,6 +448,7 @@ function setTabConnectionState(id, state) {
   }
   const tab = tabs.get(id);
   if (tab) tab.connectionState = state;
+  renderPaneLifecycle(id, state);
 }
 
 function launchTerminal(id, session) {
