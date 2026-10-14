@@ -10,7 +10,7 @@ app.innerHTML = `
 <div class="menu-row"><strong>Moraxterm</strong><button data-action="terminal-menu">Terminal</button><button data-action="sessions">Sessions</button><button data-action="view">View</button><button data-action="xserver">X server</button><button data-action="tools">Tools</button><button data-action="settings">Settings</button><button data-action="macros">Macros</button><button data-action="help">Help</button></div>
 <div class="toolbar"><button class="tool primary" data-action="new-shell"><span>▣</span><small>Session</small></button><button class="tool" data-action="sessions"><span>✣</span><small>Servers</small></button><button class="tool" data-action="tools"><span>⚒</span><small>Tools</small></button><button class="tool" data-action="load-sessions"><span>★</span><small>Sessions</small></button><button class="tool" data-action="view"><span>▣</span><small>View</small></button><button class="tool" data-action="split"><span>▤</span><small>Split</small></button><button class="tool" data-action="duplicate"><span>⧉</span><small>Duplicate</small></button><button class="tool" data-action="multiexec"><span>⇄</span><small>MultiExec</small></button><button class="tool" data-action="tunnel"><span>⇆</span><small>Tunneling</small></button><button class="tool" data-action="sftp"><span>⇅</span><small>Packages</small></button><button class="tool" data-action="settings"><span>⚙</span><small>Settings</small></button><button class="tool" data-action="help"><span>?</span><small>Help</small></button><span class="toolbar-spacer"></span><button class="tool" data-action="xserver"><span>⚔</span><small>X server</small></button><button class="tool" data-action="close-app"><span>⏻</span><small>Exit</small></button></div>
 <div class="quick"><input id="quick" placeholder="Quick connect..."/><button id="connect">Connect</button></div>
-<main><nav class="rail"><button class="rail-button active" title="Sessions" data-rail="sessions">★</button><button class="rail-button" title="Tools" data-rail="tools" data-action="tools">⚒</button><button class="rail-button" title="Macros" data-rail="macros" data-action="macros">➤</button><button class="rail-button" title="Favorites" data-rail="favorites">◆</button></nav><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Quick find sessions"/></div><div class="tree-header"><span>★ User sessions</span><button id="import-backup" title="Restore backup">⇩</button><button id="export-sessions" title="Export backup">⇧</button><button id="import-sessions" title="Import sessions">⇩</button><button id="new-session" title="New session">＋</button><button id="reload" title="Reload sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer"><span>▣ Remote monitoring</span><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
+<main><nav class="rail"><button class="rail-button active" title="Sessions" data-rail="sessions">★</button><button class="rail-button" title="Tools" data-rail="tools" data-action="tools">⚒</button><button class="rail-button" title="Macros" data-rail="macros" data-action="macros">➤</button><button class="rail-button" title="Favorites" data-rail="favorites">◆</button></nav><aside class="sidebar"><div class="side-tabs"><button class="selected">Sessions</button><button data-action="tools">Tools</button><button data-action="macros">Macros</button></div><div class="side-search"><input id="search" placeholder="Quick find sessions"/></div><div class="tree-header"><span>★ User sessions</span><button id="import-backup" title="Restore backup">⇩</button><button id="export-sessions" title="Export backup">⇧</button><button id="import-sessions" title="Import sessions">⇩</button><button id="new-session" title="New session">＋</button><button id="new-folder" title="New folder">📁＋</button><button id="rename-folder" title="Rename selected folder">✎</button><button id="delete-folder" title="Delete selected folder">🗑</button><button id="reload" title="Reload sessions">↻</button></div><ul id="sessions"></ul><div class="side-footer"><span>▣ Remote monitoring</span><label><input type="checkbox" checked/> Follow terminal folder</label></div></aside>
 <section class="workspace"><div id="home-screen" class="home-screen"><div class="welcome-mark">▣</div><h1>Moraxterm</h1><p class="welcome-subtitle">Your terminal workspace</p><div class="welcome-actions"><button data-action="new-shell">＋ Start local terminal</button><button data-action="load-sessions">↻ Recover previous sessions</button></div><input id="home-search" placeholder="Find existing session or server name..."/><h2>Recent sessions</h2><div id="recent-cards" class="recent-cards"></div></div><nav id="tabs" class="tabs"></nav><div id="panes" class="panes"></div><footer class="status"><span id="status-message">● Loading sessions</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span class="status-spacer"></span><span id="platform">Desktop</span></footer></section></main>`;
 
 const sessionsEl = document.querySelector('#sessions');
@@ -18,6 +18,8 @@ const tabsEl = document.querySelector('#tabs');
 const panesEl = document.querySelector('#panes');
 const statusEl = document.querySelector('#status-message');
 let sessions = [];
+let sessionFolders = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-session-folders') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
+let selectedFolder = '';
 const tabs = new Map();
 const tunnels = new Set();
 let tunnelProfiles = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-tunnel-profiles') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
@@ -73,6 +75,7 @@ function renderSessions() {
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(session);
   });
+  sessionFolders.forEach(folder => { if (!groups.has(folder)) groups.set(folder, []); });
   const renderedFolders = new Set();
   for (const [group, items] of groups) {
     const parts = group.split(/[\\/]/).filter(Boolean);
@@ -83,6 +86,7 @@ function renderSessions() {
       const heading = document.createElement('li');
       heading.className = 'session-group';
       heading.dataset.folder = folder;
+      heading.onclick = () => { selectedFolder = folder; sessionsEl.querySelectorAll('.session-group').forEach(item => item.classList.remove('selected')); heading.classList.add('selected'); };
       heading.style.paddingLeft = `${12 + depth * 14}px`;
       heading.textContent = `▾ ${part}`;
       heading.ondragover = event => { event.preventDefault(); heading.style.outline = '1px solid var(--accent)'; };
@@ -732,6 +736,60 @@ function actionMessage(action) {
   const messages = { view: 'View controls are ready for terminal and pane settings.', xserver: 'X server integration is queued in the compatibility roadmap.', tools: 'Tools are queued for the network-tools phase.', settings: 'Settings editor is queued for the session-manager phase.', macros: 'Macro recording is queued for the macros phase.', multiexec: 'MultiExec will broadcast commands to selected tabs.', tunnel: 'Tunnel manager is queued for the SSH forwarding phase.', packages: 'Package tools will be connected to the active terminal.' };
   status(messages[action] || 'Moraxterm');
 }
+
+function persistSessionFolders() {
+  sessionFolders = [...new Set(sessionFolders.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  localStorage.setItem('moraxterm-session-folders', JSON.stringify(sessionFolders));
+}
+
+async function saveChangedSessions(changed) {
+  if (!invoke) return;
+  for (const session of changed) await invoke('save_session', { session });
+}
+
+document.querySelector('#new-folder').onclick = () => {
+  const name = prompt('New folder path:', selectedFolder ? `${selectedFolder}/` : '');
+  const folder = (name || '').trim().replace(/^[\\/]+|[\\/]+$/g, '');
+  if (!folder) return;
+  if (sessionFolders.includes(folder)) return status('Folder already exists', true);
+  sessionFolders.push(folder);
+  persistSessionFolders();
+  selectedFolder = folder;
+  renderSessions();
+  status(`Created folder ${folder}`);
+};
+
+document.querySelector('#rename-folder').onclick = async () => {
+  if (!selectedFolder) return status('Select a folder first', true);
+  const name = prompt('Rename folder:', selectedFolder);
+  const next = (name || '').trim().replace(/^[\\/]+|[\\/]+$/g, '');
+  if (!next || next === selectedFolder) return;
+  if (sessionFolders.some(folder => folder === next || folder.startsWith(`${next}/`))) return status('Folder already exists', true);
+  const prefix = `${selectedFolder}/`;
+  const changed = sessions.filter(session => session.folder === selectedFolder || session.folder?.startsWith(prefix));
+  changed.forEach(session => { session.folder = session.folder === selectedFolder ? next : `${next}/${session.folder.slice(prefix.length)}`; });
+  sessionFolders = sessionFolders.map(folder => folder === selectedFolder ? next : folder.startsWith(prefix) ? `${next}/${folder.slice(prefix.length)}` : folder);
+  try { await saveChangedSessions(changed); } catch (error) { return status(`Rename failed: ${error}`, true); }
+  selectedFolder = next;
+  persistSessionFolders();
+  renderSessions();
+  status(`Renamed folder to ${next}`);
+};
+
+document.querySelector('#delete-folder').onclick = async () => {
+  if (!selectedFolder) return status('Select a folder first', true);
+  if (!confirm(`Delete folder ${selectedFolder}? Sessions will move to its parent.`)) return;
+  const parent = selectedFolder.includes('/') ? selectedFolder.slice(0, selectedFolder.lastIndexOf('/')) : '';
+  const prefix = `${selectedFolder}/`;
+  const changed = sessions.filter(session => session.folder === selectedFolder || session.folder?.startsWith(prefix));
+  changed.forEach(session => { session.folder = parent; });
+  sessionFolders = sessionFolders.filter(folder => folder !== selectedFolder && !folder.startsWith(prefix));
+  try { await saveChangedSessions(changed); } catch (error) { return status(`Delete failed: ${error}`, true); }
+  selectedFolder = parent;
+  persistSessionFolders();
+  renderSessions();
+  status(`Deleted folder ${selectedFolder || '(root)'}`);
+};
 
 document.querySelector('#search').oninput = renderSessions;
 document.querySelector('#export-sessions').onclick = exportSessions;

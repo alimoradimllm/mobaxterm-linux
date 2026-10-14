@@ -63,7 +63,8 @@ of full third-party terminal workspace parity.
 - Session folder paths now render as indented nested headings. Folder drag and
   drop, rename, and movement controls remain open.
 - Session entries can now be dragged onto persisted folder headings and saved
-  to SQLite. Folder rename/create/delete controls remain open.
+  to SQLite. Folder create, recursive rename, and delete-to-parent controls are
+  implemented; folder metadata is stored locally so empty folders persist.
 
 ## P0: daily terminal and SSH workflow
 
