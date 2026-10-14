@@ -1449,7 +1449,7 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
         }
         return Ok(format!("TCP {} is closed or unreachable", address));
     }
-    if tool == "dns" && !cfg!(windows) {
+    if tool == "dns" {
         let lookup = if target.contains(':') {
             format!("[{}]:0", target.trim_matches(['[', ']']))
         } else {
@@ -1486,8 +1486,6 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
             "traceroute",
             vec!["-m".into(), "12".into(), "-w".into(), "1".into(), target],
         ),
-        "dns" if cfg!(windows) => ("nslookup", vec![target]),
-        "dns" => ("getent", vec!["hosts".into(), target]),
         _ => return Err("tool must be ping, traceroute, dns, or port".into()),
     };
     if !executable_available(program) {
