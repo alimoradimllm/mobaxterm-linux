@@ -1605,6 +1605,16 @@ fn start_terminal(
         if !executable_available(executable) {
             return Err(format!("WSL client is unavailable: {executable}"));
         }
+        let probe = Command::new(executable)
+            .args(["--distribution", session.host.trim(), "--", "true"])
+            .status()
+            .map_err(|error| format!("cannot validate WSL distribution: {error}"))?;
+        if !probe.success() {
+            return Err(format!(
+                "WSL distribution is unavailable: {}",
+                session.host.trim()
+            ));
+        }
         let mut args = vec!["-d".into(), session.host.clone()];
         if !session.wsl_user.trim().is_empty() {
             args.extend(["-u".into(), session.wsl_user.clone()]);

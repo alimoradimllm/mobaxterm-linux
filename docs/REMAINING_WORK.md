@@ -149,9 +149,10 @@ of full third-party terminal workspace parity.
 - Windows RDP launch planning now uses the installed native `mstsc.exe`; Linux
   continues to use `xfreerdp`. The editor reports client availability without
   launching it, and terminal launch preflights the selected RDP/VNC/WSL,
-  Telnet, Serial, or Local Shell executable before creating a process. This
-  host has no `telnet.exe` or `socat`. Embedded-window behavior and runtime
-  connection testing remain open.
+  Telnet, Serial, or Local Shell executable before creating a process. WSL
+  launch also probes the selected distribution using structured `wsl.exe
+  --distribution <name> -- true` arguments. Embedded-window behavior and
+  runtime connection testing remain open.
 - Serial session editing now includes Refresh/discovery for Windows COM ports
   through the registry and Linux `/dev/ttyUSB*`, `/dev/ttyACM*`, and `/dev/ttyS*`
   devices. This host currently has no detected serial device.
