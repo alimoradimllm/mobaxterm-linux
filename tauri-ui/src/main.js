@@ -935,20 +935,53 @@ function duplicateActive() {
   status(`Duplicated ${source.name}`);
 }
 
+async function stopMultiExecTarget(id) {
+  const tab = tabs.get(id);
+  if (!tab) return;
+  try {
+    if (invoke) await invoke('close_terminal', { id });
+    tab.exited = true;
+    tab.connectionState = 'exited';
+    tab.terminal.options.disableStdin = true;
+    tab.terminal.writeln('\r\n\x1b[33m[MultiExec stopped]\x1b[0m');
+    status(`Stopped ${tab.session.name}`);
+    renderMultiExecManager();
+  } catch (error) { status(`Stop failed: ${error}`, true); }
+}
+
+function renderMultiExecManager() {
+  const overlay = document.querySelector('.multiexec-manager');
+  if (!overlay) return;
+  const rows = [...tabs.entries()].map(([id, tab]) => `<label class="multiexec-row"><input type="checkbox" data-target-id="${id}" ${multiExecTargets.has(id) ? 'checked' : ''}><span>${iconFor(tab.session.session_type)} ${tab.session.name}</span><small>${tab.connectionState}${tab.exited ? '' : ' · active'}</small><button type="button" data-stop-id="${id}" ${tab.exited ? 'disabled' : ''}>Stop</button></label>`).join('');
+  overlay.querySelector('[data-multiexec-list]').innerHTML = rows || '<p>No open terminal sessions.</p>';
+  overlay.querySelectorAll('[data-target-id]').forEach(input => input.onchange = () => {
+    if (input.checked) multiExecTargets.add(input.dataset.targetId);
+    else multiExecTargets.delete(input.dataset.targetId);
+    status(`${multiExecTargets.size} MultiExec target${multiExecTargets.size === 1 ? '' : 's'} selected`);
+  });
+  overlay.querySelectorAll('[data-stop-id]').forEach(button => button.onclick = () => stopMultiExecTarget(button.dataset.stopId));
+}
+
 function toggleMultiExec() {
   multiExec = !multiExec;
   const button = document.querySelector('[data-action="multiexec"]');
   button?.classList.toggle('active', multiExec);
-  if (multiExec) {
-    const choices = [...tabs.entries()].map(([id, tab], index) => `${index + 1}: ${tab.session.name} [${id}]`).join('\n');
-    const selected = window.prompt(`Select terminal numbers separated by commas, or leave blank for all:\n${choices}`, '');
-    const indexes = String(selected || '').split(',').map(value => Number(value.trim()) - 1).filter(Number.isInteger);
-    multiExecTargets = new Set(indexes.map(index => [...tabs.keys()][index]).filter(Boolean));
-    status(multiExecTargets.size ? `MultiExec enabled for ${multiExecTargets.size} selected terminals` : `MultiExec enabled for ${tabs.size} terminals`);
-  } else {
+  if (!multiExec) {
     multiExecTargets.clear();
+    document.querySelector('.multiexec-manager')?.remove();
     status('MultiExec disabled');
+    return;
   }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay multiexec-manager';
+  overlay.innerHTML = `<section class="chooser-modal multiexec-panel"><header><strong>MultiExec targets</strong><button type="button" data-close>×</button></header><p>Select the terminals that should receive typed input. Stop leaves the tab available for reconnect.</p><div data-multiexec-list></div><footer><button type="button" data-select-all>Select all active</button><button type="button" data-clear>Clear</button><button type="button" data-close>Done</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); };
+  overlay.querySelectorAll('[data-close]').forEach(element => element.onclick = close);
+  overlay.querySelector('[data-select-all]').onclick = () => { multiExecTargets = new Set([...tabs.entries()].filter(([, tab]) => !tab.exited).map(([id]) => id)); renderMultiExecManager(); };
+  overlay.querySelector('[data-clear]').onclick = () => { multiExecTargets.clear(); renderMultiExecManager(); };
+  renderMultiExecManager();
+  status(`MultiExec enabled for ${tabs.size} open terminals`);
 }
 
 function actionMessage(action) {
