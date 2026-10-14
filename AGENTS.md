@@ -84,6 +84,7 @@ Do not replace this with a prompt-only or hidden implementation. MultiExec must 
 
 - A persistent top banner while MultiExec is active.
 - Multi-paste and Exit multi-execution mode controls.
+- `Ctrl+Shift+Insert` triggers Multi-paste while MultiExec is active.
 - Multiple terminal panes receiving the same input.
 - A per-terminal `Exclude ... from MultiExec mode` checkbox.
 - Target selection and stop controls where useful.

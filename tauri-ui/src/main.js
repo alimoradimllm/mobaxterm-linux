@@ -1138,6 +1138,7 @@ document.querySelectorAll('[data-action]').forEach(button => button.onclick = ()
   else actionMessage(action);
 });
 document.addEventListener('keydown', event => {
+  if (multiExec && event.ctrlKey && event.shiftKey && event.key === 'Insert') { event.preventDefault(); multiPaste(); return; }
   if (!event.ctrlKey) return;
   if (event.key.toLowerCase() === 'n') { event.preventDefault(); openTab({ name: 'Local Shell', session_type: 'Shell', host: '' }); }
   if (event.key.toLowerCase() === 'w') { event.preventDefault(); closeActiveTab(); }
