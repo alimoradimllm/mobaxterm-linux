@@ -730,6 +730,34 @@ fn wsl_distributions() -> Result<Vec<WslDistribution>, String> {
 }
 
 #[tauri::command]
+fn protocol_client_available(protocol: String) -> bool {
+    let executable = match protocol.trim().to_ascii_lowercase().as_str() {
+        "rdp" => {
+            if cfg!(windows) {
+                "mstsc.exe"
+            } else {
+                "xfreerdp"
+            }
+        }
+        "vnc" => {
+            if cfg!(windows) {
+                "vncviewer.exe"
+            } else {
+                "vncviewer"
+            }
+        }
+        _ => return false,
+    };
+    if cfg!(windows) && protocol.trim().eq_ignore_ascii_case("rdp") {
+        return std::path::Path::new("C:\\Windows\\System32\\mstsc.exe").is_file();
+    }
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path).any(|directory| directory.join(executable).is_file())
+}
+
+#[tauri::command]
 fn wsl_users(distribution: String) -> Result<Vec<String>, String> {
     let distribution = distribution.trim();
     if distribution.is_empty()
@@ -1915,6 +1943,7 @@ pub fn run() {
             local_write_text,
             open_local_path,
             shell_available,
+            protocol_client_available,
             wsl_distributions,
             wsl_users,
             serial_devices,

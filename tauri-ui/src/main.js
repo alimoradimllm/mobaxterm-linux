@@ -263,9 +263,17 @@ function showEditor(session = {}) {
   overlay.innerHTML = `<form class="session-editor"><h2>${session.name ? 'Edit session' : 'New session'}</h2><label>Name<input name="name" required value="${session.name || ''}"></label><label>Type<select name="session_type"><option>SSH</option><option>Rdp</option><option>Vnc</option><option>WSL</option><option>Shell</option><option>Telnet</option><option>Serial</option></select></label><label>Host<input name="host" value="${session.host || ''}"></label><label>Username<input name="username" value="${session.username || ''}"></label><label>Port<input name="port" type="number" min="0" max="65535" value="${session.port || 22}"></label><label>Folder<input name="folder" value="${session.folder || ''}" placeholder="Servers/Linux/Production"></label><label>Working directory<input name="working_directory" value="${session.working_directory || ''}"></label><label>Shell<input name="shell" value="${session.shell || ''}" placeholder="Auto / bash / PowerShell"></label><label>SSH gateway / ProxyJump<input name="proxy_jump" value="${session.proxy_jump || ''}" placeholder="user@gateway:22"></label><label>Host-key policy<select name="host_key_policy"><option value="ask">Ask before accepting</option><option value="strict">Strict known-hosts only</option><option value="accept-new">Accept new, reject changed</option></select></label><label>Keepalive seconds<input name="keepalive_seconds" type="number" min="0" max="3600" value="${session.keepalive_seconds ?? 30}"></label><label>Serial baud<input name="serial_baud" type="number" min="0" value="${session.serial_baud || 115200}"></label><label>Serial data bits<input name="serial_data_bits" type="number" min="5" max="8" value="${session.serial_data_bits || 8}"></label><label>Serial parity<input name="serial_parity" value="${session.serial_parity || 'none'}"></label><label>Serial stop bits<input name="serial_stop_bits" type="number" min="1" max="2" value="${session.serial_stop_bits || 1}"></label><label>Serial flow control<input name="serial_flow_control" value="${session.serial_flow_control || 'none'}"></label><label>Environment (non-secret KEY=VALUE, one per line)<textarea name="environment" rows="3">${Object.entries(session.environment || {}).map(([key, value]) => `${key}=${value}`).join('\\n')}</textarea></label><label>Startup command (non-secret)<input name="startup_command" value="${session.startup_command || ''}"></label><label>Bookmark group<input name="group" value="${session.group || ''}"></label><label><input name="favorite" type="checkbox" ${session.favorite ? 'checked' : ''}> Favorite</label><div class="editor-actions"><button type="button" data-cancel>Cancel</button>${session.name ? '<button type="button" data-delete>Delete</button>' : ''}<button type="submit">Save</button></div></form>`;
   document.body.appendChild(overlay);
   const form = overlay.querySelector('form');
-  form.classList.add('mobaxterm-session-editor');
+  const clientStatus = document.createElement('p');
+  clientStatus.className = 'muted editor-client-status';
+  clientStatus.textContent = 'External client status will appear for RDP/VNC.';
+  form.querySelector('.editor-summary')?.after(clientStatus);
+  const updateClientStatus = async type => {
+    if (!['Rdp', 'Vnc'].includes(type)) { clientStatus.textContent = ''; return; }
+    const available = await invoke('protocol_client_available', { protocol: type });
+    clientStatus.textContent = available ? `${type} client is available` : `${type} client is not available on PATH`;
+  };
   form.insertAdjacentHTML('afterbegin', `<div class="editor-protocols"><button type="button" class="active">🔑 SSH</button><button type="button">⌁ Telnet</button><button type="button">▣ RDP</button><button type="button">◉ VNC</button><button type="button">▸ WSL</button><button type="button">⌂ Shell</button><button type="button">⌁ Serial</button></div><div class="editor-summary"><span class="editor-session-icon">${iconFor(session.session_type || 'SSH')}</span><div><strong>${session.name ? 'Edit session' : 'New session'}</strong><small>Configure connection, terminal, network, and bookmark behavior</small></div></div><nav class="editor-tabs"><button type="button" class="active">Basic settings</button><button type="button">Advanced settings</button><button type="button">Terminal settings</button><button type="button">Network settings</button><button type="button">Bookmark settings</button></nav>`);
-  const sshAgentRow = document.createElement('label');
+  form.querySelector('.editor-summary')?.after(clientStatus);  const sshAgentRow = document.createElement('label');
   sshAgentRow.className = 'editor-status-row';
   sshAgentRow.innerHTML = `SSH agent monitoring <input type="checkbox" name="ssh_agent_monitor" ${session.ssh_agent_monitor !== false ? 'checked' : ''}><button type="button" data-agent-check>Check agent</button><span data-agent-status>Not checked</span>`;
   form.querySelector('[name="username"]')?.closest('label')?.after(sshAgentRow);
@@ -409,6 +417,7 @@ function showEditor(session = {}) {
     form.session_type.value = type;
     protocolButtons.forEach((button, index) => button.classList.toggle('active', protocolTypes[index] === type));
     showEditorSection(type === 'SSH' ? 'basic' : 'advanced');
+    updateClientStatus(type);
   };
   protocolButtons.forEach((button, index) => {
     button.dataset.protocol = protocolTypes[index];

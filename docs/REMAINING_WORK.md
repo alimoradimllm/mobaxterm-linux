@@ -147,8 +147,9 @@ of full third-party terminal workspace parity.
 - Add embedded or tightly integrated RDP/VNC windows where platform support
   allows it.
 - Windows RDP launch planning now uses the installed native `mstsc.exe`; Linux
-  continues to use `xfreerdp`. Embedded-window behavior and runtime connection
-  testing remain open.
+  continues to use `xfreerdp`. The editor reports client availability without
+  launching it; this Windows host has `mstsc.exe` and no VNC viewer on PATH.
+  Embedded-window behavior and runtime connection testing remain open.
 - Serial session editing now includes Refresh/discovery for Windows COM ports
   through the registry and Linux `/dev/ttyUSB*`, `/dev/ttyACM*`, and `/dev/ttyS*`
   devices. This host currently has no detected serial device.
