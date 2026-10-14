@@ -415,6 +415,19 @@ function highlightTerminalText(data) {
   return String(data).replace(words, match => `\\x1b[38;2;${parseInt(color.slice(1, 3), 16)};${parseInt(color.slice(3, 5), 16)};${parseInt(color.slice(5, 7), 16)}m${match}\\x1b[0m`);
 }
 
+function handlePaneLifecycleAction(id, key) {
+  const tab = tabs.get(id);
+  if (!tab) return;
+  if (key === 'Return') closeTab(id, { confirmClose: false });
+  else if (key === 'R') reconnectTab(id);
+  else if (key === 'S') {
+    const lines = [];
+    for (let i = 0; i < tab.terminal.buffer.active.length; i++) lines.push(tab.terminal.buffer.active.getLine(i)?.translateToString() || '');
+    const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([lines.join('\\n')], { type: 'text/plain' })); link.download = `${tab.session.name || 'terminal'}-output.txt`; link.click(); URL.revokeObjectURL(link.href);
+    status('Terminal output saved');
+  }
+}
+
 function renderPaneLifecycle(id, state) {
   const tab = tabs.get(id);
   if (!tab?.pane) return;
@@ -423,18 +436,10 @@ function renderPaneLifecycle(id, state) {
   if (!['failed', 'exited'].includes(state)) { panel.hidden = true; return; }
   panel.hidden = false;
   panel.innerHTML = `<strong>${state === 'failed' ? 'Session failed' : 'Session stopped'}</strong><span>• Press Return to exit tab</span><span>• Press R to restart session</span><span>• Press S to save terminal output to file</span>`;
-  const exit = () => closeTab(id, { confirmClose: false });
   panel.onclick = event => {
     if (event.target === panel) return;
     const key = event.target.textContent?.match(/\b(Return|R|S)\b/)?.[1];
-    if (key === 'Return') exit();
-    else if (key === 'R') reconnectTab(id);
-    else if (key === 'S') {
-      const lines = [];
-      for (let i = 0; i < tab.terminal.buffer.active.length; i++) lines.push(tab.terminal.buffer.active.getLine(i)?.translateToString() || '');
-      const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([lines.join('\\n')], { type: 'text/plain' })); link.download = `${tab.session.name || 'terminal'}-output.txt`; link.click(); URL.revokeObjectURL(link.href);
-      status('Terminal output saved');
-    }
+    if (key) handlePaneLifecycleAction(id, key);
   };
 }
 
@@ -556,6 +561,14 @@ function openTab(session) {
   fit.fit();
   terminal.onResize(({ cols, rows }) => {
     if (invoke) invoke('resize_terminal', { id, cols, rows }).catch(error => status(`Terminal resize failed: ${error}`, true));
+  });
+  terminal.attachCustomKeyEventHandler(event => {
+    const state = tabs.get(id)?.connectionState;
+    if (!['failed', 'exited'].includes(state)) return true;
+    if (event.type !== 'keydown') return true;
+    const key = event.key === 'Enter' ? 'Return' : event.key.toUpperCase();
+    if (['Return', 'R', 'S'].includes(key)) { event.preventDefault(); handlePaneLifecycleAction(id, key); return false; }
+    return true;
   });
   new ResizeObserver(() => fit.fit()).observe(terminalHost);
   terminal.writeln(`\x1b[36mMoraxterm\x1b[0m — ${session.session_type} ${session.host || ''}`);
