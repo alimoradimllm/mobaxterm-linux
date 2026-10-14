@@ -72,9 +72,9 @@ observed behavior, public protocol tooling, and independent code.
 - SQLite regression coverage now verifies that legacy session payloads load with current serde defaults for newer fields.
 - SSH session editing now provides a known-hosts presence check that returns only the file path and boolean entry status; fingerprints are not displayed or logged.
 - Strict SSH host-key policy now performs a preflight and refuses to launch when the configured host is absent from `known_hosts`; `ask` and `accept-new` retain OpenSSH verification behavior.
-- Session folders now render as indented nested hierarchy headings when folder paths contain `/` or `\\`; drag-and-drop movement and folder mutation controls remain open.
-- Session entries are now draggable onto persisted folder headings and save their new folder path through the SQLite bridge; the synthetic Recent heading is not a move target.
-- Folder create, recursive rename, and delete-to-parent controls are available; empty-folder metadata persists locally and session changes persist through SQLite.
+- Session folders now render as indented nested hierarchy headings when folder paths contain `/` or `\\`; drag-and-drop movement, create, rename, and delete controls are implemented.
+- Workspace tabs support drag-and-drop reordering, active-terminal close confirmation, and draggable split-pane boundaries.
+- The source session editor now has functional protocol icons, functional Basic/Advanced/Terminal/Network/Bookmark tabs, selectable themes, terminal keyword highlighting, and SSH-agent monitoring; installed-app runtime verification remains open.
 - SFTP downloads display observed destination-file byte counts during transfer; upload progress remains explicitly indeterminate until the native client exposes remote counters.
 - OS-backed credential commands now use Windows Credential Manager or the Linux-native keyring backend and never return stored secret values. The session editor provides masked save/status/delete controls, and SSH can consume a matching `username@host:port` entry through a temporary askpass helper that is removed on terminal exit; authenticated runtime testing remains open.
 - Managed stale-host removal uses a structured `ssh-keygen -R` command, and the editor now supports scan, fingerprint confirmation, re-scan comparison, and safe `known_hosts` append for new keys.

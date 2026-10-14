@@ -440,8 +440,26 @@ function openTab(session) {
   const id = `tab-${Date.now()}-${tabs.size}`;
   const button = document.createElement('button');
   button.dataset.id = id;
+  button.draggable = true;
   button.innerHTML = `<span class="tab-icon">${iconFor(session.session_type)}</span>${session.name}<em title="Resume suspended process">▶</em><i title="Reconnect">↻</i><b>×</b>`;
   button.onclick = () => activate(id);
+  button.ondragstart = event => {
+    event.dataTransfer?.setData('text/moraxterm-tab', id);
+    event.dataTransfer?.setData('text/plain', id);
+  };
+  button.ondragover = event => { event.preventDefault(); button.classList.add('drop-target'); };
+  button.ondragleave = () => button.classList.remove('drop-target');
+  button.ondrop = event => {
+    event.preventDefault();
+    button.classList.remove('drop-target');
+    const draggedId = event.dataTransfer?.getData('text/moraxterm-tab');
+    const dragged = draggedId && tabsEl.querySelector(`[data-id="${draggedId}"]`);
+    if (dragged && dragged !== button) {
+      const rect = button.getBoundingClientRect();
+      tabsEl.insertBefore(dragged, event.clientX < rect.left + rect.width / 2 ? button : button.nextSibling);
+      status(`Moved tab: ${tabs.get(draggedId)?.session.name || draggedId}`);
+    }
+  };
   tabsEl.appendChild(button);
   const pane = document.createElement('div');
   pane.className = 'pane';
@@ -477,13 +495,7 @@ function openTab(session) {
   launchTerminal(id, session);
   button.querySelector('b').onclick = event => {
     event.stopPropagation();
-    tabs.get(id).terminal.dispose();
-    if (invoke) invoke('close_terminal', { id }).catch(error => status(`Terminal close failed: ${error}`, true));
-    pane.remove();
-    button.remove();
-    tabs.delete(id);
-    multiExecTargets.delete(id);
-    if (tabs.size < 2) panesEl.classList.remove('split-view');
+    closeTab(id);
   };
   activate(id);
   return id;
@@ -494,6 +506,30 @@ function splitActive() {
   const current = activeTab();
   const id = openTab({ name: 'Split Shell', session_type: 'Shell', host: '' });
   panesEl.classList.add('split-view');
+  let divider = panesEl.querySelector('.pane-divider');
+  if (!divider) {
+    divider = document.createElement('div');
+    divider.className = 'pane-divider';
+    divider.title = 'Drag to resize panes';
+    panesEl.insertBefore(divider, panesEl.children[1] || null);
+    divider.onpointerdown = event => {
+      event.preventDefault();
+      divider.setPointerCapture?.(event.pointerId);
+      const move = moveEvent => {
+        const bounds = panesEl.getBoundingClientRect();
+        const ratio = Math.min(0.85, Math.max(0.15, (moveEvent.clientX - bounds.left) / bounds.width));
+        panesEl.style.setProperty('--split-ratio', `${ratio * 100}%`);
+        tabs.forEach(tab => tab.fit.fit());
+      };
+      const stop = () => {
+        divider.releasePointerCapture?.(event.pointerId);
+        divider.removeEventListener('pointermove', move);
+        divider.removeEventListener('pointerup', stop);
+      };
+      divider.addEventListener('pointermove', move);
+      divider.addEventListener('pointerup', stop, { once: true });
+    };
+  }
   if (current && tabs.has(current)) document.querySelector(`.pane[data-id="${current}"]`)?.classList.add('active');
   document.querySelector(`.pane[data-id="${id}"]`)?.classList.add('active');
   status('Split view enabled');
@@ -509,11 +545,33 @@ function activeTab() {
   return [...tabs.entries()].find(([, tab]) => tab.pane.classList.contains('active'))?.[0];
 }
 
+function closeTab(id, { confirmClose = true } = {}) {
+  const tab = tabs.get(id);
+  if (!tab) return;
+  if (confirmClose && !tab.exited && ['starting', 'connected'].includes(tab.connectionState)) {
+    const name = tab.session?.name || id;
+    if (!window.confirm(`Close active terminal "${name}"?`)) return;
+  }
+  tab.terminal.dispose();
+  if (invoke) invoke('close_terminal', { id }).catch(error => status(`Terminal close failed: ${error}`, true));
+  tab.pane.remove();
+  tabsEl.querySelector(`[data-id="${id}"]`)?.remove();
+  tabs.delete(id);
+  multiExecTargets.delete(id);
+  if (tabs.size < 2) {
+    panesEl.classList.remove('split-view');
+    panesEl.querySelector('.pane-divider')?.remove();
+    panesEl.style.removeProperty('--split-ratio');
+  }
+  const next = tabs.keys().next().value;
+  if (next) activate(next);
+  else document.querySelector('#home-screen')?.classList.remove('hidden');
+}
+
 function closeActiveTab() {
   const id = activeTab();
   if (!id) return;
-  const button = tabsEl.querySelector(`[data-id="${id}"]`);
-  button?.querySelector('b')?.click();
+  closeTab(id);
 }
 
 async function showSftpBrowser(host, username, port, initialPath = '.') {

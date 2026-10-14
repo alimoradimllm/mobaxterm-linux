@@ -17,12 +17,8 @@ of full third-party terminal workspace parity.
 - Rust core tests pass, including session validation, import, SQLite, PTY output,
   resize, Ctrl+C, and Ctrl+D/EOF behavior.
 - Frontend production build and Tauri bridge `cargo check` pass.
-- Python suite contains 54 tests. On Windows, 52 pass; two tests depend on a
-  WSL-only research file or a POSIX shell assumption and need platform guards.
-- A native WebView interactive smoke test was attempted. The application opened,
-  but the desktop UI automation provider became unresponsive after WebView
-  interaction. This is an automation limitation until a more reliable test
-  harness is added; it is not recorded as a successful full terminal test.
+- Python suite contains 54 tests. On Windows, all runnable tests pass; four POSIX/fixture-dependent tests are explicitly skipped with platform guards.
+- The latest source includes the MobaXterm-style editor, functional protocol selector, functional editor tabs, selectable themes, terminal keyword highlighting, and SSH-agent monitoring. These source features still require installed-app runtime evidence.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
 - v0.1.13 saved SSH session `ge` runtime verification passed through process
@@ -62,11 +58,15 @@ of full third-party terminal workspace parity.
 - Strict SSH sessions now refuse launch when no matching `known_hosts` entry is
   present. Native approval and changed-key warning UI remain delegated to
   OpenSSH; managed in-app approval/update UI remains open.
-- Session folder paths now render as indented nested headings. Folder drag and
-  drop, rename, and movement controls remain open.
+- Session folders now render as indented nested headings. Folder drag and
+  drop, rename, and movement controls are implemented.
 - Session entries can now be dragged onto persisted folder headings and saved
   to SQLite. Folder create, recursive rename, and delete-to-parent controls are
   implemented; folder metadata is stored locally so empty folders persist.
+- Workspace tabs now support drag-and-drop reordering, active-terminal close
+  confirmation, and split-pane resizing through a draggable divider.
+- Windows and Linux terminal runtime coverage, authenticated remote protocol
+  tests, detached windows, advanced tools, and packaging/release work remain open.
 
 ## P0: daily terminal and SSH workflow
 
@@ -113,9 +113,9 @@ of full third-party terminal workspace parity.
 
 ### Workspace
 
-- Add horizontal panes and draggable pane boundaries.
-- Add tab movement, duplication, and detachment into a separate window.
-- Add close confirmation for active connections.
+- Add horizontal panes and draggable pane boundaries. *(Implemented in source; installed-app verification remains open.)*
+- Add tab movement, duplication, and detachment into a separate window. *(Tab movement and duplication implemented; detachment remains open.)*
+- Add close confirmation for active connections. *(Implemented in source; installed-app verification remains open.)*
 - Add selective MultiExec targets, per-session output, status, and stop controls.
 - Add multiple tunnel profiles and concurrent tunnel status/logs.
 - Persist macro libraries with explicit import/export and secure content handling.
