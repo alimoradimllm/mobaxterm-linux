@@ -136,11 +136,12 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Full Windows terminal matrix: PowerShell, WSL/Bash, Unicode, resize, paste, control keys, ANSI/VT behavior, alternate-screen applications, mouse reporting, and long output.
 - Authenticated SSH/SFTP testing against a disposable target.
 - Runtime validation of host-key approval/change warnings and SSH-agent authentication.
-- SFTP SCP fallback and reliable upload-byte progress remain open. Local browser metadata (type, size, modification epoch) and remote edit-copy workflow are implemented.
+- Reliable upload-byte progress remains open. Local browser metadata (type, size, modification epoch), remote edit-copy workflow, and non-resumable SCP fallback are implemented; disposable-target fallback testing remains open.
 - Detached terminal windows.
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
 - Multiple tunnel profiles/status/logs are implemented in source; disposable-target runtime testing remains open.
 - Macro library persistence/import/export is implemented in source; installed-app file-dialog runtime testing remains open.
+- Local Shell settings now provide a persistent selector for system default, cmd, PowerShell, Bash, Fish, Zsh, and Nushell; selected executables must be installed and available on PATH.
 - Embedded RDP/VNC, Serial discovery, advanced Telnet, WSL selector testing.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.

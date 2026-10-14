@@ -21,6 +21,9 @@ of full third-party terminal workspace parity.
 - The latest source includes the MobaXterm-style editor, functional protocol selector, functional editor tabs, selectable themes, terminal keyword highlighting, and SSH-agent monitoring. These source features still require installed-app runtime evidence.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
+- Local Shell Settings now persist a selector for system default, cmd, PowerShell,
+  Bash, Fish, Zsh, and Nushell. Optional shells must be installed and available
+  on PATH; runtime checks for each optional shell remain open.
 - v0.1.13 saved SSH session `ge` runtime verification passed through process
   startup and the SSH password prompt. Authentication was not attempted because
   credentials must never be entered into logs or documentation.
@@ -53,7 +56,9 @@ of full third-party terminal workspace parity.
 - Remote SFTP edit-copy workflow now downloads to an explicit local path and
   opens it with the OS editor; uploading the edited copy remains an explicit
   user action.
-- Local SFTP listings now include entry type, byte size, and modification epoch.
+- SFTP transfer fallback now tries structured `scp` invocation when `sftp` cannot
+  be spawned; resumable transfers still require `sftp` and runtime fallback
+  coverage against a disposable target remains open.
 - A migration regression test now covers legacy SQLite payloads and current
   default fields. Broader schema migration fixtures remain open.
 - SSH editing now checks whether a host entry exists in `known_hosts` without

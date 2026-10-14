@@ -976,9 +976,31 @@ fn start_sftp_transfer(
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|e| format!("cannot start sftp: {e}"))?;
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(sftp_error) if !resume => {
+            let mut fallback =
+                std::process::Command::new(if cfg!(windows) { "scp.exe" } else { "scp" });
+            let remote = format!("{}@{}:{}", username, host, remote_path);
+            fallback.args([
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=8",
+                "-P",
+                &port.to_string(),
+            ]);
+            if direction == "upload" {
+                fallback.args([local_path.as_str(), remote.as_str()]);
+            } else {
+                fallback.args([remote.as_str(), local_path.as_str()]);
+            }
+            fallback.spawn().map_err(|scp_error| {
+                format!("cannot start sftp or scp: {sftp_error}; {scp_error}")
+            })?
+        }
+        Err(error) => return Err(format!("cannot start sftp for resumable transfer: {error}")),
+    };
     if let Some(mut input) = child.stdin.take() {
         input
             .write_all(command_line.as_bytes())
@@ -1397,7 +1419,46 @@ fn start_terminal(
     } else if let Some(session) = session.as_ref().filter(|value| {
         value.session_type.eq_ignore_ascii_case("Shell") && !value.shell.trim().is_empty()
     }) {
-        (session.shell.clone(), Vec::new())
+        match session.shell.trim().to_ascii_lowercase().as_str() {
+            "default" | "system" => {
+                if cfg!(windows) {
+                    (
+                        std::env::var("ComSpec")
+                            .unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".into()),
+                        vec!["/Q".into(), "/K".into()],
+                    )
+                } else {
+                    ("/bin/sh".into(), vec!["-l".into()])
+                }
+            }
+            "cmd" | "cmd.exe" => ("cmd.exe".into(), vec!["/Q".into(), "/K".into()]),
+            "powershell" | "powershell.exe" => (
+                if cfg!(windows) {
+                    "powershell.exe"
+                } else {
+                    "powershell"
+                }
+                .into(),
+                vec!["-NoLogo".into()],
+            ),
+            "bash" | "bash.exe" => (
+                if cfg!(windows) { "bash.exe" } else { "bash" }.into(),
+                vec!["-l".into()],
+            ),
+            "fish" | "fish.exe" => (
+                if cfg!(windows) { "fish.exe" } else { "fish" }.into(),
+                vec!["-l".into()],
+            ),
+            "zsh" | "zsh.exe" => (
+                if cfg!(windows) { "zsh.exe" } else { "zsh" }.into(),
+                vec!["-l".into()],
+            ),
+            "nu" | "nu.exe" | "nushell" => (
+                if cfg!(windows) { "nu.exe" } else { "nu" }.into(),
+                Vec::new(),
+            ),
+            _ => (session.shell.clone(), Vec::new()),
+        }
     } else if cfg!(windows) {
         (
             std::env::var("ComSpec").unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".into()),
