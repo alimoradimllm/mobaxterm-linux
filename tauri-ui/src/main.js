@@ -33,6 +33,7 @@ function persistCollapsedSessionFolders() {
 const tabs = new Map();
 const tunnels = new Set();
 let tunnelProfiles = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-tunnel-profiles') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
+tunnelProfiles = tunnelProfiles.map((profile, index) => ({ ...profile, key: profile.key || `tunnel-legacy-${index}`, name: profile.name || `${profile.mode || 'local'} ${profile.bind || 'profile'}`, status: profile.status || 'stopped', log: profile.log || 'Imported saved profile' }));
 const recordings = new Set();
 const sftpTransferWaiters = new Map();
 let multiExec = false;
@@ -877,15 +878,46 @@ async function toggleRecording() {
   } catch (error) { status(`Recording failed: ${error}`, true); }
 }
 
-async function toggleTunnel() {
-  if (!invoke) { status('Tunneling is available in the native Tauri app', true); return; }
-  if (tunnels.size) {
-    const id = [...tunnels][0];
-    await invoke('stop_tunnel', { id });
-    tunnels.delete(id);
-    status('SSH tunnel stopped');
-    return;
+function saveTunnelProfiles() { localStorage.setItem('moraxterm-tunnel-profiles', JSON.stringify(tunnelProfiles.slice(0, 20))); }
+
+async function startTunnelProfile(profile) {
+  if (!invoke) return;
+  try {
+    const id = await invoke('start_tunnel', { host: profile.host, username: profile.username, sshPort: profile.sshPort, mode: profile.mode, bind: profile.bind, target: profile.target });
+    tunnels.add(id);
+    const saved = tunnelProfiles.find(item => item.key === profile.key);
+    if (saved) { saved.tunnelId = id; saved.status = 'running'; saved.log = `Started ${profile.mode} tunnel`; }
+    saveTunnelProfiles();
+    renderTunnelManager();
+    status(`SSH ${profile.mode} tunnel started`);
+  } catch (error) {
+    const saved = tunnelProfiles.find(item => item.key === profile.key);
+    if (saved) { saved.status = 'failed'; saved.log = String(error); saveTunnelProfiles(); }
+    renderTunnelManager();
+    status(`Tunnel failed: ${error}`, true);
   }
+}
+
+async function stopTunnelProfile(profile) {
+  if (!profile.tunnelId || !invoke) return;
+  try {
+    await invoke('stop_tunnel', { id: profile.tunnelId });
+    tunnels.delete(profile.tunnelId);
+    profile.tunnelId = null; profile.status = 'stopped'; profile.log = 'Stopped by user';
+    saveTunnelProfiles(); renderTunnelManager(); status(`Stopped tunnel ${profile.name}`);
+  } catch (error) { status(`Tunnel stop failed: ${error}`, true); }
+}
+
+function renderTunnelManager() {
+  const overlay = document.querySelector('.tunnel-manager');
+  if (!overlay) return;
+  const rows = tunnelProfiles.map(profile => `<div class="tunnel-row"><div><strong>${profile.name}</strong><small>${profile.mode} · ${profile.bind}${profile.target ? ` → ${profile.target}` : ''}</small><em>${profile.status || 'stopped'}${profile.log ? ` · ${profile.log}` : ''}</em></div><button type="button" data-tunnel-action="${profile.tunnelId ? 'stop' : 'start'}" data-tunnel-key="${profile.key}">${profile.tunnelId ? 'Stop' : 'Start'}</button><button type="button" data-tunnel-delete="${profile.key}">Delete</button></div>`).join('');
+  overlay.querySelector('[data-tunnel-list]').innerHTML = rows || '<p>No saved tunnel profiles.</p>';
+  overlay.querySelectorAll('[data-tunnel-action]').forEach(button => button.onclick = () => { const profile = tunnelProfiles.find(item => item.key === button.dataset.tunnelKey); if (profile) button.dataset.tunnelAction === 'start' ? startTunnelProfile(profile) : stopTunnelProfile(profile); });
+  overlay.querySelectorAll('[data-tunnel-delete]').forEach(button => button.onclick = () => { tunnelProfiles = tunnelProfiles.filter(item => item.key !== button.dataset.tunnelDelete); saveTunnelProfiles(); renderTunnelManager(); });
+}
+
+function createTunnelProfile() {
   const mode = (window.prompt('Tunnel mode: local, remote, or dynamic', 'local') || '').trim().toLowerCase();
   if (![ 'local', 'remote', 'dynamic' ].includes(mode)) { status('Tunnel mode must be local, remote, or dynamic', true); return; }
   const host = (window.prompt('SSH gateway host:') || '').trim();
@@ -893,15 +925,21 @@ async function toggleTunnel() {
   const sshPort = Number(window.prompt('SSH port:', '22') || '22');
   const bind = (window.prompt(mode === 'dynamic' ? 'SOCKS bind address, e.g. 127.0.0.1:1080:' : 'Bind address, e.g. 127.0.0.1:8080:') || '').trim();
   const target = mode === 'dynamic' ? '' : (window.prompt('Target, e.g. 127.0.0.1:80:') || '').trim();
-  if (!host || !Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535 || !bind || (mode !== 'dynamic' && !target)) { status('Tunnel host, valid SSH port, bind address, and target are required', true); return; }
+  const name = (window.prompt('Profile name:', `${mode} ${bind}`) || '').trim();
+  if (!name || !host || !Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535 || !bind || (mode !== 'dynamic' && !target)) { status('Profile name, host, valid SSH port, bind address, and target are required', true); return; }
   if (/[\s"'\\]/.test(bind) || /[\s"'\\]/.test(target)) { status('Tunnel bind and target values contain invalid characters', true); return; }
-  try {
-    const id = await invoke('start_tunnel', { host, username, sshPort, mode, bind, target });
-    tunnels.add(id);
-    tunnelProfiles = [{ host, username, sshPort, mode, bind, target }, ...tunnelProfiles.filter(profile => JSON.stringify(profile) !== JSON.stringify({ host, username, sshPort, mode, bind, target }))].slice(0, 20);
-    localStorage.setItem('moraxterm-tunnel-profiles', JSON.stringify(tunnelProfiles));
-    status(`SSH ${mode} tunnel started; click Tunneling to stop`);
-  } catch (error) { status(`Tunnel failed: ${error}`, true); }
+  const profile = { key: `tunnel-${Date.now()}`, name, host, username, sshPort, mode, bind, target, status: 'stopped', log: 'Saved profile' };
+  tunnelProfiles = [profile, ...tunnelProfiles].slice(0, 20); saveTunnelProfiles(); renderTunnelManager();
+}
+
+function toggleTunnel() {
+  if (!invoke) { status('Tunneling is available in the native Tauri app', true); return; }
+  const overlay = document.createElement('div'); overlay.className = 'modal-overlay tunnel-manager';
+  overlay.innerHTML = `<section class="chooser-modal tunnel-panel"><header><strong>Tunnel profiles</strong><button type="button" data-close>×</button></header><div data-tunnel-list></div><footer><button type="button" data-new-tunnel>New profile</button><button type="button" data-close>Done</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelectorAll('[data-close]').forEach(button => button.onclick = () => overlay.remove());
+  overlay.querySelector('[data-new-tunnel]').onclick = createTunnelProfile;
+  renderTunnelManager();
 }
 
 function showSessionChooser() {

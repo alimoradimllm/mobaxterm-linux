@@ -139,7 +139,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - SFTP SCP fallback, remote editing, metadata, and reliable upload-byte progress.
 - Detached terminal windows.
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
-- Concurrent tunnel profiles/logs and persistent macro import/export.
+- Multiple tunnel profiles/status/logs are implemented in source; disposable-target runtime testing remains open.
 - Embedded RDP/VNC, Serial discovery, advanced Telnet, WSL selector testing.
 - X-server lifecycle, scanner/network tools, resource metrics, editors, and advanced viewers.
 - Clean-machine Windows/Linux installation testing.

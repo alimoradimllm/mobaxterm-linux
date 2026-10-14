@@ -117,7 +117,7 @@ of full third-party terminal workspace parity.
 - Add tab movement, duplication, and detachment into a separate window. *(Tab movement and duplication implemented; detachment remains open.)*
 - Add close confirmation for active connections. *(Implemented in source; installed-app verification remains open.)*
 - Selective MultiExec targets, per-session output, status, and stop controls. *(Implemented in source; live desktop verification passed for banner, two tabs, exclusion control, and sent status.)*
-- Add multiple tunnel profiles and concurrent tunnel status/logs.
+- Multiple tunnel profiles and concurrent tunnel status/logs. *(Implemented in source with saved profiles, independent start/stop/delete controls, and per-profile status/log text; disposable-target runtime testing remains open.)*
 - Persist macro libraries with explicit import/export and secure content handling.
 
 ### Remote protocols
