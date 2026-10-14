@@ -1,6 +1,6 @@
 # Moraxterm remaining work and verification status
 
-_Last reviewed: 2026-10-13. Repository: `alimoradimllm/moraxterm`._
+_Last reviewed: 2026-10-14. Repository: `alimoradimllm/moraxterm`. Current release: `v0.1.13`._
 
 This document separates verified behavior from planned work. It is not a claim
 of full third-party terminal workspace parity.
@@ -23,6 +23,13 @@ of full third-party terminal workspace parity.
   but the desktop UI automation provider became unresponsive after WebView
   interaction. This is an automation limitation until a more reliable test
   harness is added; it is not recorded as a successful full terminal test.
+- v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
+  directory output and an interactive prompt through xterm.js.
+- v0.1.13 saved SSH session `ge` runtime verification passed through process
+  startup and the SSH password prompt. Authentication was not attempted because
+  credentials must never be entered into logs or documentation.
+- v0.1.13 includes opt-in diagnostic logging from Settings at
+  `%APPDATA%\\Moraxterm\\moraxterm-debug.log` by default.
 
 ## P0: daily terminal and SSH workflow
 
@@ -126,3 +133,4 @@ Do not publish a new release until all of the following are true:
 - Never put passwords, private keys, tokens, host fingerprints, license values,
   or connection strings in documentation, fixtures, screenshots, or commits.
 - Update this document and the main roadmap together when a priority changes.
+- Keep the Windows runtime evidence in [`WINDOWS_TERMINAL_TEST_MATRIX.md`](WINDOWS_TERMINAL_TEST_MATRIX.md).

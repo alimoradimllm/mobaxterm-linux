@@ -81,17 +81,18 @@ Review the security and open-work details in
 
 ## Current release
 
-The latest published release is **v0.1.8**:
+The latest published release is **v0.1.13**:
 
-<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.8>
+<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.13>
 
-Published assets include:
+Published Windows assets include:
 
-- `Moraxterm_0.1.8_amd64.deb`
-- `Moraxterm-0.1.8-1.x86_64.rpm`
-- `Moraxterm_0.1.8_x64-setup.exe`
-- `moraxterm-linux-ui.exe`
-- `Moraxterm-v0.1.8-SHA256SUMS.txt`
+- `Moraxterm_0.1.13_x64-setup.exe`
+- `Moraxterm_0.1.13_x64_en-US.msi`
+
+The v0.1.13 release also includes the corrected Tauri event-listener
+permissions. Local Shell and saved SSH sessions can now deliver terminal output
+to xterm.js; SSH authentication still requires the user's credentials.
 
 The Windows database-path correction and Unix terminal-resume control are
 included in this release.
@@ -191,6 +192,7 @@ release-quality automation.
 
 - Detailed remaining work: [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md)
 - Compatibility roadmap: [`docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`](docs/MORAXTERM_COMPATIBILITY_ROADMAP.md)
+- Windows terminal test matrix: [`docs/WINDOWS_TERMINAL_TEST_MATRIX.md`](docs/WINDOWS_TERMINAL_TEST_MATRIX.md)
 - UI preview: [`docs/screenshots/moraxterm-linux-ui-preview.svg`](docs/screenshots/moraxterm-linux-ui-preview.svg)
 
 ## زبان فارسی

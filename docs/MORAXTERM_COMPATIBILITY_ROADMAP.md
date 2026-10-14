@@ -11,7 +11,7 @@ observed behavior, public protocol tooling, and independent code.
 
 - Repository: `alimoradimllm/moraxterm`
 - Branch: `main`
-- Current published release: `v0.1.5`
+- Current published release: `v0.1.13`
 - Rust core tests: passed.
 - Python suite: 54 tests; 52 pass on Windows, with two platform-specific tests requiring guards or WSL fixtures.
 - Tauri frontend build and Rust bridge check: passed.
@@ -58,6 +58,8 @@ observed behavior, public protocol tooling, and independent code.
 - Linux PTY regression coverage also verifies Ctrl+D/EOF delivery to an interactive child process.
 - SSH tabs now use structured `ConnectTimeout=10`, `ServerAliveInterval=30`, and `ServerAliveCountMax=3` options to improve failure detection and reconnect behavior without handling secrets.
 - The Windows Tauri bridge now stores SQLite data under `%APPDATA%\\Moraxterm`, while Linux keeps its XDG-style data path; the platform-specific path was verified by installing the corrected Windows build and loading persisted sessions.
+- v0.1.13 adds the Tauri event-listener permissions required for frontend terminal output delivery. Local Shell was verified with live Windows output, and saved SSH session `ge` was verified to reach the SSH password prompt without hanging or crashing. Credentials were not entered or retained.
+- v0.1.13 provides opt-in diagnostic logging from Settings. Logs default to `%APPDATA%\\Moraxterm\\moraxterm-debug.log` and sanitize sensitive values.
 - Unix terminal tabs expose an explicit resume action using `SIGCONT`; Windows reports the platform limitation instead of pretending Ctrl+Z/job-control support is complete.
 - The session-tree action toolbar now uses a fixed flex layout so import, export, create, and reload controls remain on one row in the Windows sidebar.
 - The remaining work and test limitations are maintained in [`docs/REMAINING_WORK.md`](REMAINING_WORK.md).
