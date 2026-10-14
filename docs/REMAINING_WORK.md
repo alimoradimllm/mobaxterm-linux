@@ -48,6 +48,8 @@ of full third-party terminal workspace parity.
   `reput`. Byte-level progress and drag-and-drop remain open.
 - The SFTP local pane now accepts dropped files and queues them for upload.
   Byte-level progress remains open.
+- Local SFTP preview now supports read-only UTF-8 files up to 1 MiB. Remote
+  preview and editing remain open.
 
 ## P0: daily terminal and SSH workflow
 

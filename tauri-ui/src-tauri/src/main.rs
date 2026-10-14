@@ -438,6 +438,22 @@ fn local_list(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn local_preview(path: String) -> Result<String, String> {
+    if path.trim().is_empty()
+        || path
+            .chars()
+            .any(|c| c.is_control() || c == '\n' || c == '\r')
+    {
+        return Err("invalid local preview path".into());
+    }
+    let data = fs::read(path.trim()).map_err(|e| format!("cannot read local file: {e}"))?;
+    if data.len() > 1_048_576 {
+        return Err("local preview is limited to 1 MiB".into());
+    }
+    String::from_utf8(data).map_err(|_| "local preview supports UTF-8 text files only".into())
+}
+
+#[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
         return Err("SFTP requires host, username, and a valid port".into());
@@ -1226,6 +1242,7 @@ pub fn run() {
             stop_tunnel,
             xserver_status,
             local_list,
+            local_preview,
             sftp_list,
             sftp_transfer,
             start_sftp_transfer,
