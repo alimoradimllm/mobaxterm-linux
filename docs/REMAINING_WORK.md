@@ -148,7 +148,7 @@ of full third-party terminal workspace parity.
   allows it.
 - Windows RDP launch planning now uses the installed native `mstsc.exe`; Linux
   continues to use `xfreerdp`. The editor reports client availability without
-  launching it, and terminal launch preflights the selected RDP/VNC/WSL,
+  launching it, and terminal launch preflights the selected SSH, RDP/VNC/WSL,
   Telnet, Serial, or Local Shell executable before creating a process. WSL
   launch also probes the selected distribution and optional user using
   structured `wsl.exe --distribution <name> --user <user> -- true` arguments.

@@ -1545,6 +1545,9 @@ fn start_terminal(
         {
             return Err("SSH session requires host, username, and a valid port".into());
         }
+        if !executable_available(if cfg!(windows) { "ssh.exe" } else { "ssh" }) {
+            return Err("SSH client is unavailable: ssh".into());
+        }
         let mut ssh_args = session.ssh_plan().map_err(|error| error.to_string())?.argv;
         if ssh_args.first().is_some_and(|value| value == "ssh") {
             ssh_args.remove(0);
