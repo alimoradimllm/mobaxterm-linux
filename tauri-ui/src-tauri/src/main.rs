@@ -17,6 +17,7 @@ use tauri::{AppHandle, Emitter, State};
 struct TerminalManager {
     processes: Arc<Mutex<HashMap<String, Arc<Mutex<TerminalProcess>>>>>,
     recordings: Arc<Mutex<HashMap<String, File>>>,
+    sftp_jobs: Arc<Mutex<HashMap<String, Child>>>,
     debug: Arc<Mutex<DebugConfig>>,
 }
 
@@ -49,6 +50,13 @@ struct TunnelManager {
 struct TerminalEvent {
     id: String,
     data: String,
+}
+
+#[derive(Clone, Serialize)]
+struct SftpTransferEvent {
+    id: String,
+    success: bool,
+    message: String,
 }
 
 fn debug_write(logger: &Arc<Mutex<DebugConfig>>, component: &str, message: &str) {
@@ -529,6 +537,137 @@ fn sftp_transfer(
         text = String::from_utf8_lossy(&output.stderr).into_owned();
     }
     Ok(text)
+}
+
+#[tauri::command]
+fn start_sftp_transfer(
+    app: AppHandle,
+    state: State<'_, TerminalManager>,
+    host: String,
+    username: String,
+    port: u16,
+    direction: String,
+    local_path: String,
+    remote_path: String,
+) -> Result<String, String> {
+    if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
+        return Err("SFTP requires host, username, and a valid port".into());
+    }
+    let direction = direction.to_ascii_lowercase();
+    if !["upload", "download"].contains(&direction.as_str()) {
+        return Err("SFTP transfer must be upload or download".into());
+    }
+    for value in [&local_path, &remote_path] {
+        if value.trim().is_empty() || value.chars().any(|c| c.is_control() || c == '"') {
+            return Err("invalid SFTP transfer path".into());
+        }
+    }
+    let command_line = if direction == "upload" {
+        format!("put \"{}\" \"{}\"\nbye\n", local_path, remote_path)
+    } else {
+        format!("get \"{}\" \"{}\"\nbye\n", remote_path, local_path)
+    };
+    let id = format!("sftp-{}", chrono_like_timestamp());
+    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
+    command.args([
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=8",
+        "-P",
+        &port.to_string(),
+        "-b",
+        "-",
+        &format!("{}@{}", username, host),
+    ]);
+    command
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = command
+        .spawn()
+        .map_err(|e| format!("cannot start sftp: {e}"))?;
+    if let Some(mut input) = child.stdin.take() {
+        input
+            .write_all(command_line.as_bytes())
+            .map_err(|e| e.to_string())?;
+    }
+    state
+        .sftp_jobs
+        .lock()
+        .map_err(|_| "SFTP manager poisoned")?
+        .insert(id.clone(), child);
+    let jobs = Arc::clone(&state.sftp_jobs);
+    let job_id = id.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_millis(100));
+        let finished = {
+            let mut active = match jobs.lock() {
+                Ok(value) => value,
+                Err(_) => break,
+            };
+            let Some(child) = active.get_mut(&job_id) else {
+                break;
+            };
+            child.try_wait().ok().flatten().is_some()
+        };
+        if !finished {
+            continue;
+        }
+        let Some(child) = jobs
+            .lock()
+            .ok()
+            .and_then(|mut active| active.remove(&job_id))
+        else {
+            break;
+        };
+        let result = child.wait_with_output();
+        let (success, message) = match result {
+            Ok(output) => {
+                let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+                if text.is_empty() {
+                    text = String::from_utf8_lossy(&output.stderr).into_owned();
+                }
+                (output.status.success(), text)
+            }
+            Err(error) => (false, error.to_string()),
+        };
+        let _ = app.emit(
+            "sftp-transfer-exit",
+            SftpTransferEvent {
+                id: job_id.clone(),
+                success,
+                message,
+            },
+        );
+        break;
+    });
+    Ok(id)
+}
+
+#[tauri::command]
+fn cancel_sftp_transfer(
+    app: AppHandle,
+    state: State<'_, TerminalManager>,
+    id: String,
+) -> Result<bool, String> {
+    let mut jobs = state
+        .sftp_jobs
+        .lock()
+        .map_err(|_| "SFTP manager poisoned")?;
+    let Some(mut child) = jobs.remove(&id) else {
+        return Ok(false);
+    };
+    child.kill().map_err(|e| e.to_string())?;
+    let _ = app.emit(
+        "sftp-transfer-exit",
+        SftpTransferEvent {
+            id,
+            success: false,
+            message: "transfer cancelled".into(),
+        },
+    );
+    Ok(true)
 }
 
 #[tauri::command]
@@ -1071,6 +1210,8 @@ pub fn run() {
             local_list,
             sftp_list,
             sftp_transfer,
+            start_sftp_transfer,
+            cancel_sftp_transfer,
             sftp_operation,
             run_network_tool,
             start_recording,

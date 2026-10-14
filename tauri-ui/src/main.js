@@ -22,6 +22,7 @@ const tabs = new Map();
 const tunnels = new Set();
 let tunnelProfiles = (() => { try { const value = JSON.parse(localStorage.getItem('moraxterm-tunnel-profiles') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
 const recordings = new Set();
+const sftpTransferWaiters = new Map();
 let multiExec = false;
 let multiExecTargets = new Set();
 let macroRecording = false;
@@ -369,13 +370,19 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
   const renderQueue = () => {
     if (!transferQueue.length) { queueOutput.textContent = 'No transfers queued.'; return; }
     queueOutput.innerHTML = transferQueue.map(item => {
-      const cancel = item.state === 'queued' ? `<button data-cancel-transfer="${item.id}">Cancel</button>` : '';
+      const cancel = ['queued', 'running'].includes(item.state) ? `<button data-cancel-transfer="${item.id}">Cancel</button>` : '';
       return `<div><strong>${item.direction}</strong> ${item.localPath} → ${item.remotePath} <span>${item.state}</span>${cancel}</div>`;
     }).join('');
     queueOutput.querySelectorAll('[data-cancel-transfer]').forEach(button => {
       button.onclick = () => {
         const item = transferQueue.find(entry => entry.id === button.dataset.cancelTransfer);
         if (item?.state === 'queued') { item.state = 'cancelled'; renderQueue(); }
+        else if (item?.state === 'running') {
+          item.cancelRequested = true;
+          item.state = 'cancelling';
+          renderQueue();
+          invoke('cancel_sftp_transfer', { id: item.jobId }).catch(error => { item.state = 'failed'; item.result = String(error); renderQueue(); });
+        }
       };
     });
   };
@@ -388,9 +395,11 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
         item.state = 'running';
         renderQueue();
         try {
-          item.result = await invoke('sftp_transfer', { host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath });
-          item.state = 'completed';
-          status(`SFTP ${item.direction} completed`);
+          const event = await startSftpTransferJob({ host, username, port, direction: item.direction, localPath: item.localPath, remotePath: item.remotePath });
+          item.jobId = event.id;
+          item.result = event.message;
+          item.state = event.success ? 'completed' : (item.cancelRequested ? 'cancelled' : 'failed');
+          status(`SFTP ${item.direction} ${item.state}`, !event.success);
         } catch (error) {
           item.state = 'failed';
           item.result = String(error);
@@ -403,7 +412,7 @@ async function showSftpBrowser(host, username, port, initialPath = '.') {
     }
   };
   const enqueueTransfer = (direction, localPath, remotePath) => {
-    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, state: 'queued' });
+    transferQueue.push({ id: `transfer-${Date.now()}-${transferQueue.length}`, direction, localPath, remotePath, state: 'queued', jobId: '', cancelRequested: false });
     renderQueue();
     runTransferQueue();
   };
@@ -670,7 +679,22 @@ function normalizeTerminalEvent(event) {
   return payload && typeof payload === 'object' ? payload : {};
 }
 
+function startSftpTransferJob(options) {
+  return new Promise((resolve, reject) => {
+    invoke('start_sftp_transfer', options)
+      .then(id => sftpTransferWaiters.set(id, { resolve, reject }))
+      .catch(reject);
+  });
+}
+
 if (listen) {
+  listen('sftp-transfer-exit', event => {
+    const payload = normalizeTerminalEvent(event);
+    const waiter = sftpTransferWaiters.get(payload.id);
+    if (!waiter) return;
+    sftpTransferWaiters.delete(payload.id);
+    waiter.resolve(payload);
+  }).catch(error => debugLog('frontend', `sftp-transfer listener failed error=${error}`));
   listen('terminal-output', event => {
     const payload = normalizeTerminalEvent(event);
     debugLog('frontend', `terminal-output received id=${payload.id || 'missing'} bytes=${String(payload.data || '').length}`);

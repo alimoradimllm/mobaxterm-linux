@@ -40,6 +40,9 @@ of full third-party terminal workspace parity.
   pending/running/completed/failed states and cancellation before a job starts.
   Byte-level progress, cancellation of a running native transfer, resume, and
   retry policy remain open.
+- Running SFTP jobs can now be cancelled through the backend, which terminates
+  the native `sftp` process and reports a completion event. Byte-level
+  progress, resume, and retry policy remain open.
 
 ## P0: daily terminal and SSH workflow
 
