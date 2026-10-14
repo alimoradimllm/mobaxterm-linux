@@ -1449,6 +1449,27 @@ fn run_network_tool(tool: String, target: String, port: Option<u16>) -> Result<S
         }
         return Ok(format!("TCP {} is closed or unreachable", address));
     }
+    if tool == "dns" && !cfg!(windows) {
+        let lookup = if target.contains(':') {
+            format!("[{}]:0", target.trim_matches(['[', ']']))
+        } else {
+            format!("{}:0", target)
+        };
+        let mut addresses = Vec::new();
+        for address in lookup
+            .to_socket_addrs()
+            .map_err(|error| error.to_string())?
+        {
+            let value = address.ip().to_string();
+            if !addresses.contains(&value) {
+                addresses.push(value);
+            }
+        }
+        if addresses.is_empty() {
+            return Err("DNS lookup returned no addresses".into());
+        }
+        return Ok(addresses.join("\n"));
+    }
     let (program, args): (&str, Vec<String>) = match tool.as_str() {
         "ping" if cfg!(windows) => (
             "ping",
