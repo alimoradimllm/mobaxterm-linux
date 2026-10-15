@@ -7,7 +7,7 @@ This file is the handoff document for any AI agent, coding model, or human contr
 - Project: **Moraxterm**, a cross-platform terminal workspace inspired by MobaXterm.
 - Repository: `https://github.com/alimoradimllm/moraxterm`
 - Main branch: `main`
-- Primary UI: `tauri-ui/` — Tauri 2, Vite, JavaScript, xterm.js.
+- Primary UI: `tauri-ui/` — Tauri 2, Vite, TypeScript, React, and xterm.js.
 - Native bridge: `tauri-ui/src-tauri/` — Rust/Tauri commands and process management.
 - Shared Rust core: `rust-core/` — sessions, persistence, terminal abstractions, and tests.
 - Documentation: `docs/REMAINING_WORK.md` and `docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`.
@@ -70,7 +70,7 @@ Expected status is clean and tracking `origin/main`.
 
 ### MobaXterm-style UI
 
-- The desktop shell uses a dense MobaXterm-inspired hierarchy: menu row, icon toolbar, quick-connect strip, rail, session tree, tab strip, terminal pane, and status bar. Keep spacing and contrast optimized for a 1200px+ desktop window.
+- The first React/TypeScript frontend migration slice now owns the desktop shell, session sidebar, home dashboard, tabs, quick-connect input, and one real xterm.js terminal path while preserving the existing Tauri command/event names. The legacy JavaScript implementation remains in the tree during the incremental migration and must not be removed until feature parity is verified.
 - Application and terminal themes remain independently selectable.
 - Protocol icons must change the session type, highlight the selected icon, and show relevant fields.
 - Session editor sections are Basic, Advanced, Terminal, Network, and Bookmark.

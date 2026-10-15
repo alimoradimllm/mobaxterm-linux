@@ -1,0 +1,75 @@
+@import url('./style.css');
+
+:root { font-family: 'Segoe UI', Arial, sans-serif; color: #edf3f7; background: #0d1115; }
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+.react-app-shell { height: 100%; display: flex; flex-direction: column; background: #0d1115; color: #edf3f7; }
+.react-menu-row { height: 34px; display: flex; align-items: center; gap: 3px; padding: 0 10px; background: #181c21; border-bottom: 1px solid #303b45; }
+.react-menu-row strong { margin-right: 20px; font-size: 14px; }
+.react-menu-row button { border: 0; border-radius: 3px; padding: 6px 10px; color: #bdc9d2; background: transparent; }
+.react-menu-row button:hover { color: #fff; background: #2c3843; }
+.react-toolbar { height: 68px; display: flex; align-items: center; gap: 5px; padding: 5px 12px; background: #20262d; border-bottom: 1px solid #3a4650; }
+.react-tool { min-width: 62px; height: 58px; padding: 5px 8px; color: #dce8ef; background: transparent; border: 1px solid transparent; border-radius: 4px; }
+.react-tool span { display: block; height: 29px; color: #78d4ff; font-size: 27px; line-height: 29px; }
+.react-tool small { display: block; font-size: 10px; }
+.react-tool:hover, .react-tool.primary { background: #2e3944; border-color: #4b6474; }
+.react-tool.primary { box-shadow: inset 0 -2px #35a7e8; }
+.react-toolbar-spacer { flex: 1; }
+.react-quick-connect { display: flex; gap: 6px; height: 38px; padding: 5px 12px; background: #161b20; border-bottom: 1px solid #303b45; }
+.react-quick-connect input, .react-side-search input, .react-home > input { color: #edf3f7; background: #0d1115; border: 1px solid #43515c; border-radius: 4px; padding: 6px 10px; }
+.react-quick-connect input { width: 360px; }
+.react-quick-connect button, .react-home button.primary { color: #fff; background: #247fb3; border: 1px solid #55b9eb; border-radius: 4px; padding: 4px 18px; }
+.react-main { display: grid; grid-template-columns: 44px 320px minmax(0, 1fr); min-height: 0; flex: 1; }
+.react-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 10px; background: #151a1f; border-right: 1px solid #33404a; }
+.react-rail button { width: 38px; height: 42px; color: #8797a4; background: transparent; border: 0; border-left: 2px solid transparent; font-size: 21px; }
+.react-rail button:hover, .react-rail button.active { color: #fff; background: #2c3843; border-left-color: #35a7e8; }
+.react-sidebar { display: flex; min-height: 0; flex-direction: column; background: #1b2127; border-right: 1px solid #3a4650; }
+.react-side-tabs { display: flex; height: 38px; background: #222a32; }
+.react-side-tabs button { flex: 1; color: #aebdca; background: transparent; border: 0; border-bottom: 2px solid transparent; }
+.react-side-tabs button:hover, .react-side-tabs button.selected { color: #fff; border-bottom-color: #35a7e8; }
+.react-side-search { padding: 10px; }
+.react-side-search input { width: 100%; height: 30px; }
+.react-tree-header { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 10px; background: #202830; border-top: 1px solid #34414c; border-bottom: 1px solid #34414c; }
+.react-tree-header strong { flex: 1; font-size: 12px; }
+.react-tree-header button { color: #78d4ff; background: transparent; border: 0; border-radius: 3px; font-size: 16px; }
+.react-session-list { min-height: 0; flex: 1; overflow: auto; }
+.react-session-list section h3 { margin: 0; padding: 8px 12px; color: #dce7ee; background: #28323b; border-left: 3px solid #35a7e8; font-size: 12px; }
+.react-session { display: grid; grid-template-columns: 28px minmax(0, 1fr) 18px; align-items: center; width: 100%; min-height: 42px; padding: 7px 10px; color: #d4e0e7; text-align: left; background: transparent; border: 0; border-bottom: 1px solid rgba(70,84,96,.35); }
+.react-session:hover, .react-session.active { background: #2d3b47; }
+.react-session span { min-width: 0; }
+.react-session strong, .react-session small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.react-session small { margin-top: 2px; color: #899ba8; font-size: 10px; }
+.react-session em { color: #ffd166; font-style: normal; }
+.react-protocol-icon { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; vertical-align: middle; }
+.react-protocol-icon .protocol-icon { width: 22px; height: 22px; }
+.react-empty { padding: 18px; color: #8c9ba6; }
+.react-side-footer { display: flex; flex-direction: column; gap: 3px; min-height: 40px; padding: 7px 10px; color: #8e9eaa; background: #151a1f; border-top: 1px solid #33404a; font-size: 10px; }
+.react-side-footer label { display: flex; gap: 4px; align-items: center; }
+.react-workspace { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #080b0e; }
+.react-home { display: flex; min-height: 0; flex: 1; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 30%, #1e2c37 0, #12171c 45%, #0d1115 100%); }
+.react-home-mark { color: #6ec9f5; font-size: 64px; text-shadow: 0 0 30px rgba(53,167,232,.45); }
+.react-home h1 { margin: 4px 0 2px; font-size: 38px; font-weight: 400; }
+.react-home p { margin: 0 0 22px; color: #9babb7; font-size: 14px; }
+.react-home > div:not(.react-home-mark):not(.react-recent) { display: flex; gap: 12px; }
+.react-home button { min-width: 210px; padding: 10px 16px; color: #e4e8eb; background: #1f2b34; border: 1px solid #4b6879; border-radius: 4px; font-size: 14px; }
+.react-home button:hover { background: #2c4050; }
+.react-home > input { width: 430px; height: 38px; margin-top: 16px; font-size: 14px; }
+.react-home h2 { margin: 28px 0 10px; font-size: 16px; }
+.react-recent { display: grid; grid-template-columns: repeat(3, 190px); gap: 7px 20px; }
+.react-recent button { display: grid; grid-template-columns: 30px 1fr; min-width: 0; padding: 7px; color: #e2eaf0; text-align: left; background: #1c252d; border-color: #3e505d; font-size: 12px; }
+.react-recent button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.react-recent small { display: block; color: #8fa2af; font-size: 10px; }
+.react-tabs { display: flex; height: 40px; overflow-x: auto; background: #202830; border-bottom: 1px solid #3d4a55; }
+.react-tabs button { display: flex; align-items: center; gap: 4px; min-width: 150px; max-width: 260px; color: #aebdca; background: #27313a; border: 0; border-right: 1px solid #3d4a55; }
+.react-tabs button.active { color: #fff; background: #11171c; border-top: 2px solid #35a7e8; }
+.react-tabs button .dot { width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: #7d8791; }
+.react-tabs button .dot.connected { background: #24d66b; }.react-tabs button .dot.starting { background: #ffd166; }.react-tabs button .dot.failed { background: #ff6259; }
+.react-tabs button b { padding: 0 8px; color: #aab8c3; font-size: 18px; font-weight: 400; }.react-tabs button b:hover { color: #ff8078; }
+.react-panes { min-height: 0; flex: 1; }
+.react-terminal-pane { display: flex; height: 100%; flex-direction: column; }
+.react-pane-bar { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 12px; color: #c5d1d9; background: #151c22; border-bottom: 1px solid #34414b; font-size: 11px; }
+.react-state { color: #9eabb4; text-transform: uppercase; }.react-state.connected { color: #24d66b; }.react-state.failed { color: #ff6259; }.react-state.starting { color: #ffd166; }
+.react-terminal-host { min-height: 0; flex: 1; padding: 9px 12px; background: #080b0e; }
+.react-status { display: flex; gap: 18px; height: 24px; align-items: center; padding: 0 10px; color: #91a2ae; background: #171d22; border-top: 1px solid #34414b; font-size: 10px; }.react-status span:first-child { color: #55d18a; }.react-status span:last-child { margin-left: auto; }

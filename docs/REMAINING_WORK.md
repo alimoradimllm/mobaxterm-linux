@@ -18,7 +18,7 @@ of full third-party terminal workspace parity.
   resize, Ctrl+C, and Ctrl+D/EOF behavior.
 - Frontend production build and Tauri bridge `cargo check` pass.
 - Python suite contains 54 tests. On Windows, all runnable tests pass; four POSIX/fixture-dependent tests are explicitly skipped with platform guards.
-- The frontend shell now has a denser MobaXterm-comparison layout: stronger toolbar hierarchy, wider session navigation, clearer active tabs, readable session cards, improved empty/home dashboard, and explicit failed-pane treatment. This is a visual source-level improvement; full terminal interaction coverage remains open.
+- The frontend now has a tested React/TypeScript migration slice. `npm run typecheck`, Vite production build, and a no-bundle Tauri executable build passed. The exact rebuilt executable was visually inspected: home dashboard, toolbar, quick-connect strip, session tree, recent-session card, status bar, and MobaXterm-style spacing rendered successfully. Full feature parity with the legacy JavaScript implementation remains open.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
 - Local Shell Settings now persist a selector for system default, cmd, PowerShell,

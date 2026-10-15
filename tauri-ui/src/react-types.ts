@@ -1,0 +1,50 @@
+export type SessionType = 'SSH' | 'Telnet' | 'Rdp' | 'Vnc' | 'WSL' | 'Shell' | 'Serial';
+
+export interface Session {
+  name: string;
+  session_type: SessionType | string;
+  host?: string;
+  username?: string;
+  port?: number;
+  folder?: string;
+  favorite?: boolean;
+  shell?: string;
+  remote_shell?: string;
+  ssh_agent_forwarding?: boolean;
+}
+
+export interface TerminalEvent {
+  id?: string;
+  data?: string;
+  error?: string;
+}
+
+type Invoke = <T = unknown>(command: string, args?: Record<string, unknown>) => Promise<T>;
+type Listen = (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
+
+interface TauriGlobal {
+  core?: { invoke?: Invoke };
+  event?: { listen?: Listen };
+}
+
+declare global {
+  interface Window {
+    __TAURI__?: TauriGlobal;
+  }
+}
+
+export const tauriInvoke = window.__TAURI__?.core?.invoke;
+export const tauriListen = window.__TAURI__?.event?.listen;
+
+export const fallbackSessions: Session[] = [
+  { name: 'Local Shell', session_type: 'Shell' },
+  { name: 'WSL-Debian', session_type: 'WSL', host: 'Debian' },
+];
+
+export function normalizeTerminalEvent(value: unknown): TerminalEvent {
+  let payload = (value as { payload?: unknown } | null)?.payload ?? value;
+  if (typeof payload === 'string') {
+    try { payload = JSON.parse(payload); } catch { return {}; }
+  }
+  return payload && typeof payload === 'object' ? payload as TerminalEvent : {};
+}
