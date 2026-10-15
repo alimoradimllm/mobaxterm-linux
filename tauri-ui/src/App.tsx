@@ -3,6 +3,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { iconFor } from './icons.js';
 import SessionEditor from './SessionEditor';
+import Settings, { defaultUiSettings, UiSettings } from './Settings';
+import MacroManager, { Macro } from './MacroManager';
 import {
   fallbackSessions,
   normalizeTerminalEvent,
@@ -19,12 +21,12 @@ interface Tab {
 
 const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial']);
 
-function Toolbar({ onNewShell, onHome, onEdit }: { onNewShell: () => void; onHome: () => void; onEdit: () => void }) {
+function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void }) {
   const items = [
     ['▣', 'Session', onNewShell], ['✣', 'Servers', onHome], ['⚒', 'Tools', undefined],
     ['★', 'Sessions', onEdit], ['▣', 'View', undefined], ['▤', 'Split', undefined],
-    ['⧉', 'Duplicate', undefined], ['⇄', 'MultiExec', undefined], ['⇆', 'Tunneling', undefined],
-    ['⇅', 'Packages', undefined], ['⚙', 'Settings', undefined], ['?', 'Help', undefined],
+    ['⧉', 'Duplicate', undefined], ['⇄', 'MultiExec', onMacros], ['⇆', 'Tunneling', undefined],
+    ['⇅', 'Packages', undefined], ['⚙', 'Settings', onSettings], ['?', 'Help', undefined],
   ] as const;
   return <div className="react-toolbar">
     {items.map(([symbol, label, action]) => <button key={label} className={label === 'Session' ? 'react-tool primary' : 'react-tool'} onClick={action} title={label}>
@@ -67,15 +69,15 @@ function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit }: {
   </aside>;
 }
 
-function TerminalPane({ tab, onState }: { tab: Tab; onState: (state: Tab['state']) => void }) {
+function TerminalPane({ tab, settings, onState }: { tab: Tab; settings: UiSettings; onState: (state: Tab['state']) => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   useEffect(() => {
     if (!hostRef.current) return;
     const terminal = new Terminal({
       convertEol: true,
-      cursorBlink: true,
-      fontSize: 14,
+      cursorBlink: settings.cursorBlink,
+      fontSize: settings.fontSize,
       theme: { background: '#080b0e', foreground: '#e6edf3', cursor: '#55d6ff', green: '#25d18a', blue: '#55b9ff', yellow: '#ffd166' },
     });
     const fit = new FitAddon();
@@ -128,6 +130,8 @@ export default function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string>();
   const [editorSession, setEditorSession] = useState<Session>();
+  const [panel, setPanel] = useState<'settings' | 'macros'>();
+  const [uiSettings, setUiSettings] = useState<UiSettings>(() => { try { return { ...defaultUiSettings, ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return defaultUiSettings; } });
   const [quick, setQuick] = useState('');
   useEffect(() => {
     tauriInvoke?.<Session[]>('list_sessions').then(value => { if (Array.isArray(value) && value.length) setSessions(value); }).catch(() => {});
@@ -147,16 +151,18 @@ export default function App() {
     tauriInvoke?.('save_session', { session }).catch(() => {});
     setEditorSession(undefined);
   };
+  const saveSettings = (next: UiSettings) => { setUiSettings(next); localStorage.setItem('moraxterm-settings', JSON.stringify(next)); setPanel(undefined); };
+  const playMacro = (macro: Macro, terminalId: string) => { macro.events.reduce((chain, data) => chain.then(() => tauriInvoke?.('write_terminal', { id: terminalId, data })), Promise.resolve()).catch(() => {}); };
   const active = tabs.find(tab => tab.id === activeId);
   return <div className="react-app-shell">
-    <div className="react-menu-row"><strong>Moraxterm</strong><button>Terminal</button><button onClick={() => setTabs([])}>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button>Settings</button><button>Macros</button><button>Help</button></div>
-    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} />
+    <div className="react-menu-row"><strong>Moraxterm</strong><button>Terminal</button><button onClick={() => setTabs([])}>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button>Help</button></div>
+    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} />
     <div className="react-quick-connect"><input aria-label="Quick connect" placeholder="Quick connect..." value={quick} onChange={event => setQuick(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') openQuick(); }} /><button onClick={openQuick}>Connect</button></div>
     <main className="react-main"><nav className="react-rail"><button className="active">★</button><button>⚒</button><button>➤</button><button>◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} />
       <section className="react-workspace">
-        {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Shell' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
+        {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Shell' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
           <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); tauriInvoke?.('close_terminal', { id: tab.id }).catch(() => {}); setTabs(current => current.filter(item => item.id !== tab.id)); setActiveId(tabs.find(item => item.id !== tab.id)?.id); }}>×</b></button>)}</nav>
-          <div className="react-panes">{active && <TerminalPane key={active.id} tab={active} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} />}</div>
+          <div className="react-panes">{active && <TerminalPane key={active.id} tab={active} settings={uiSettings} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} />}</div>
         </>}
         <footer className="react-status"><span>● Ready</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span>Desktop</span></footer>
       </section>

@@ -94,3 +94,16 @@ button { cursor: pointer; }
 .react-editor-footer { display: flex; justify-content: flex-end; gap: 9px; margin-top: auto; padding: 14px 28px; background: #171e24; border-top: 1px solid #35444f; }
 .react-editor-footer button { min-width: 100px; padding: 8px 14px; color: #d4e1e8; background: #27333c; border: 1px solid #4a5d69; border-radius: 4px; }
 .react-editor-footer button.primary { color: #fff; background: #247fb3; border-color: #55b9eb; }
+.react-settings-heading { margin: 4px 0 16px; color: #e5eef3; font-size: 14px; font-weight: 500; }
+.react-macro-toolbar { display: flex; gap: 8px; padding: 18px 28px; background: #1a2229; border-bottom: 1px solid #3b4a55; }
+.react-macro-toolbar input { flex: 1; min-width: 0; height: 35px; padding: 6px 10px; color: #edf3f7; background: #0c1115; border: 1px solid #455764; border-radius: 4px; }
+.react-macro-toolbar button, .react-macro-row button { padding: 7px 13px; color: #d4e1e8; background: #27333c; border: 1px solid #4a5d69; border-radius: 4px; }
+.react-macro-toolbar button.primary { color: #fff; background: #247fb3; border-color: #55b9eb; }
+.react-macro-list { min-height: 0; flex: 1; overflow: auto; padding: 18px 28px; }
+.react-macro-row { display: flex; align-items: center; gap: 8px; min-height: 58px; padding: 10px 14px; background: #1b252d; border: 1px solid #3d505d; border-bottom: 0; }
+.react-macro-row:last-child { border-bottom: 1px solid #3d505d; }
+.react-macro-row > div { min-width: 0; flex: 1; }
+.react-macro-row strong, .react-macro-row small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.react-macro-row small { margin-top: 3px; color: #8fa2af; font-size: 10px; }
+.react-macro-row button:disabled { cursor: not-allowed; opacity: .45; }
+.react-macro-limit { margin-right: auto; color: #8fa2af; font-size: 11px; align-self: center; }

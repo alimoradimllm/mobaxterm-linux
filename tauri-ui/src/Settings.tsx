@@ -1,0 +1,39 @@
+import { useState } from 'react';
+
+export interface UiSettings {
+  appTheme: 'mobaxterm' | 'midnight' | 'light' | 'amber' | 'neon';
+  terminalTheme: 'mobaxterm' | 'dark' | 'light' | 'amber' | 'neon';
+  fontSize: number;
+  cursorBlink: boolean;
+  highlightKeywords: boolean;
+}
+
+interface SettingsProps {
+  value: UiSettings;
+  onSave: (value: UiSettings) => void;
+  onCancel: () => void;
+}
+
+export const defaultUiSettings: UiSettings = {
+  appTheme: 'mobaxterm', terminalTheme: 'mobaxterm', fontSize: 13, cursorBlink: true, highlightKeywords: true,
+};
+
+export default function Settings({ value, onSave, onCancel }: SettingsProps) {
+  const [draft, setDraft] = useState(value);
+  const update = <K extends keyof UiSettings>(key: K, next: UiSettings[K]) => setDraft(current => ({ ...current, [key]: next }));
+  return <section className="react-editor" aria-label="Application settings">
+    <header className="react-editor-header"><div><span className="react-editor-kicker">APPLICATION SETTINGS</span><h2>Settings</h2></div><button onClick={onCancel} aria-label="Close settings">×</button></header>
+    <nav className="react-editor-tabs"><button className="selected">Appearance</button><button>Terminal</button><button>Behavior</button></nav>
+    <div className="react-editor-form">
+      <h3 className="react-settings-heading">Appearance</h3>
+      <label>Application theme<select value={draft.appTheme} onChange={event => update('appTheme', event.target.value as UiSettings['appTheme'])}><option value="mobaxterm">MobaXterm</option><option value="midnight">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label>
+      <label>Terminal theme<select value={draft.terminalTheme} onChange={event => update('terminalTheme', event.target.value as UiSettings['terminalTheme'])}><option value="mobaxterm">MobaXterm</option><option value="dark">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label>
+      <h3 className="react-settings-heading">Terminal behavior</h3>
+      <label>Font size<input type="number" min="10" max="28" value={draft.fontSize} onChange={event => update('fontSize', Number(event.target.value) || 13)} /></label>
+      <label className="react-check"><input type="checkbox" checked={draft.cursorBlink} onChange={event => update('cursorBlink', event.target.checked)} /> Blink terminal cursor</label>
+      <label className="react-check"><input type="checkbox" checked={draft.highlightKeywords} onChange={event => update('highlightKeywords', event.target.checked)} /> Highlight terminal keywords</label>
+      <div className="react-editor-note">Settings are stored locally in this profile. Credentials and private keys are not stored here.</div>
+    </div>
+    <footer className="react-editor-footer"><button onClick={onCancel}>Cancel</button><button className="primary" onClick={() => onSave(draft)}>Save settings</button></footer>
+  </section>;
+}

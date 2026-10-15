@@ -20,6 +20,7 @@ of full third-party terminal workspace parity.
 - Python suite contains 54 tests. On Windows, all runnable tests pass; four POSIX/fixture-dependent tests are explicitly skipped with platform guards.
 - The frontend now has a tested React/TypeScript migration slice. `npm run typecheck`, Vite production build, and a no-bundle Tauri executable build passed. The exact rebuilt executable was visually inspected: home dashboard, toolbar, quick-connect strip, session tree, recent-session card, status bar, and MobaXterm-style spacing rendered successfully. Full feature parity with the legacy JavaScript implementation remains open.
 - The React Session Editor is visually verified in the rebuilt executable. It provides protocol selection plus Basic, SSH, and Terminal tabs, and saves typed session metadata through the existing `save_session` bridge. Full editor parity and runtime protocol verification remain open.
+- The React Settings and Macro Manager panels are visually verified in the rebuilt executable. Settings persist local UI/terminal preferences, while macros support bounded local storage, import/export/delete, and playback through the existing terminal bridge. Full recording parity remains open.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
 - Local Shell Settings now persist a selector for system default, cmd, PowerShell,
