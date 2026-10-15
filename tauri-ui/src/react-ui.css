@@ -73,3 +73,24 @@ button { cursor: pointer; }
 .react-state { color: #9eabb4; text-transform: uppercase; }.react-state.connected { color: #24d66b; }.react-state.failed { color: #ff6259; }.react-state.starting { color: #ffd166; }
 .react-terminal-host { min-height: 0; flex: 1; padding: 9px 12px; background: #080b0e; }
 .react-status { display: flex; gap: 18px; height: 24px; align-items: center; padding: 0 10px; color: #91a2ae; background: #171d22; border-top: 1px solid #34414b; font-size: 10px; }.react-status span:first-child { color: #55d18a; }.react-status span:last-child { margin-left: auto; }
+.react-editor { display: flex; min-height: 0; flex: 1; flex-direction: column; background: #11171c; }
+.react-editor-header { display: flex; align-items: center; justify-content: space-between; min-height: 82px; padding: 18px 28px; background: linear-gradient(90deg, #202d36, #182127); border-bottom: 1px solid #405260; }
+.react-editor-header h2 { margin: 3px 0 0; font-size: 22px; font-weight: 500; }
+.react-editor-header > button { color: #b7c6d0; background: transparent; border: 0; font-size: 28px; }
+.react-editor-kicker { color: #64c8f5; font-size: 10px; letter-spacing: .16em; }
+.react-editor-protocols { display: flex; gap: 7px; padding: 14px 28px 8px; background: #1a2229; }
+.react-editor-protocols button { min-width: 72px; padding: 8px 10px; color: #aebdc8; background: #242f38; border: 1px solid #40505c; border-radius: 4px; font-size: 11px; }
+.react-editor-protocols button:hover, .react-editor-protocols button.selected { color: #fff; background: #245d7b; border-color: #5bc6f2; }
+.react-editor-tabs { display: flex; gap: 4px; padding: 0 28px; background: #1a2229; border-bottom: 1px solid #3b4a55; }
+.react-editor-tabs button { padding: 10px 18px; color: #aebdc8; background: transparent; border: 0; border-bottom: 2px solid transparent; }
+.react-editor-tabs button.selected { color: #fff; border-bottom-color: #35a7e8; }
+.react-editor-form { width: min(680px, 100%); padding: 26px 32px; overflow: auto; }
+.react-editor-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 17px; color: #bdcad3; font-size: 12px; }
+.react-editor-form input, .react-editor-form select { height: 35px; padding: 6px 9px; color: #edf3f7; background: #0c1115; border: 1px solid #455764; border-radius: 4px; }
+.react-editor-form input:focus, .react-editor-form select:focus { outline: 2px solid #36a9e6; outline-offset: 1px; }
+.react-editor-grid { display: grid; grid-template-columns: 1fr 150px; gap: 14px; }
+.react-editor-check { flex-direction: row !important; align-items: center; }
+.react-editor-note { margin-bottom: 20px; padding: 12px 14px; color: #9fb4c0; background: #18252d; border-left: 3px solid #35a7e8; font-size: 12px; line-height: 1.5; }
+.react-editor-footer { display: flex; justify-content: flex-end; gap: 9px; margin-top: auto; padding: 14px 28px; background: #171e24; border-top: 1px solid #35444f; }
+.react-editor-footer button { min-width: 100px; padding: 8px 14px; color: #d4e1e8; background: #27333c; border: 1px solid #4a5d69; border-radius: 4px; }
+.react-editor-footer button.primary { color: #fff; background: #247fb3; border-color: #55b9eb; }

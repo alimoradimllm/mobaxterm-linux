@@ -71,6 +71,7 @@ Expected status is clean and tracking `origin/main`.
 ### MobaXterm-style UI
 
 - The first React/TypeScript frontend migration slice now owns the desktop shell, session sidebar, home dashboard, tabs, quick-connect input, and one real xterm.js terminal path while preserving the existing Tauri command/event names. The legacy JavaScript implementation remains in the tree during the incremental migration and must not be removed until feature parity is verified.
+- The React migration now includes a typed Session Editor with Basic, SSH, and Terminal tabs, protocol selection, SSH-agent forwarding, remote-shell selection, and `save_session` persistence through the existing Rust bridge.
 - Application and terminal themes remain independently selectable.
 - Protocol icons must change the session type, highlight the selected icon, and show relevant fields.
 - Session editor sections are Basic, Advanced, Terminal, Network, and Bookmark.
