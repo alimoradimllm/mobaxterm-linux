@@ -122,7 +122,7 @@ function TerminalPane({ tab, settings, onState }: { tab: Tab; settings: UiSettin
   }, [tab.id, tab.session, onState]);
   return <div className="react-terminal-pane">
     <div className="react-pane-bar"><span><ProtocolIcon type={tab.session.session_type} /> {tab.session.name}</span><span className={`react-state ${tab.state}`}>{tab.state}</span></div>
-    <div className="react-terminal-host" ref={hostRef} />
+    <div className="react-terminal-host" ref={hostRef} tabIndex={0} onPointerDown={() => terminalRef.current?.focus()} onKeyDown={() => terminalRef.current?.focus()} />
   </div>;
 }
 
