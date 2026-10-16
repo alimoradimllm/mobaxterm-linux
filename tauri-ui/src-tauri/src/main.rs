@@ -1863,7 +1863,43 @@ fn start_terminal(
             runtime_root.join("bin").display()
         );
         environment.insert("PATH".into(), path);
-        (shell_path.to_string_lossy().into_owned(), vec!["-l".into()])
+        let mut args = vec!["-l".into()];
+        if shell.eq_ignore_ascii_case("fish") {
+            let posix_path = |value: &PathBuf| {
+                let value = value.to_string_lossy().replace('\\', "/");
+                if cfg!(windows) && value.len() >= 2 && value.as_bytes()[1] == b':' {
+                    format!(
+                        "/{}/{}",
+                        value[0..1].to_ascii_lowercase(),
+                        &value[2..].trim_start_matches('/')
+                    )
+                } else {
+                    value
+                }
+            };
+            let fish_quote = |value: &str| format!("'{}'", value.replace('\'', "\\'"));
+            let home_posix = posix_path(&home);
+            let temp_posix = posix_path(&temp);
+            let runtime_posix = posix_path(&runtime_root);
+            let host_posix = if cfg!(windows) {
+                posix_path(&PathBuf::from(
+                    &session.unix_host_mount.trim().replace('\\', "/"),
+                ))
+            } else {
+                session.unix_host_mount.trim().to_string()
+            };
+            let init = format!(
+                "set -gx HOME {}; set -gx TMPDIR {}; set -gx TEMP {}; set -gx TMP {}; set -gx MORAXTERM_UNIX_ROOT {}; set -gx MORAXTERM_HOST_MOUNT {};",
+                fish_quote(&home_posix),
+                fish_quote(&temp_posix),
+                fish_quote(&temp_posix),
+                fish_quote(&temp_posix),
+                fish_quote(&runtime_posix),
+                fish_quote(&host_posix)
+            );
+            args.extend(["-C".into(), init]);
+        }
+        (shell_path.to_string_lossy().into_owned(), args)
     } else if let Some(session) = session.as_ref().filter(|value| {
         value.session_type.eq_ignore_ascii_case("Shell") && !value.shell.trim().is_empty()
     }) {
