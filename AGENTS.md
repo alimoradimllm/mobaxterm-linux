@@ -77,6 +77,7 @@ Expected status is clean and tracking `origin/main`.
 - The React migration now includes a typed SFTP/FTP browser pane. It uses the existing `sftp_list`, `sftp_operation`, and `sftp_transfer` Tauri commands for remote listing, folder/rename/delete/permissions operations, upload, and download. The rebuilt pane was visually verified, including a bounded authentication failure state; authenticated transfer runtime testing remains open.
 - The typed Session Editor now exposes protocol-specific WSL, Serial, and Telnet settings backed by the existing Rust session schema. Frontend and native tests pass; runtime editor interaction remains subject to the known Tauri UIA timeout limitation.
 - The Session model and typed editor now include RDP resolution/fullscreen/audio and VNC display/view-only/shared-connection settings. Legacy session payloads remain compatible through serde defaults; frontend and native tests pass.
+- The React terminal pane now exposes Resume, Reconnect, and Close lifecycle controls using the existing native commands. Frontend, Tauri tests, and a rebuilt desktop executable pass; installed-app interaction remains subject to the known UIA limitation.
 - Application and terminal themes remain independently selectable.
 - Protocol icons must change the session type, highlight the selected icon, and show relevant fields.
 - Session editor sections are Basic, Advanced, Terminal, Network, and Bookmark.

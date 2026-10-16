@@ -71,7 +71,7 @@ function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit }: {
   </aside>;
 }
 
-function TerminalPane({ tab, settings, onState }: { tab: Tab; settings: UiSettings; onState: (state: Tab['state']) => void }) {
+function TerminalPane({ tab, settings, onState, onClose }: { tab: Tab; settings: UiSettings; onState: (state: Tab['state']) => void; onClose: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   useEffect(() => {
@@ -121,8 +121,19 @@ function TerminalPane({ tab, settings, onState }: { tab: Tab; settings: UiSettin
       terminal.dispose();
     };
   }, [tab.id, tab.session, onState]);
+  const reconnect = async () => {
+    onState('starting');
+    try {
+      await tauriInvoke?.('close_terminal', { id: tab.id });
+      await tauriInvoke?.('start_terminal', { id: tab.id, session: remoteTypes.has(tab.session.session_type) ? tab.session : null, program: null });
+      onState('connected');
+    } catch { onState('failed'); }
+  };
+  const resume = async () => {
+    try { await tauriInvoke?.('resume_terminal', { id: tab.id }); onState('connected'); } catch { onState('failed'); }
+  };
   return <div className="react-terminal-pane">
-    <div className="react-pane-bar"><span><ProtocolIcon type={tab.session.session_type} /> {tab.session.name}</span><span className={`react-state ${tab.state}`}>{tab.state}</span></div>
+    <div className="react-pane-bar"><span><ProtocolIcon type={tab.session.session_type} /> {tab.session.name}</span><span className="react-terminal-actions"><span className={`react-state ${tab.state}`}>{tab.state}</span><button onClick={resume} disabled={tab.state === 'starting'} title="Resume terminal process">Resume</button><button onClick={reconnect} title="Reconnect terminal">Reconnect</button><button onClick={onClose} title="Close terminal">Close</button></span></div>
     <div className="react-terminal-host" ref={hostRef} tabIndex={0} onPointerDown={() => terminalRef.current?.focus()} onKeyDown={() => terminalRef.current?.focus()} />
   </div>;
 }
@@ -143,6 +154,14 @@ export default function App() {
     if (existing) { setActiveId(existing.id); return; }
     const tab = { id: `tab-${Date.now()}-${tabs.length}`, session, state: 'starting' as const };
     setTabs(current => [...current, tab]); setActiveId(tab.id);
+  };
+  const closeTab = (id: string) => {
+    tauriInvoke?.('close_terminal', { id }).catch(() => {});
+    setTabs(current => {
+      const remaining = current.filter(item => item.id !== id);
+      setActiveId(activeId === id ? remaining[remaining.length - 1]?.id : activeId);
+      return remaining;
+    });
   };
   const openQuick = () => {
     const host = quick.trim();
@@ -167,8 +186,8 @@ export default function App() {
     <main className="react-main"><nav className="react-rail"><button className="active">★</button><button>⚒</button><button>➤</button><button>◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} />
       <section className="react-workspace">
         {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} onBroadcast={broadcast} onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Shell' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
-          <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); tauriInvoke?.('close_terminal', { id: tab.id }).catch(() => {}); setTabs(current => current.filter(item => item.id !== tab.id)); setActiveId(tabs.find(item => item.id !== tab.id)?.id); }}>×</b></button>)}</nav>
-          <div className="react-panes">{active && <TerminalPane key={active.id} tab={active} settings={uiSettings} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} />}</div>
+          <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); closeTab(tab.id); }}>×</b></button>)}</nav>
+          <div className="react-panes">{active && <TerminalPane key={active.id} tab={active} settings={uiSettings} onClose={() => closeTab(active.id)} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} />}</div>
         </>}
         <footer className="react-status"><span>● Ready</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span>Desktop</span></footer>
       </section>
