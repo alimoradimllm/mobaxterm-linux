@@ -1996,6 +1996,7 @@ fn start_terminal(
     }
     let recordings = Arc::clone(&state.recordings);
     let processes = Arc::clone(&state.processes);
+    let query_process = Arc::clone(&shared);
     let debug = Arc::clone(&state.debug);
     debug_write(
         &debug,
@@ -2010,6 +2011,16 @@ fn start_terminal(
             .map_err(|e| e.to_string());
         match result {
             Ok(data) if !data.is_empty() => {
+                if data.windows(4).any(|window| window == b"\x1b[6n") {
+                    if let Ok(mut process) = query_process.lock() {
+                        let _ = process.write(b"\x1b[1;1R");
+                    }
+                    debug_write(
+                        &debug,
+                        "terminal",
+                        &format!("answered cursor-position query id={}", id),
+                    );
+                }
                 debug_write(
                     &debug,
                     "terminal",
