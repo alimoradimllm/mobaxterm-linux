@@ -171,6 +171,12 @@ pub struct Session {
     #[serde(default)]
     pub telnet_mode: String,
     #[serde(default)]
+    pub unix_shell: String,
+    #[serde(default)]
+    pub unix_runtime_root: String,
+    #[serde(default)]
+    pub unix_host_mount: String,
+    #[serde(default)]
     pub rdp_width: u16,
     #[serde(default)]
     pub rdp_height: u16,

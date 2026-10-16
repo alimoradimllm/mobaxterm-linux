@@ -1798,6 +1798,72 @@ fn start_terminal(
                 ),
             ],
         )
+    } else if let Some(session) = session
+        .as_ref()
+        .filter(|value| value.session_type.eq_ignore_ascii_case("Unix"))
+    {
+        let runtime_root = if session.unix_runtime_root.trim().is_empty() {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("Moraxterm")
+                .join("unix-runtime")
+        } else {
+            PathBuf::from(session.unix_runtime_root.trim())
+        };
+        let shell = if session.unix_shell.trim().is_empty() {
+            "fish"
+        } else {
+            session.unix_shell.trim()
+        };
+        let shell_name = if cfg!(windows) {
+            format!("{shell}.exe")
+        } else {
+            shell.to_string()
+        };
+        let shell_path = if cfg!(windows) {
+            runtime_root.join("usr").join("bin").join(&shell_name)
+        } else {
+            runtime_root.join("bin").join(&shell_name)
+        };
+        if !shell_path.is_file() {
+            return Err(format!(
+                "Embedded Unix runtime is not installed or {} is missing: {}",
+                shell,
+                shell_path.display()
+            ));
+        }
+        let home = runtime_root.join("home").join("moraxterm");
+        let temp = runtime_root.join("tmp").join("moraxterm");
+        fs::create_dir_all(&home).map_err(|error| format!("cannot create Unix HOME: {error}"))?;
+        fs::create_dir_all(&temp)
+            .map_err(|error| format!("cannot create Unix temporary directory: {error}"))?;
+        let host_mount = if session.unix_host_mount.trim().is_empty() {
+            if cfg!(windows) {
+                "C:\\".into()
+            } else {
+                "/".into()
+            }
+        } else {
+            session.unix_host_mount.trim().to_string()
+        };
+        environment.insert(
+            "MORAXTERM_UNIX_ROOT".into(),
+            runtime_root.to_string_lossy().into_owned(),
+        );
+        environment.insert("MORAXTERM_HOST_MOUNT".into(), host_mount);
+        environment.insert("HOME".into(), home.to_string_lossy().into_owned());
+        environment.insert("TMPDIR".into(), temp.to_string_lossy().into_owned());
+        environment.insert("TEMP".into(), temp.to_string_lossy().into_owned());
+        environment.insert("TMP".into(), temp.to_string_lossy().into_owned());
+        let bin = runtime_root.join("usr").join("bin");
+        let path = format!(
+            "{}{}{}",
+            bin.display(),
+            if cfg!(windows) { ";" } else { ":" },
+            runtime_root.join("bin").display()
+        );
+        environment.insert("PATH".into(), path);
+        (shell_path.to_string_lossy().into_owned(), vec!["-l".into()])
     } else if let Some(session) = session.as_ref().filter(|value| {
         value.session_type.eq_ignore_ascii_case("Shell") && !value.shell.trim().is_empty()
     }) {

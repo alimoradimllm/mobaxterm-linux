@@ -7,7 +7,7 @@ interface SessionEditorProps {
   onCancel: () => void;
 }
 
-const protocols: SessionType[] = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell', 'Serial'];
+const protocols: SessionType[] = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell', 'Serial', 'Unix'];
 
 export default function SessionEditor({ session, onSave, onCancel }: SessionEditorProps) {
   const [draft, setDraft] = useState<Session>(session);
@@ -15,7 +15,7 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
   useEffect(() => setDraft(session), [session]);
   const update = <K extends keyof Session>(key: K, value: Session[K]) => setDraft(current => ({ ...current, [key]: value }));
   const isSsh = draft.session_type === 'SSH';
-  const isProtocol = ['WSL', 'Serial', 'Telnet', 'Rdp', 'Vnc'].includes(draft.session_type);
+  const isProtocol = ['WSL', 'Serial', 'Telnet', 'Rdp', 'Vnc', 'Unix'].includes(draft.session_type);
   useEffect(() => { if (tab === 'Protocol' && !isProtocol) setTab('Basic'); }, [isProtocol, tab]);
   return <section className="react-editor" aria-label="Session editor">
     <header className="react-editor-header"><div><span className="react-editor-kicker">SESSION EDITOR</span><h2>{draft.name || 'New session'}</h2></div><button onClick={onCancel} aria-label="Close session editor">×</button></header>
@@ -61,6 +61,13 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
         <label>Display number<input type="number" min="0" max="99" value={draft.vnc_display ?? 0} onChange={event => update('vnc_display', Number(event.target.value) || 0)} /></label>
         <label className="react-check"><input type="checkbox" checked={draft.vnc_view_only ?? false} onChange={event => update('vnc_view_only', event.target.checked)} /> View-only mode</label>
         <label className="react-check"><input type="checkbox" checked={draft.vnc_shared ?? true} onChange={event => update('vnc_shared', event.target.checked)} /> Allow shared connections</label>
+      </>}
+      {tab === 'Protocol' && draft.session_type === 'Unix' && <>
+        <div className="react-editor-note">Embedded Unix runs Fish inside Moraxterm with a private runtime environment. It does not use WSL or Windows cmd.exe.</div>
+        <label>Shell<select value={draft.unix_shell ?? 'fish'} onChange={event => update('unix_shell', event.target.value)}><option value="fish">Fish</option><option value="bash">Bash</option><option value="sh">POSIX sh</option></select></label>
+        <label>Runtime root<input value={draft.unix_runtime_root ?? ''} onChange={event => update('unix_runtime_root', event.target.value || undefined)} placeholder="Use Moraxterm managed runtime" /></label>
+        <label>Host filesystem mount<input value={draft.unix_host_mount ?? ''} onChange={event => update('unix_host_mount', event.target.value || undefined)} placeholder="Automatic host mount" /></label>
+        <div className="react-editor-note">The host mount is exposed separately from the private Unix HOME, PATH, and temporary directories.</div>
       </>}
     </div>
     <footer className="react-editor-footer"><button onClick={onCancel}>Cancel</button><button className="primary" onClick={() => onSave(draft)}>Save session</button></footer>

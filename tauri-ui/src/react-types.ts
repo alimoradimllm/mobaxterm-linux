@@ -1,4 +1,4 @@
-export type SessionType = 'SSH' | 'Telnet' | 'Rdp' | 'Vnc' | 'WSL' | 'Shell' | 'Serial';
+export type SessionType = 'SSH' | 'Telnet' | 'Rdp' | 'Vnc' | 'WSL' | 'Shell' | 'Serial' | 'Unix';
 
 export interface Session {
   name: string;
@@ -20,6 +20,9 @@ export interface Session {
   serial_stop_bits?: number;
   serial_flow_control?: string;
   telnet_mode?: string;
+  unix_shell?: string;
+  unix_runtime_root?: string;
+  unix_host_mount?: string;
   rdp_width?: number;
   rdp_height?: number;
   rdp_fullscreen?: boolean;
