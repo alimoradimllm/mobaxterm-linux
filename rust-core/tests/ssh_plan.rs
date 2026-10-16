@@ -38,3 +38,18 @@ fn fish_remote_shell_is_structured_as_argv() {
         ["alice@example.test", "fish", "-l"]
     );
 }
+
+#[test]
+fn fish_fallback_uses_remote_posix_probe() {
+    let mut session = Session::ssh("test", "example.test", "alice");
+    session.remote_shell = "fish-or-sh".into();
+    let plan = session.ssh_plan().unwrap();
+    assert_eq!(
+        &plan.argv[plan.argv.len() - 3..],
+        [
+            "sh",
+            "-lc",
+            "if command -v fish >/dev/null 2>&1; then exec fish -l; else exec sh -l; fi"
+        ]
+    );
+}

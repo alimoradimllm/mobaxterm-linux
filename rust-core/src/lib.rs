@@ -260,6 +260,11 @@ impl Session {
         argv.push(format!("{}@{}", self.username, self.host));
         match self.remote_shell.trim().to_ascii_lowercase().as_str() {
             "fish" => argv.extend(["fish".into(), "-l".into()]),
+            "fish-or-sh" | "fish-fallback" => argv.extend([
+                "sh".into(),
+                "-lc".into(),
+                "if command -v fish >/dev/null 2>&1; then exec fish -l; else exec sh -l; fi".into(),
+            ]),
             "bash" => argv.extend(["bash".into(), "-l".into()]),
             "zsh" => argv.extend(["zsh".into(), "-l".into()]),
             "sh" => argv.extend(["sh".into(), "-l".into()]),
@@ -316,7 +321,7 @@ impl fmt::Display for ValidationError {
             Self::InvalidPort => write!(f, "port must be non-zero"),
             Self::InvalidRemoteShell => write!(
                 f,
-                "remote shell must be fish, bash, zsh, sh, or server default"
+                "remote shell must be fish, fish-or-sh, bash, zsh, sh, or server default"
             ),
         }
     }
