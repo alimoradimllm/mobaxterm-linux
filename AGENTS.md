@@ -79,6 +79,7 @@ Expected status is clean and tracking `origin/main`.
 - The Session model and typed editor now include RDP resolution/fullscreen/audio and VNC display/view-only/shared-connection settings. Legacy session payloads remain compatible through serde defaults; frontend and native tests pass.
 - The React terminal pane now exposes Resume, Reconnect, and Close lifecycle controls using the existing native commands. Frontend, Tauri tests, and a rebuilt desktop executable pass; installed-app interaction remains subject to the known UIA limitation.
 - React workspace split mode now renders two independent terminal panes from the active tab set, with a toolbar toggle, divider, and per-pane lifecycle controls. Frontend, Tauri tests, and a rebuilt desktop executable pass; installed-app split interaction remains open.
+- React workspace duplication now creates a uniquely named copy of the active session tab and starts it as an independent terminal. Frontend, Tauri tests, and a rebuilt desktop executable pass; installed-app duplicate interaction remains open.
 - Application and terminal themes remain independently selectable.
 - Protocol icons must change the session type, highlight the selected icon, and show relevant fields.
 - Session editor sections are Basic, Advanced, Terminal, Network, and Bookmark.

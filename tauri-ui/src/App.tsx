@@ -23,11 +23,11 @@ interface Tab {
 
 const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial']);
 
-function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void }) {
+function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit, onDuplicate }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void; onDuplicate: () => void }) {
   const items = [
     ['▣', 'Session', onNewShell], ['✣', 'Servers', onHome], ['⚒', 'Tools', undefined],
     ['★', 'Sessions', onEdit], ['▣', 'View', undefined], ['▤', 'Split', onSplit],
-    ['⧉', 'Duplicate', undefined], ['⇄', 'MultiExec', onMultiExec], ['⇆', 'Tunneling', undefined],
+    ['⧉', 'Duplicate', onDuplicate], ['⇄', 'MultiExec', onMultiExec], ['⇆', 'Tunneling', undefined],
     ['⇅', 'Packages', onSftp], ['⚙', 'Settings', onSettings], ['?', 'Help', undefined],
   ] as const;
   return <div className="react-toolbar">
@@ -187,9 +187,19 @@ export default function App() {
   };
   const active = tabs.find(tab => tab.id === activeId);
   const split = tabs.find(tab => tab.id === splitId && tab.id !== activeId);
+  const duplicateActive = () => {
+    if (!active) return;
+    const base = `${active.session.name} (copy)`;
+    let name = base;
+    let suffix = 2;
+    while (tabs.some(tab => tab.session.name === name && tab.session.session_type === active.session.session_type)) name = `${base} ${suffix++}`;
+    const copy: Tab = { id: `tab-${Date.now()}-${tabs.length}`, session: { ...active.session, name }, state: 'starting' };
+    setTabs(current => [...current, copy]);
+    setActiveId(copy.id);
+  };
   return <div className="react-app-shell">
     <div className="react-menu-row"><strong>Moraxterm</strong><button>Terminal</button><button onClick={() => setTabs([])}>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button>Help</button></div>
-    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} />
+    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} />
     <div className="react-quick-connect"><input aria-label="Quick connect" placeholder="Quick connect..." value={quick} onChange={event => setQuick(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') openQuick(); }} /><button onClick={openQuick}>Connect</button></div>
     <main className="react-main"><nav className="react-rail"><button className="active">★</button><button>⚒</button><button>➤</button><button>◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} />
       <section className="react-workspace">
