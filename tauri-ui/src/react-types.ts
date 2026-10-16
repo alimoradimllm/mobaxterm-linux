@@ -12,6 +12,14 @@ export interface Session {
   shell?: string;
   remote_shell?: string;
   ssh_agent_forwarding?: boolean;
+  wsl_user?: string;
+  wsl_command?: string;
+  serial_baud?: number;
+  serial_data_bits?: number;
+  serial_parity?: string;
+  serial_stop_bits?: number;
+  serial_flow_control?: string;
+  telnet_mode?: string;
 }
 
 export interface TerminalEvent {

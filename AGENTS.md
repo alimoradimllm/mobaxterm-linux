@@ -75,6 +75,7 @@ Expected status is clean and tracking `origin/main`.
 - The React migration now includes typed Settings and Macro Manager panels. Settings persist local appearance/terminal preferences; macros persist locally with bounded import/export/delete/play controls and existing `write_terminal` playback.
 - The React migration now includes a typed MultiExec manager. It lists open terminal tabs, supports per-tab inclusion/exclusion, broadcasts input through the existing `write_terminal` bridge, and reports sent/failed status.
 - The React migration now includes a typed SFTP/FTP browser pane. It uses the existing `sftp_list`, `sftp_operation`, and `sftp_transfer` Tauri commands for remote listing, folder/rename/delete/permissions operations, upload, and download. The rebuilt pane was visually verified, including a bounded authentication failure state; authenticated transfer runtime testing remains open.
+- The typed Session Editor now exposes protocol-specific WSL, Serial, and Telnet settings backed by the existing Rust session schema. Frontend and native tests pass; runtime editor interaction remains subject to the known Tauri UIA timeout limitation.
 - Application and terminal themes remain independently selectable.
 - Protocol icons must change the session type, highlight the selected icon, and show relevant fields.
 - Session editor sections are Basic, Advanced, Terminal, Network, and Bookmark.

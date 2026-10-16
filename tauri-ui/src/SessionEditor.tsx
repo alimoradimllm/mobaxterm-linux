@@ -11,14 +11,16 @@ const protocols: SessionType[] = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell',
 
 export default function SessionEditor({ session, onSave, onCancel }: SessionEditorProps) {
   const [draft, setDraft] = useState<Session>(session);
-  const [tab, setTab] = useState<'Basic' | 'SSH' | 'Terminal'>('Basic');
+  const [tab, setTab] = useState<'Basic' | 'SSH' | 'Terminal' | 'Protocol'>('Basic');
   useEffect(() => setDraft(session), [session]);
   const update = <K extends keyof Session>(key: K, value: Session[K]) => setDraft(current => ({ ...current, [key]: value }));
   const isSsh = draft.session_type === 'SSH';
+  const isProtocol = ['WSL', 'Serial', 'Telnet'].includes(draft.session_type);
+  useEffect(() => { if (tab === 'Protocol' && !isProtocol) setTab('Basic'); }, [isProtocol, tab]);
   return <section className="react-editor" aria-label="Session editor">
     <header className="react-editor-header"><div><span className="react-editor-kicker">SESSION EDITOR</span><h2>{draft.name || 'New session'}</h2></div><button onClick={onCancel} aria-label="Close session editor">×</button></header>
     <div className="react-editor-protocols">{protocols.map(protocol => <button key={protocol} className={draft.session_type === protocol ? 'selected' : ''} onClick={() => update('session_type', protocol)}>{protocol}</button>)}</div>
-    <nav className="react-editor-tabs">{(['Basic', 'SSH', 'Terminal'] as const).map(name => <button key={name} className={tab === name ? 'selected' : ''} onClick={() => setTab(name)}>{name}</button>)}</nav>
+    <nav className="react-editor-tabs">{(['Basic', 'SSH', 'Terminal', ...(isProtocol ? ['Protocol'] : [])] as const).map(name => <button key={name} className={tab === name ? 'selected' : ''} onClick={() => setTab(name as 'Basic' | 'SSH' | 'Terminal' | 'Protocol')}>{name}</button>)}</nav>
     <div className="react-editor-form">
       {tab === 'Basic' && <>
         <label>Session name<input value={draft.name} onChange={event => update('name', event.target.value)} /></label>
@@ -34,6 +36,23 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
       {tab === 'Terminal' && <>
         <label>Local shell<select value={draft.shell ?? ''} onChange={event => update('shell', event.target.value || undefined)}><option value="">System default</option><option value="cmd">Command Prompt</option><option value="powershell">PowerShell</option><option value="bash">Bash</option></select></label>
         <div className="react-editor-note">Terminal input preserves Moraxterm behavior: selection copies automatically and right-click pastes.</div>
+      </>}
+      {tab === 'Protocol' && draft.session_type === 'WSL' && <>
+        <div className="react-editor-note">WSL settings are passed to the existing Windows Subsystem for Linux launcher.</div>
+        <label>Distribution<input value={draft.host ?? ''} onChange={event => update('host', event.target.value || undefined)} placeholder="Debian" /></label>
+        <label>Linux user<input value={draft.wsl_user ?? ''} onChange={event => update('wsl_user', event.target.value || undefined)} placeholder="Default user" /></label>
+        <label>Startup command<input value={draft.wsl_command ?? ''} onChange={event => update('wsl_command', event.target.value || undefined)} placeholder="Optional command" /></label>
+      </>}
+      {tab === 'Protocol' && draft.session_type === 'Serial' && <>
+        <div className="react-editor-note">Serial settings are validated by the native bridge before opening the device.</div>
+        <label>Device<input value={draft.host ?? ''} onChange={event => update('host', event.target.value || undefined)} placeholder="COM3 or /dev/ttyUSB0" /></label>
+        <div className="react-editor-grid"><label>Baud rate<input type="number" min="1" value={draft.serial_baud ?? 115200} onChange={event => update('serial_baud', Number(event.target.value) || 0)} /></label><label>Data bits<select value={draft.serial_data_bits ?? 8} onChange={event => update('serial_data_bits', Number(event.target.value))}><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></label></div>
+        <div className="react-editor-grid"><label>Parity<select value={draft.serial_parity ?? 'none'} onChange={event => update('serial_parity', event.target.value)}><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option></select></label><label>Stop bits<select value={draft.serial_stop_bits ?? 1} onChange={event => update('serial_stop_bits', Number(event.target.value))}><option value="1">1</option><option value="2">2</option></select></label></div>
+        <label>Flow control<select value={draft.serial_flow_control ?? 'none'} onChange={event => update('serial_flow_control', event.target.value)}><option value="none">None</option><option value="hardware">Hardware</option><option value="software">Software</option></select></label>
+      </>}
+      {tab === 'Protocol' && draft.session_type === 'Telnet' && <>
+        <div className="react-editor-note">Telnet negotiation mode is stored with the session and honored by the native connection path.</div>
+        <label>Negotiation mode<select value={draft.telnet_mode ?? 'auto'} onChange={event => update('telnet_mode', event.target.value)}><option value="auto">Automatic</option><option value="raw">Raw</option><option value="ansi">ANSI terminal</option></select></label>
       </>}
     </div>
     <footer className="react-editor-footer"><button onClick={onCancel}>Cancel</button><button className="primary" onClick={() => onSave(draft)}>Save session</button></footer>

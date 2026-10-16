@@ -23,6 +23,7 @@ of full third-party terminal workspace parity.
 - The React Settings and Macro Manager panels are visually verified in the rebuilt executable. Settings persist local UI/terminal preferences, while macros support bounded local storage, import/export/delete, and playback through the existing terminal bridge. Full recording parity remains open.
 - The React MultiExec Manager is implemented with typed open-tab targets, per-terminal exclusion, broadcast through `write_terminal`, and sent/failed indicators. Source, Vite, and Tauri builds pass; fresh second-instance visual capture was blocked by an existing Moraxterm process owning the desktop window.
 - The React SFTP/FTP browser is implemented and visually verified in the rebuilt executable. It provides remote path listing, operation controls, transfer controls, status feedback, and bounded authentication failure rendering through the existing Tauri commands. Authenticated transfer testing remains open.
+- The typed Session Editor now exposes WSL, Serial, and Telnet protocol settings backed by the existing Rust session schema. Frontend and native tests pass; runtime editor interaction remains subject to the known Tauri UIA timeout limitation.
 - v0.1.13 Local Shell runtime verification passed: Windows `cmd.exe` produced
   directory output and an interactive prompt through xterm.js.
 - Local Shell Settings now persist a selector for system default, cmd, PowerShell,
