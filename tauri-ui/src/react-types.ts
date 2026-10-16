@@ -7,6 +7,7 @@ export interface Session {
   username?: string;
   port?: number;
   folder?: string;
+  working_directory?: string;
   favorite?: boolean;
   shell?: string;
   remote_shell?: string;
