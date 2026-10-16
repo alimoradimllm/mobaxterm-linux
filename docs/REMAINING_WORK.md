@@ -1,6 +1,6 @@
 # Moraxterm remaining work and verification status
 
-_Last reviewed: 2026-10-15. Repository: `alimoradimllm/moraxterm`. Current release: `v0.1.15`._
+_Last reviewed: 2026-10-15. Repository: `alimoradimllm/moraxterm`. Current release: `v0.1.16`._
 
 This document separates verified behavior from planned work. It is not a claim
 of full third-party terminal workspace parity.
