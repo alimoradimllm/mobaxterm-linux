@@ -23,10 +23,10 @@ interface Tab {
 
 const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial']);
 
-function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void }) {
+function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void }) {
   const items = [
     ['▣', 'Session', onNewShell], ['✣', 'Servers', onHome], ['⚒', 'Tools', undefined],
-    ['★', 'Sessions', onEdit], ['▣', 'View', undefined], ['▤', 'Split', undefined],
+    ['★', 'Sessions', onEdit], ['▣', 'View', undefined], ['▤', 'Split', onSplit],
     ['⧉', 'Duplicate', undefined], ['⇄', 'MultiExec', onMultiExec], ['⇆', 'Tunneling', undefined],
     ['⇅', 'Packages', onSftp], ['⚙', 'Settings', onSettings], ['?', 'Help', undefined],
   ] as const;
@@ -142,6 +142,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>(fallbackSessions);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string>();
+  const [splitId, setSplitId] = useState<string>();
   const [editorSession, setEditorSession] = useState<Session>();
   const [panel, setPanel] = useState<'settings' | 'macros' | 'multiexec' | 'sftp'>();
   const [uiSettings, setUiSettings] = useState<UiSettings>(() => { try { return { ...defaultUiSettings, ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return defaultUiSettings; } });
@@ -159,9 +160,15 @@ export default function App() {
     tauriInvoke?.('close_terminal', { id }).catch(() => {});
     setTabs(current => {
       const remaining = current.filter(item => item.id !== id);
+      setSplitId(currentSplit => currentSplit === id ? undefined : currentSplit);
       setActiveId(activeId === id ? remaining[remaining.length - 1]?.id : activeId);
       return remaining;
     });
+  };
+  const splitWorkspace = () => {
+    if (!activeId) return;
+    const next = tabs.find(tab => tab.id !== activeId);
+    if (next) setSplitId(current => current === next.id ? undefined : next.id);
   };
   const openQuick = () => {
     const host = quick.trim();
@@ -179,15 +186,16 @@ export default function App() {
     return Object.fromEntries(results) as Record<string, 'sent' | 'failed'>;
   };
   const active = tabs.find(tab => tab.id === activeId);
+  const split = tabs.find(tab => tab.id === splitId && tab.id !== activeId);
   return <div className="react-app-shell">
     <div className="react-menu-row"><strong>Moraxterm</strong><button>Terminal</button><button onClick={() => setTabs([])}>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button>Help</button></div>
-    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} />
+    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} />
     <div className="react-quick-connect"><input aria-label="Quick connect" placeholder="Quick connect..." value={quick} onChange={event => setQuick(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') openQuick(); }} /><button onClick={openQuick}>Connect</button></div>
     <main className="react-main"><nav className="react-rail"><button className="active">★</button><button>⚒</button><button>➤</button><button>◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} />
       <section className="react-workspace">
         {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} onBroadcast={broadcast} onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Shell' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
           <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); closeTab(tab.id); }}>×</b></button>)}</nav>
-          <div className="react-panes">{active && <TerminalPane key={active.id} tab={active} settings={uiSettings} onClose={() => closeTab(active.id)} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} />}</div>
+          <div className={split ? 'react-panes react-panes-split' : 'react-panes'}>{active && <div className="react-pane-slot"><TerminalPane key={active.id} tab={active} settings={uiSettings} onClose={() => closeTab(active.id)} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} /></div>}{split && <><div className="react-pane-divider" aria-hidden="true" /><div className="react-pane-slot"><TerminalPane key={split.id} tab={split} settings={uiSettings} onClose={() => closeTab(split.id)} onState={state => setTabs(current => current.map(item => item.id === split.id ? { ...item, state } : item))} /></div></>}</div>
         </>}
         <footer className="react-status"><span>● Ready</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span>Desktop</span></footer>
       </section>

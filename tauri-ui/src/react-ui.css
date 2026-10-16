@@ -67,7 +67,7 @@ button { cursor: pointer; }
 .react-tabs button .dot { width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: #7d8791; }
 .react-tabs button .dot.connected { background: #24d66b; }.react-tabs button .dot.starting { background: #ffd166; }.react-tabs button .dot.failed { background: #ff6259; }
 .react-tabs button b { padding: 0 8px; color: #aab8c3; font-size: 18px; font-weight: 400; }.react-tabs button b:hover { color: #ff8078; }
-.react-panes { min-height: 0; flex: 1; }
+.react-panes { min-height: 0; flex: 1; }.react-panes-split { display: flex; flex-direction: row; }.react-pane-slot { min-width: 0; min-height: 0; flex: 1; }.react-pane-divider { width: 4px; cursor: col-resize; background: #34414b; border-left: 1px solid #55b9eb; border-right: 1px solid #10161b; }
 .react-terminal-pane { display: flex; height: 100%; flex-direction: column; }
 .react-pane-bar { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 12px; color: #c5d1d9; background: #151c22; border-bottom: 1px solid #34414b; font-size: 11px; }.react-terminal-actions { display: flex; align-items: center; gap: 5px; }.react-terminal-actions button { padding: 3px 7px; color: #c5d1d9; background: #202c35; border: 1px solid #40515d; border-radius: 3px; font-size: 10px; }.react-terminal-actions button:hover:not(:disabled) { color: #fff; border-color: #55b9eb; }.react-terminal-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .react-state { color: #9eabb4; text-transform: uppercase; }.react-state.connected { color: #24d66b; }.react-state.failed { color: #ff6259; }.react-state.starting { color: #ffd166; }
