@@ -15,7 +15,7 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
   useEffect(() => setDraft(session), [session]);
   const update = <K extends keyof Session>(key: K, value: Session[K]) => setDraft(current => ({ ...current, [key]: value }));
   const isSsh = draft.session_type === 'SSH';
-  const isProtocol = ['WSL', 'Serial', 'Telnet'].includes(draft.session_type);
+  const isProtocol = ['WSL', 'Serial', 'Telnet', 'Rdp', 'Vnc'].includes(draft.session_type);
   useEffect(() => { if (tab === 'Protocol' && !isProtocol) setTab('Basic'); }, [isProtocol, tab]);
   return <section className="react-editor" aria-label="Session editor">
     <header className="react-editor-header"><div><span className="react-editor-kicker">SESSION EDITOR</span><h2>{draft.name || 'New session'}</h2></div><button onClick={onCancel} aria-label="Close session editor">×</button></header>
@@ -50,9 +50,17 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
         <div className="react-editor-grid"><label>Parity<select value={draft.serial_parity ?? 'none'} onChange={event => update('serial_parity', event.target.value)}><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option></select></label><label>Stop bits<select value={draft.serial_stop_bits ?? 1} onChange={event => update('serial_stop_bits', Number(event.target.value))}><option value="1">1</option><option value="2">2</option></select></label></div>
         <label>Flow control<select value={draft.serial_flow_control ?? 'none'} onChange={event => update('serial_flow_control', event.target.value)}><option value="none">None</option><option value="hardware">Hardware</option><option value="software">Software</option></select></label>
       </>}
-      {tab === 'Protocol' && draft.session_type === 'Telnet' && <>
-        <div className="react-editor-note">Telnet negotiation mode is stored with the session and honored by the native connection path.</div>
-        <label>Negotiation mode<select value={draft.telnet_mode ?? 'auto'} onChange={event => update('telnet_mode', event.target.value)}><option value="auto">Automatic</option><option value="raw">Raw</option><option value="ansi">ANSI terminal</option></select></label>
+      {tab === 'Protocol' && draft.session_type === 'Rdp' && <>
+        <div className="react-editor-note">RDP settings are stored with the session and passed to the native external-client preflight.</div>
+        <div className="react-editor-grid"><label>Width<input type="number" min="640" max="7680" value={draft.rdp_width ?? 1920} onChange={event => update('rdp_width', Number(event.target.value) || 0)} /></label><label>Height<input type="number" min="480" max="4320" value={draft.rdp_height ?? 1080} onChange={event => update('rdp_height', Number(event.target.value) || 0)} /></label></div>
+        <label className="react-check"><input type="checkbox" checked={draft.rdp_fullscreen ?? false} onChange={event => update('rdp_fullscreen', event.target.checked)} /> Start in fullscreen</label>
+        <label className="react-check"><input type="checkbox" checked={draft.rdp_audio ?? true} onChange={event => update('rdp_audio', event.target.checked)} /> Redirect audio</label>
+      </>}
+      {tab === 'Protocol' && draft.session_type === 'Vnc' && <>
+        <div className="react-editor-note">VNC display and sharing options are stored for the native VNC preflight and launcher.</div>
+        <label>Display number<input type="number" min="0" max="99" value={draft.vnc_display ?? 0} onChange={event => update('vnc_display', Number(event.target.value) || 0)} /></label>
+        <label className="react-check"><input type="checkbox" checked={draft.vnc_view_only ?? false} onChange={event => update('vnc_view_only', event.target.checked)} /> View-only mode</label>
+        <label className="react-check"><input type="checkbox" checked={draft.vnc_shared ?? true} onChange={event => update('vnc_shared', event.target.checked)} /> Allow shared connections</label>
       </>}
     </div>
     <footer className="react-editor-footer"><button onClick={onCancel}>Cancel</button><button className="primary" onClick={() => onSave(draft)}>Save session</button></footer>

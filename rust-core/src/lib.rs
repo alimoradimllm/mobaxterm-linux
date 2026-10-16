@@ -171,6 +171,20 @@ pub struct Session {
     #[serde(default)]
     pub telnet_mode: String,
     #[serde(default)]
+    pub rdp_width: u16,
+    #[serde(default)]
+    pub rdp_height: u16,
+    #[serde(default)]
+    pub rdp_fullscreen: bool,
+    #[serde(default)]
+    pub rdp_audio: bool,
+    #[serde(default)]
+    pub vnc_display: u16,
+    #[serde(default)]
+    pub vnc_view_only: bool,
+    #[serde(default)]
+    pub vnc_shared: bool,
+    #[serde(default)]
     pub ssh_agent_monitor: bool,
     #[serde(default)]
     pub ssh_agent_forwarding: bool,

@@ -20,6 +20,13 @@ export interface Session {
   serial_stop_bits?: number;
   serial_flow_control?: string;
   telnet_mode?: string;
+  rdp_width?: number;
+  rdp_height?: number;
+  rdp_fullscreen?: boolean;
+  rdp_audio?: boolean;
+  vnc_display?: number;
+  vnc_view_only?: boolean;
+  vnc_shared?: boolean;
 }
 
 export interface TerminalEvent {
