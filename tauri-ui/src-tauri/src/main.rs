@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Default)]
 struct TerminalManager {
@@ -1577,6 +1577,8 @@ fn stop_recording(state: State<'_, TerminalManager>, id: String) -> Result<bool,
         .is_some())
 }
 
+const EMBEDDED_RUNTIME_ARCHIVE: &str = "Moraxterm_EmbeddedUnix_x64_0.1.24.tar.xz";
+
 const EMBEDDED_DIG_WRAPPER: &str = r#"#!/usr/bin/env bash
 # Moraxterm default DNS helper. MSYS2's current repository does not ship BIND dig.
 # Delegate basic dig-compatible lookups to the Windows resolver without leaving the terminal.
@@ -1586,6 +1588,41 @@ if [ "$#" -eq 0 ]; then
 fi
 exec nslookup "$@"
 "#;
+
+fn provision_embedded_runtime(app: &AppHandle, runtime_root: &PathBuf) -> Result<bool, String> {
+    if !cfg!(windows) {
+        return Ok(false);
+    }
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|error| format!("cannot locate Moraxterm resources: {error}"))?;
+    let candidates = [
+        resource_dir.join(EMBEDDED_RUNTIME_ARCHIVE),
+        resource_dir
+            .join("resources")
+            .join(EMBEDDED_RUNTIME_ARCHIVE),
+    ];
+    let Some(archive) = candidates.into_iter().find(|path| path.is_file()) else {
+        return Ok(false);
+    };
+    fs::create_dir_all(runtime_root)
+        .map_err(|error| format!("cannot create embedded runtime directory: {error}"))?;
+    let output = Command::new("tar.exe")
+        .args(["-xJf"])
+        .arg(&archive)
+        .args(["-C"])
+        .arg(runtime_root)
+        .output()
+        .map_err(|error| format!("cannot extract embedded runtime archive: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "embedded runtime extraction failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(true)
+}
 
 fn ensure_embedded_network_tools(runtime_root: &PathBuf) -> Result<(), String> {
     if !cfg!(windows) {
@@ -1876,6 +1913,9 @@ fn start_terminal(
         } else {
             runtime_root.join("bin").join(&shell_name)
         };
+        if !shell_path.is_file() {
+            let _ = provision_embedded_runtime(&app, &runtime_root)?;
+        }
         if !shell_path.is_file() {
             return Err(format!(
                 "Embedded Unix runtime is not installed or {} is missing: {}",
@@ -2305,7 +2345,7 @@ fn main() {
 mod tests {
     use super::{
         embedded_fish_command_not_found_script, format_socket_address, scan_ports,
-        EMBEDDED_DIG_WRAPPER,
+        EMBEDDED_DIG_WRAPPER, EMBEDDED_RUNTIME_ARCHIVE,
     };
 
     #[test]
@@ -2320,6 +2360,14 @@ mod tests {
     fn embedded_dig_helper_uses_windows_dns_resolver() {
         assert!(EMBEDDED_DIG_WRAPPER.contains("nslookup"));
         assert!(EMBEDDED_DIG_WRAPPER.contains("Usage: dig <hostname>"));
+    }
+
+    #[test]
+    fn embedded_runtime_archive_name_is_versioned() {
+        assert_eq!(
+            EMBEDDED_RUNTIME_ARCHIVE,
+            "Moraxterm_EmbeddedUnix_x64_0.1.24.tar.xz"
+        );
     }
 
     #[test]

@@ -26,6 +26,10 @@ target/
 *.log
 .tmp/
 
+# Runtime release inputs (large archives are supplied outside Git)
+Moraxterm_EmbeddedUnix_x64_*.tar.xz
+tauri-ui/src-tauri/resources/Moraxterm_EmbeddedUnix_x64_*.tar.xz
+
 # IDE/OS
 .vscode/
 .idea/
