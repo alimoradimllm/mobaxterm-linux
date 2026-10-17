@@ -1,6 +1,6 @@
 # Windows terminal compatibility test matrix
 
-_Last reviewed: 2026-10-14. Release under test: `v0.1.14`._
+_Last reviewed: 2026-10-17. Release under test: `v0.1.14` (desktop rows); PTY-level rows run against `main` via `rust-core/tests/windows_pty_matrix.rs`._
 
 This matrix records tests that must be run in the real Windows desktop
 application. A build or Rust unit test is not sufficient evidence for these
@@ -23,21 +23,30 @@ items.
 | Test | Status | Notes |
 |---|---:|---|
 | `cmd.exe` basic commands | PASS | Verified in v0.1.13 |
-| PowerShell interactive input/output | NOT TESTED | |
-| Bash/WSL interactive input/output | NOT TESTED | Requires installed WSL distribution |
-| Unicode input/output | NOT TESTED | |
-| Long output and scrolling | NOT TESTED | |
-| Resize during command execution | NOT TESTED | |
-| Ctrl+C | NOT TESTED | Rust coverage exists; desktop coverage pending |
-| Ctrl+D/EOF | NOT TESTED | Rust coverage exists; desktop coverage pending |
+| PowerShell interactive input/output | PTY PASS | `powershell_interactive_input_output`; desktop app not tested |
+| Bash/WSL interactive input/output | PTY PASS | Debian via `wsl.exe`; `wsl_bash_resize_and_alternate_screen`; desktop app not tested |
+| Unicode input/output | PTY PASS | `powershell_unicode_*`: accented, symbol, and CJK characters, 5-UTF-16-unit input length; xterm.js rendering not tested |
+| Long output and scrolling | PTY PASS (delivery) | 20000 of 20000 numbered lines (149304 bytes) delivered; scrolling/rendering in xterm.js not tested |
+| Resize during command execution | PTY PASS | PowerShell reports 132x43 after resize and 100 columns after a resize mid-command; WSL `stty size` follows 24x80 to 40x120 |
+| Ctrl+C | PTY PASS | Interrupts `ping` in `cmd.exe` and `Start-Sleep` in PowerShell; shell stays usable. Desktop app not tested |
+| Ctrl+D/EOF | PTY PASS (Windows semantics) | Ctrl+Z then Enter ends `sort` input in `cmd.exe`; Ctrl+D is not EOF in Windows consoles |
 | Ctrl+Z/job control | NOT SUPPORTED ON WINDOWS | Must report limitation, not emulate Unix behavior |
 | Ctrl+Break | NOT TESTED | |
-| Paste | NOT TESTED | |
-| `vim` alternate screen | NOT TESTED | Requires compatible executable |
-| `top`/`htop` alternate screen | NOT TESTED | Requires WSL/Linux target |
-| `mc` mouse and alternate screen | NOT TESTED | Requires WSL/Linux target |
-| Mouse reporting | NOT TESTED | |
-| ANSI/VT-100 compatibility | NOT TESTED | |
+| Paste | PTY PASS | Three pasted lines each execute (`paste_of_multiple_lines_executes_each_line`); bracketed paste and the xterm.js paste path not tested |
+| `vim` alternate screen | PTY PASS | Git-for-Windows `vim.exe`: enters and leaves `?1049` alternate screen |
+| `top`/`htop` alternate screen | PTY PASS for `less`; `top` does not use it | procps `top` in Debian WSL draws in place without `?1049h`; the alternate-screen path is covered with `less` over WSL. `htop` not tested |
+| `mc` mouse and alternate screen | NOT TESTED | `mc` not installed in the test distro |
+| Mouse reporting | PTY PASS (enable sequences only) | `vim` with `mouse=a` emits `?1000h`/`?1002h`/`?1006h`; click delivery through xterm.js not tested |
+| ANSI/VT-100 compatibility | PARTIAL | ConPTY emits cursor, colour, and private-mode sequences that the tests parse; no conformance suite run |
+
+## PTY-level automated coverage (2026-10-17)
+
+`rust-core/tests/windows_pty_matrix.rs` drives real `cmd.exe`, PowerShell, `vim.exe`, and Debian WSL through `TerminalProcess` (ConPTY) and asserts on the bytes returned: 12 tests, all passing under plain `cargo test`. "PTY PASS" above means exactly this; it proves the Rust PTY layer, not the xterm.js renderer, keyboard mapping, or the installed desktop app. Those rows stay open until checked in the desktop build.
+
+Findings recorded while writing the suite:
+
+- Ctrl+C is ignored by children when the launching process had Ctrl+C disabled (some shells, CI runners, and tool harnesses do this). The tests clear that flag explicitly. Moraxterm itself does not set it, but a launcher that does would make Ctrl+C silently fail inside every terminal tab.
+- Test markers must not appear in the echoed command line, or a wait returns on the echo. Build markers from concatenated pieces.
 
 ## Required evidence for closing this matrix
 

@@ -143,7 +143,7 @@ Treat the implementation as real but keep runtime gaps explicit. Verify behavior
 
 Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include:
 
-- Full Windows terminal matrix: PowerShell, WSL/Bash, Unicode, resize, paste, control keys, ANSI/VT behavior, alternate-screen applications, mouse reporting, and long output.
+- Windows terminal matrix: PTY-level tests now pass for PowerShell, WSL/Bash, Unicode, resize, paste, Ctrl+C, Windows EOF, alternate screen (`vim`, `less`), mouse-reporting enable sequences, and 20000-line output (`rust-core/tests/windows_pty_matrix.rs`). Still open: the same checks in the installed desktop app (xterm.js rendering, keyboard mapping, real paste path), Ctrl+Break, `mc`/`htop`, and a VT conformance run.
 - Authenticated SSH/SFTP testing against a disposable target.
 - Runtime validation of host-key approval/change warnings and SSH-agent authentication.
 - `scripts/disposable_sftp_runtime_test.sh` passes in Debian WSL (OpenSSH client-level SFTP/SCP/resume/strict-host-key checks against a throwaway loopback sshd); it does not cover the Moraxterm UI or Tauri commands.
@@ -185,7 +185,14 @@ Keep entries factual and concise. Do not record secrets or temporary personal pa
 
 Newest first. Each entry: what changed, what was verified, what is still open. Hashes refer to `origin/main`.
 
-### 2026-10-17 — Queued SFTP transfer core made testable; cancel reaps the process
+### 2026-10-17 — Windows ConPTY behavior matrix as automated tests
+- Added `rust-core/tests/windows_pty_matrix.rs` (Windows only, 12 tests) driving real `cmd.exe`, PowerShell, `vim.exe`, and Debian WSL through `TerminalProcess`: command I/O, PowerShell interactivity, Unicode round trip and input length, 20000-line output (all 20000 lines delivered), resize (including mid-command, and `stty size` in WSL), Ctrl+C in `cmd.exe` and PowerShell, Ctrl+Z+Enter EOF, multi-line paste, `vim` alternate screen plus mouse-reporting enable, and `less` alternate screen over WSL. No production code changed; no bug found in `TerminalProcess`.
+- Verified: plain `cargo test` in `rust-core` passes (12 new tests plus existing suites).
+- Findings to preserve: (1) children inherit a parent's "ignore Ctrl+C" console flag, so Ctrl+C silently does nothing in a terminal if the launcher disabled it; the tests clear the flag via `SetConsoleCtrlHandler`. Check how the installed app is launched before blaming the PTY layer. (2) procps `top` does not use the alternate screen, so use `less`/`vim` for that check. (3) Test markers must not occur in the echoed command, or waits return on the echo.
+- Updated `docs/WINDOWS_TERMINAL_TEST_MATRIX.md` ("PTY PASS" rows) and `docs/REMAINING_WORK.md`.
+- Open: all of this is PTY-level. xterm.js rendering, keyboard mapping, the real paste path, and the installed app are untested; Ctrl+Break, `mc`, `htop`, VT conformance remain open.
+
+### 2026-10-17 — Queued SFTP transfer core made testable; cancel reaps the process (`ec37102`)
 - `start_sftp_transfer` / `cancel_sftp_transfer` now delegate to `begin_sftp_transfer` / `cancel_sftp_job`, which take an injectable emitter (`SftpEmitter`) and job map (`SftpJobs`) instead of a Tauri `AppHandle`. Tauri command names, arguments, and event names (`sftp-transfer-progress`, `sftp-transfer-exit`) are unchanged.
 - Job ids now end in an atomic counter (`sftp-<epoch>.<ms>-<n>`) so two jobs started in the same millisecond cannot collide in the job map.
 - Cancelling a job now calls `wait()` after `kill()` so the child process is reaped.
