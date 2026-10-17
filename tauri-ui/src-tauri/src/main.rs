@@ -869,18 +869,7 @@ fn sftp_preview(
     }
     let temporary =
         std::env::temp_dir().join(format!("moraxterm-preview-{}", chrono_like_timestamp()));
-    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
-    command.args([
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-P",
-        &port.to_string(),
-        "-b",
-        "-",
-        &format!("{}@{}", username, host),
-    ]);
+    let mut command = sftp_batch_command(port, &username, &host);
     command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -1065,6 +1054,29 @@ fn ssh_known_hosts_add(
     Ok("host key added after fingerprint confirmation".into())
 }
 
+/// Builds the structured `sftp -b -` batch invocation shared by the SFTP commands.
+/// Test builds may point `MORAXTERM_TEST_SSH_CONFIG` at a throwaway ssh config so
+/// disposable-server tests never read or write the user's real `~/.ssh`.
+fn sftp_batch_command(port: u16, username: &str, host: &str) -> std::process::Command {
+    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
+    #[cfg(test)]
+    if let Ok(config) = std::env::var("MORAXTERM_TEST_SSH_CONFIG") {
+        command.args(["-F", &config]);
+    }
+    command.args([
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=8",
+        "-P",
+        &port.to_string(),
+        "-b",
+        "-",
+        &format!("{}@{}", username, host),
+    ]);
+    command
+}
+
 #[tauri::command]
 fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<String, String> {
     if host.trim().is_empty() || username.trim().is_empty() || port == 0 {
@@ -1078,18 +1090,7 @@ fn sftp_list(host: String, username: String, port: u16, path: String) -> Result<
     {
         return Err("invalid SFTP path".into());
     }
-    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
-    command.args([
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-P",
-        &port.to_string(),
-        "-b",
-        "-",
-        &format!("{}@{}", username, host),
-    ]);
+    let mut command = sftp_batch_command(port, &username, &host);
     command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -1137,18 +1138,7 @@ fn sftp_transfer(
     } else {
         format!("get \"{}\" \"{}\"\nbye\n", remote_path, local_path)
     };
-    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
-    command.args([
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-P",
-        &port.to_string(),
-        "-b",
-        "-",
-        &format!("{}@{}", username, host),
-    ]);
+    let mut command = sftp_batch_command(port, &username, &host);
     command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -1216,18 +1206,7 @@ fn start_sftp_transfer(
         )
     };
     let id = format!("sftp-{}", chrono_like_timestamp());
-    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
-    command.args([
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-P",
-        &port.to_string(),
-        "-b",
-        "-",
-        &format!("{}@{}", username, host),
-    ]);
+    let mut command = sftp_batch_command(port, &username, &host);
     command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -1384,25 +1363,68 @@ fn sftp_operation(
             return Err("invalid SFTP operation path or mode".into());
         }
     }
-    let command_line = match operation.as_str() {
-        "mkdir" => format!("mkdir \"{}\"\n", path),
-        "rename" => format!("rename \"{}\" \"{}\"\n", path, target),
-        "delete" => format!("rm \"{}\"\nrmdir \"{}\"\n", path, path),
-        "chmod" => format!("chmod {} \"{}\"\n", mode, path),
+    // `sftp -b` aborts on the first failing command, so a combined `rm` + `rmdir`
+    // script can never delete both files and directories. Try `rm` first, then
+    // fall back to `rmdir` in a separate batch.
+    match operation.as_str() {
+        "mkdir" => run_sftp_script(
+            port,
+            &username,
+            &host,
+            &format!(
+                "mkdir \"{}\"
+",
+                path
+            ),
+        ),
+        "rename" => run_sftp_script(
+            port,
+            &username,
+            &host,
+            &format!(
+                "rename \"{}\" \"{}\"
+",
+                path, target
+            ),
+        ),
+        "chmod" => run_sftp_script(
+            port,
+            &username,
+            &host,
+            &format!(
+                "chmod {} \"{}\"
+",
+                mode, path
+            ),
+        ),
+        "delete" => run_sftp_script(
+            port,
+            &username,
+            &host,
+            &format!(
+                "rm \"{}\"
+",
+                path
+            ),
+        )
+        .or_else(|_| {
+            run_sftp_script(
+                port,
+                &username,
+                &host,
+                &format!(
+                    "rmdir \"{}\"
+",
+                    path
+                ),
+            )
+        }),
         _ => unreachable!(),
-    };
-    let mut command = std::process::Command::new(if cfg!(windows) { "sftp.exe" } else { "sftp" });
-    command.args([
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-P",
-        &port.to_string(),
-        "-b",
-        "-",
-        &format!("{}@{}", username, host),
-    ]);
+    }
+}
+
+fn run_sftp_script(port: u16, username: &str, host: &str, script: &str) -> Result<String, String> {
+    let mut command = sftp_batch_command(port, username, host);
     command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -1412,7 +1434,14 @@ fn sftp_operation(
         .map_err(|e| format!("cannot start sftp: {e}"))?;
     if let Some(mut input) = child.stdin.take() {
         input
-            .write_all(format!("{}bye\n", command_line).as_bytes())
+            .write_all(
+                format!(
+                    "{}bye
+",
+                    script
+                )
+                .as_bytes(),
+            )
             .map_err(|e| e.to_string())?;
     }
     let output = child.wait_with_output().map_err(|e| e.to_string())?;
@@ -2385,5 +2414,107 @@ mod tests {
     fn rejects_scan_ranges_over_32_ports() {
         let result = scan_ports("127.0.0.1".into(), 1, 33);
         assert_eq!(result, Err("port range cannot exceed 32 ports".into()));
+    }
+
+    #[test]
+    #[ignore = "needs a disposable sshd; run scripts/disposable_sftp_commands_test.sh"]
+    fn sftp_commands_roundtrip_against_disposable_server() {
+        use super::{sftp_list, sftp_operation, sftp_transfer};
+        let port: u16 = std::env::var("MORAXTERM_TEST_SFTP_PORT")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let user = std::env::var("MORAXTERM_TEST_SFTP_USER").unwrap();
+        let remote = std::env::var("MORAXTERM_TEST_SFTP_REMOTE_DIR").unwrap();
+        let local =
+            std::path::PathBuf::from(std::env::var("MORAXTERM_TEST_SFTP_LOCAL_DIR").unwrap());
+        let host = "127.0.0.1".to_string();
+        let payload: Vec<u8> = (0..300_000u32).map(|i| (i % 251) as u8).collect();
+        let up = local.join("up.bin");
+        let down = local.join("down.bin");
+        std::fs::write(&up, &payload).unwrap();
+        let up_s = up.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
+        let down_s = down
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "/");
+
+        sftp_operation(
+            host.clone(),
+            user.clone(),
+            port,
+            "mkdir".into(),
+            format!("{remote}/d"),
+            "x".into(),
+            "x".into(),
+        )
+        .unwrap();
+        sftp_operation(
+            host.clone(),
+            user.clone(),
+            port,
+            "rename".into(),
+            format!("{remote}/d"),
+            format!("{remote}/d2"),
+            "x".into(),
+        )
+        .unwrap();
+        sftp_operation(
+            host.clone(),
+            user.clone(),
+            port,
+            "chmod".into(),
+            format!("{remote}/d2"),
+            "x".into(),
+            "700".into(),
+        )
+        .unwrap();
+        sftp_transfer(
+            host.clone(),
+            user.clone(),
+            port,
+            "upload".into(),
+            up_s,
+            format!("{remote}/d2/up.bin"),
+        )
+        .unwrap();
+        let listing = sftp_list(host.clone(), user.clone(), port, format!("{remote}/d2")).unwrap();
+        assert!(listing.contains("up.bin"), "listing: {listing}");
+        sftp_transfer(
+            host.clone(),
+            user.clone(),
+            port,
+            "download".into(),
+            down_s,
+            format!("{remote}/d2/up.bin"),
+        )
+        .unwrap();
+        assert_eq!(std::fs::read(&down).unwrap(), payload);
+        sftp_operation(
+            host.clone(),
+            user.clone(),
+            port,
+            "delete".into(),
+            format!("{remote}/d2/up.bin"),
+            "x".into(),
+            "x".into(),
+        )
+        .unwrap();
+        sftp_operation(
+            host.clone(),
+            user.clone(),
+            port,
+            "delete".into(),
+            format!("{remote}/d2"),
+            "x".into(),
+            "x".into(),
+        )
+        .unwrap();
+        let root_listing = sftp_list(host.clone(), user.clone(), port, remote.clone()).unwrap();
+        assert!(
+            !root_listing.contains("d2"),
+            "directory not deleted: {root_listing}"
+        );
+        let after = sftp_list(host, user, port, format!("{remote}/d2")).unwrap();
+        assert!(!after.contains("up.bin"), "listing after delete: {after}");
     }
 }

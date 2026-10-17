@@ -147,6 +147,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Authenticated SSH/SFTP testing against a disposable target.
 - Runtime validation of host-key approval/change warnings and SSH-agent authentication.
 - `scripts/disposable_sftp_runtime_test.sh` passes in Debian WSL (OpenSSH client-level SFTP/SCP/resume/strict-host-key checks against a throwaway loopback sshd); it does not cover the Moraxterm UI or Tauri commands.
+- `scripts/disposable_sftp_commands_test.sh` passes: the real `sftp_list`/`sftp_operation`/`sftp_transfer` bridge functions work against a disposable sshd (tests use `MORAXTERM_TEST_SSH_CONFIG`, test builds only). It uncovered and fixed a delete bug (`rm`+`rmdir` in one batch). Queued `start_sftp_transfer` and the SFTP UI remain untested at runtime.
 - Reliable upload-byte progress remains open. Local browser metadata (type, size, modification epoch), bounded local text editing, remote edit-copy workflow, direct-operation SFTP client preflight, and non-resumable SCP fallback are implemented; disposable-target fallback testing remains open.
 - Detached terminal windows.
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
