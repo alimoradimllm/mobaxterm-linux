@@ -75,5 +75,5 @@ Run with `scripts/ui_smoke_test.py` against the exe built from `main` plus the f
 | Window resize reaches the shell (114 / 51 columns) | PASS (after fix) |
 | Split view: two independent panes | PASS |
 | Terminal survives opening and closing a panel | PASS (after fix) |
-| MultiExec: both targets show sent and receive text | PASS (text is not auto-executed) |
+| MultiExec: banner, mirroring, exclude, Multi-paste, Ctrl+Shift+Insert, Exit (`scripts/ui_multiexec_test.py`, 17 checks, 3 local shells) | PASS |
 | Clipboard paste, mouse reporting in xterm.js, SSH tab, Linux | NOT TESTED |

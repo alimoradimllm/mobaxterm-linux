@@ -6,6 +6,7 @@ import SessionEditor from './SessionEditor';
 import Settings, { defaultUiSettings, UiSettings } from './Settings';
 import MacroManager, { Macro } from './MacroManager';
 import MultiExecManager from './MultiExecManager';
+import { isMultiPasteShortcut, mirrorTargets, pasteTargets } from './multiexec.js';
 import TunnelManager from './TunnelManager';
 import ToolsPanel from './ToolsPanel';
 import SftpPane from './SftpPane';
@@ -74,7 +75,7 @@ function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit, onTools, o
   </aside>;
 }
 
-function TerminalPane({ tab, settings, onState, onError, onClose }: { tab: Tab; settings: UiSettings; onState: (state: Tab['state']) => void; onError: (error: string) => void; onClose: () => void }) {
+function TerminalPane({ tab, settings, multiExec, excluded, execStatus, onToggleExclude, onInput, onState, onError, onClose }: { tab: Tab; settings: UiSettings; multiExec: boolean; excluded: boolean; execStatus?: 'sent' | 'failed'; onToggleExclude: () => void; onInput: (id: string, data: string) => void; onState: (state: Tab['state']) => void; onError: (error: string) => void; onClose: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   useEffect(() => {
@@ -101,7 +102,7 @@ function TerminalPane({ tab, settings, onState, onError, onClose }: { tab: Tab; 
       if (payload.id === id) onState('exited');
     });
     const resize = terminal.onResize(({ cols, rows }) => { tauriInvoke?.('resize_terminal', { id, cols, rows }).catch(() => {}); });
-    const data = terminal.onData(value => { tauriInvoke?.('write_terminal', { id, data: value }).catch(() => onState('failed')); });
+    const data = terminal.onData(value => onInput(id, value));
     const selection = terminal.onSelectionChange(() => {
       const text = terminal.getSelection();
       if (text) navigator.clipboard?.writeText(text).catch(() => {});
@@ -109,7 +110,7 @@ function TerminalPane({ tab, settings, onState, onError, onClose }: { tab: Tab; 
     const context = async (event: MouseEvent) => {
       event.preventDefault();
       const text = await navigator.clipboard?.readText();
-      if (text) tauriInvoke?.('write_terminal', { id, data: text }).catch(() => onState('failed'));
+      if (text) onInput(id, text);
     };
     hostRef.current.addEventListener('contextmenu', context);
     onState('starting');
@@ -143,7 +144,7 @@ function TerminalPane({ tab, settings, onState, onError, onClose }: { tab: Tab; 
     try { await tauriInvoke?.('resume_terminal', { id: tab.id }); onState('connected'); } catch { onState('failed'); }
   };
   return <div className="react-terminal-pane">
-    <div className="react-pane-bar"><span><ProtocolIcon type={tab.session.session_type} /> {tab.session.name}</span><span className="react-terminal-actions"><span className={`react-state ${tab.state}`}>{tab.state}</span><button onClick={resume} disabled={tab.state === 'starting'} title="Resume terminal process">Resume</button><button onClick={reconnect} title="Reconnect terminal">Reconnect</button><button onClick={onClose} title="Close terminal">Close</button></span></div>
+    <div className="react-pane-bar"><span><ProtocolIcon type={tab.session.session_type} /> {tab.session.name}</span><span className="react-terminal-actions">{multiExec && <label className="react-exclude"><input type="checkbox" checked={excluded} onChange={onToggleExclude} /> Exclude {tab.session.name} from MultiExec mode</label>}{multiExec && !excluded && execStatus && <span className={`react-exec-status ${execStatus}`}>{execStatus === 'sent' ? '✓ sent' : '✕ failed'}</span>}<span className={`react-state ${tab.state}`}>{tab.state}</span><button onClick={resume} disabled={tab.state === 'starting'} title="Resume terminal process">Resume</button><button onClick={reconnect} title="Reconnect terminal">Reconnect</button><button onClick={onClose} title="Close terminal">Close</button></span></div>
     {tab.error && <div className="react-terminal-error" role="alert">{tab.error}</div>}
     <div className="react-terminal-host" ref={hostRef} tabIndex={0} onPointerDown={() => terminalRef.current?.focus()} onKeyDown={() => terminalRef.current?.focus()} />
   </div>;
@@ -159,6 +160,10 @@ export default function App() {
   const [notice, setNotice] = useState<string>();
   const [uiSettings, setUiSettings] = useState<UiSettings>(() => { try { return { ...defaultUiSettings, ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return defaultUiSettings; } });
   const [quick, setQuick] = useState('');
+  const [multiExec, setMultiExec] = useState(false);
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [execStatus, setExecStatus] = useState<Record<string, 'sent' | 'failed'>>({});
+  const latest = useRef<{ sendInput: (id: string, data: string) => void; multiPaste: () => void }>({ sendInput: () => {}, multiPaste: () => {} });
   useEffect(() => {
     tauriInvoke?.<Session[]>('list_sessions').then(value => { if (Array.isArray(value) && value.length) setSessions(value); }).catch(() => {});
   }, []);
@@ -199,6 +204,33 @@ export default function App() {
     const results = await Promise.all(ids.map(async id => { try { await tauriInvoke?.('write_terminal', { id, data }); return [id, 'sent'] as const; } catch { return [id, 'failed'] as const; } }));
     return Object.fromEntries(results) as Record<string, 'sent' | 'failed'>;
   };
+  const mergeStatus = (result: Record<string, 'sent' | 'failed'>) => setExecStatus(current => {
+    const keys = Object.keys(result);
+    return keys.every(key => current[key] === result[key]) ? current : { ...current, ...result };
+  });
+  // Every keystroke and paste from any terminal goes through here so MultiExec can mirror it.
+  const sendInput = async (sourceId: string, data: string) => {
+    const ids = mirrorTargets({ on: multiExec, sourceId, tabs, excluded, data });
+    const result = await broadcast(ids, data);
+    if (multiExec) mergeStatus(result);
+    if (result[sourceId] === 'failed') setTabs(current => current.map(item => item.id === sourceId ? { ...item, state: 'failed' } : item));
+  };
+  const multiPaste = async () => {
+    const text = await navigator.clipboard?.readText().catch(() => '');
+    const ids = pasteTargets({ tabs, excluded });
+    if (!text || !ids.length) { showNotice(text ? 'No MultiExec target can receive input.' : 'Clipboard is empty or unavailable.'); return; }
+    mergeStatus(await broadcast(ids, text));
+  };
+  latest.current = { sendInput, multiPaste };
+  const toggleExclude = (id: string) => setExcluded(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const openMultiExec = () => { setMultiExec(true); setNotice(undefined); setPanel('multiexec'); };
+  const exitMultiExec = () => { setMultiExec(false); setExecStatus({}); setPanel(current => current === 'multiexec' ? undefined : current); };
+  useEffect(() => {
+    if (!multiExec) return;
+    const onKey = (event: KeyboardEvent) => { if (isMultiPasteShortcut(event)) { event.preventDefault(); event.stopPropagation(); latest.current.multiPaste(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [multiExec]);
   const active = tabs.find(tab => tab.id === activeId);
   const split = tabs.find(tab => tab.id === splitId && tab.id !== activeId);
   const duplicateActive = () => {
@@ -223,11 +255,16 @@ export default function App() {
   const overlayOpen = Boolean(editorSession || panel || !tabs.length || !active);
   return <div className="react-app-shell">
     <div className="react-menu-row"><strong>Moraxterm</strong><button onClick={() => showNotice('Use Session or Start local terminal to open a terminal.')}>Terminal</button><button onClick={() => { setTabs([]); setPanel(undefined); }}>Sessions</button><button onClick={openView}>View</button><button onClick={openXserver}>X server</button><button onClick={openTools}>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button onClick={openHelp}>Help</button></div>
-    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} onTools={openTools} onView={openView} onTunnel={openTunnel} onHelp={openHelp} onXserver={openXserver} />
+    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={openMultiExec} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} onTools={openTools} onView={openView} onTunnel={openTunnel} onHelp={openHelp} onXserver={openXserver} />
     {notice && <div className="react-action-notice" role="status">{notice}<button aria-label="Dismiss notice" onClick={() => setNotice(undefined)}>×</button></div>}
     <main className="react-main"><nav className="react-rail"><button className="active" onClick={() => setActiveId(undefined)} title="Home">★</button><button onClick={openTools} title="Tools">⚒</button><button onClick={openTunnel} title="Tunneling">➤</button><button onClick={openView} title="View">◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} onTools={openTools} onMacros={() => setPanel('macros')} onNotice={showNotice} />
       <section className="react-workspace">
-        {overlayOpen ? (editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} onBroadcast={broadcast} onClose={() => setPanel(undefined)} /> : panel === 'tunnel' ? <TunnelManager onClose={() => setPanel(undefined)} /> : panel === 'tools' ? <ToolsPanel onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : null) : null}
+        {multiExec && <div className="react-multiexec-active" role="status">
+          <strong>MultiExec mode is active:</strong> input typed in any terminal is sent to every other terminal that is not excluded.
+          <span className="react-multiexec-count">{pasteTargets({ tabs, excluded }).length} target(s)</span>
+          <span className="react-multiexec-actions"><button onClick={() => latest.current.multiPaste()} title="Ctrl+Shift+Insert">Multi-paste</button><button onClick={() => setPanel('multiexec')}>Targets</button><button className="danger" onClick={exitMultiExec}>Exit multi-execution mode</button></span>
+        </div>}
+        {overlayOpen ? (editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} excluded={excluded} status={execStatus} onToggle={toggleExclude} onSetExcluded={setExcluded} onSend={(data) => { const ids = pasteTargets({ tabs, excluded }); broadcast(ids, data).then(mergeStatus); }} onExit={exitMultiExec} onClose={() => setPanel(undefined)} /> : panel === 'tunnel' ? <TunnelManager onClose={() => setPanel(undefined)} /> : panel === 'tools' ? <ToolsPanel onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : null) : null}
         {tabs.length > 0 && <div className="react-terminals" style={{ display: overlayOpen ? 'none' : 'flex' }}>
           <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); closeTab(tab.id); }}>×</b></button>)}</nav>
           <div className={split ? 'react-panes react-panes-split' : 'react-panes'}>
@@ -235,7 +272,7 @@ export default function App() {
               const shown = !!active && (tab.id === active.id || tab.id === split?.id);
               // Every tab stays mounted: unmounting a TerminalPane closes its native process, so hiding is the only safe way to switch tabs or open a panel.
               return <div key={tab.id} className="react-pane-slot" style={{ display: shown ? 'flex' : 'none', order: tab.id === split?.id ? 2 : 0 }}>
-                <TerminalPane tab={tab} settings={uiSettings} onClose={() => closeTab(tab.id)} onError={error => setTabs(current => current.map(item => item.id === tab.id ? { ...item, error } : item))} onState={state => setTabs(current => current.map(item => item.id === tab.id ? { ...item, state, ...(state === 'starting' ? { error: undefined } : {}) } : item))} />
+                <TerminalPane tab={tab} settings={uiSettings} multiExec={multiExec} excluded={excluded.has(tab.id)} execStatus={execStatus[tab.id]} onToggleExclude={() => toggleExclude(tab.id)} onInput={(id, data) => latest.current.sendInput(id, data)} onClose={() => closeTab(tab.id)} onError={error => setTabs(current => current.map(item => item.id === tab.id ? { ...item, error } : item))} onState={state => setTabs(current => current.map(item => item.id === tab.id ? { ...item, state, ...(state === 'starting' ? { error: undefined } : {}) } : item))} />
               </div>;
             })}
             {split && <div className="react-pane-divider" aria-hidden="true" style={{ order: 1 }} />}
