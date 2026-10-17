@@ -1,0 +1,11 @@
+# Moraxterm embedded Unix baseline
+# Install these with the runtime's MSYS2 pacman before creating the runtime archive.
+inetutils   # telnet
+openssh     # ssh, scp, sftp
+curl
+wget
+
+# The current MSYS2 repository does not provide BIND/dig or an MSYS2 ping
+# package. Moraxterm supplies these defaults as follows:
+# - ping: C:\Windows\System32\ping.exe is added to the session-only PATH.
+# - dig: usr/bin/dig delegates basic lookups to C:\Windows\System32\nslookup.exe.

@@ -1577,6 +1577,31 @@ fn stop_recording(state: State<'_, TerminalManager>, id: String) -> Result<bool,
         .is_some())
 }
 
+const EMBEDDED_DIG_WRAPPER: &str = r#"#!/usr/bin/env bash
+# Moraxterm default DNS helper. MSYS2's current repository does not ship BIND dig.
+# Delegate basic dig-compatible lookups to the Windows resolver without leaving the terminal.
+if [ "$#" -eq 0 ]; then
+    printf '%s\n' 'Usage: dig <hostname>' >&2
+    exit 2
+fi
+exec nslookup "$@"
+"#;
+
+fn ensure_embedded_network_tools(runtime_root: &PathBuf) -> Result<(), String> {
+    if !cfg!(windows) {
+        return Ok(());
+    }
+    let bin = runtime_root.join("usr").join("bin");
+    fs::create_dir_all(&bin)
+        .map_err(|error| format!("cannot create embedded network-tools directory: {error}"))?;
+    let dig = bin.join("dig");
+    if !dig.is_file() {
+        fs::write(&dig, EMBEDDED_DIG_WRAPPER)
+            .map_err(|error| format!("cannot install embedded dig helper: {error}"))?;
+    }
+    Ok(())
+}
+
 fn embedded_fish_command_not_found_script() -> &'static str {
     r#"
 function fish_command_not_found
@@ -1858,6 +1883,7 @@ fn start_terminal(
                 shell_path.display()
             ));
         }
+        ensure_embedded_network_tools(&runtime_root)?;
         let home = runtime_root.join("home").join("moraxterm");
         let temp = runtime_root.join("tmp").join("moraxterm");
         fs::create_dir_all(&home).map_err(|error| format!("cannot create Unix HOME: {error}"))?;
@@ -1883,10 +1909,15 @@ fn start_terminal(
         environment.insert("TMP".into(), temp.to_string_lossy().into_owned());
         let bin = runtime_root.join("usr").join("bin");
         let path = format!(
-            "{}{}{}",
+            "{}{}{}{}",
             bin.display(),
             if cfg!(windows) { ";" } else { ":" },
-            runtime_root.join("bin").display()
+            runtime_root.join("bin").display(),
+            if cfg!(windows) {
+                ";C:\\Windows\\System32;C:\\Windows"
+            } else {
+                ""
+            }
         );
         environment.insert("PATH".into(), path);
         let mut args = vec!["-l".into()];
@@ -2272,7 +2303,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{embedded_fish_command_not_found_script, format_socket_address, scan_ports};
+    use super::{
+        embedded_fish_command_not_found_script, format_socket_address, scan_ports,
+        EMBEDDED_DIG_WRAPPER,
+    };
 
     #[test]
     fn missing_command_handler_suggests_ms2_install_syntax() {
@@ -2280,6 +2314,12 @@ mod tests {
         assert!(script.contains("pacman -S bind"));
         assert!(script.contains("pacman -S <package-name>"));
         assert!(script.contains("dig example.com"));
+    }
+
+    #[test]
+    fn embedded_dig_helper_uses_windows_dns_resolver() {
+        assert!(EMBEDDED_DIG_WRAPPER.contains("nslookup"));
+        assert!(EMBEDDED_DIG_WRAPPER.contains("Usage: dig <hostname>"));
     }
 
     #[test]

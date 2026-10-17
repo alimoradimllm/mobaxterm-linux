@@ -1,6 +1,6 @@
 # Moraxterm remaining work and verification status
 
-_Last reviewed: 2026-10-15. Repository: `alimoradimllm/moraxterm`. Current release: `v0.1.23`._
+_Last reviewed: 2026-10-17. Repository: `alimoradimllm/moraxterm`. Current release: `v0.1.24`._
 
 This document separates verified behavior from planned work. It is not a claim
 of full third-party terminal workspace parity.
@@ -23,6 +23,7 @@ of full third-party terminal workspace parity.
 - The React Settings and Macro Manager panels are visually verified in the rebuilt executable. Settings persist local UI/terminal preferences, while macros support bounded local storage, import/export/delete, and playback through the existing terminal bridge. Full recording parity remains open.
 - The React MultiExec Manager is implemented with typed open-tab targets, per-terminal exclusion, broadcast through `write_terminal`, and sent/failed indicators. Source, Vite, and Tauri builds pass; fresh second-instance visual capture was blocked by an existing Moraxterm process owning the desktop window.
 - The React SFTP/FTP browser is implemented and visually verified in the rebuilt executable. It provides remote path listing, operation controls, transfer controls, status feedback, and bounded authentication failure rendering through the existing Tauri commands. Authenticated transfer testing remains open.
+- The embedded Unix baseline now installs `openssh` and `inetutils` in the managed runtime (`ssh`, `scp`, `sftp`, and `telnet`). The Fish session adds Windows `ping.exe` through a session-only PATH and creates a bundled `dig` helper backed by `nslookup.exe` because the current MSYS2 repositories do not provide `iputils` or BIND `dig`. The baseline manifest is `tauri-ui/src-tauri/resources/embedded-unix-default-packages.txt`.
 - The first Embedded Unix slice is implemented as a new `Unix` session type. It persists Fish/runtime-root/host-mount settings and launches only from a private runtime root with isolated HOME, PATH, and temporary directories; it never falls back to Windows cmd.exe. A managed MSYS2 POSIX runtime is installed locally and Fish 4.9.3 was verified; packaging that runtime for distribution remains open.
 - The typed Session Editor now exposes WSL, Serial, and Telnet protocol settings backed by the existing Rust session schema. Frontend and native tests pass; runtime editor interaction remains subject to the known Tauri UIA timeout limitation.
 - The Session model and typed editor now include RDP resolution/fullscreen/audio and VNC display/view-only/shared-connection settings. Legacy session payloads remain compatible through serde defaults; frontend and native tests pass.
