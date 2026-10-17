@@ -1063,6 +1063,10 @@ fn sftp_batch_command(port: u16, username: &str, host: &str) -> std::process::Co
     if let Ok(config) = std::env::var("MORAXTERM_TEST_SSH_CONFIG") {
         command.args(["-F", &config]);
     }
+    #[cfg(test)]
+    if let Ok(limit) = std::env::var("MORAXTERM_TEST_SFTP_LIMIT_KBIT") {
+        command.args(["-l", &limit]);
+    }
     command.args([
         "-o",
         "BatchMode=yes",
@@ -1159,10 +1163,45 @@ fn sftp_transfer(
     Ok(text)
 }
 
+type SftpJobs = Arc<Mutex<HashMap<String, Child>>>;
+type SftpEmitter = Arc<dyn Fn(&'static str, SftpTransferEvent) + Send + Sync>;
+
+static SFTP_JOB_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 #[tauri::command]
 fn start_sftp_transfer(
     app: AppHandle,
     state: State<'_, TerminalManager>,
+    host: String,
+    username: String,
+    port: u16,
+    direction: String,
+    local_path: String,
+    remote_path: String,
+    resume: bool,
+) -> Result<String, String> {
+    let emitter: SftpEmitter = Arc::new(move |name, event| {
+        let _ = app.emit(name, event);
+    });
+    begin_sftp_transfer(
+        Arc::clone(&state.sftp_jobs),
+        emitter,
+        host,
+        username,
+        port,
+        direction,
+        local_path,
+        remote_path,
+        resume,
+    )
+}
+
+/// Core of `start_sftp_transfer`, independent of the Tauri runtime so tests can
+/// drive it with a recording emitter.
+#[allow(clippy::too_many_arguments)]
+fn begin_sftp_transfer(
+    jobs: SftpJobs,
+    emitter: SftpEmitter,
     host: String,
     username: String,
     port: u16,
@@ -1205,7 +1244,12 @@ fn start_sftp_transfer(
             transfer_command, remote_path, local_path
         )
     };
-    let id = format!("sftp-{}", chrono_like_timestamp());
+    // The counter keeps ids unique when two jobs start within the same millisecond.
+    let id = format!(
+        "sftp-{}-{}",
+        chrono_like_timestamp(),
+        SFTP_JOB_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
     let mut command = sftp_batch_command(port, &username, &host);
     command
         .stdin(std::process::Stdio::piped())
@@ -1241,21 +1285,17 @@ fn start_sftp_transfer(
             .write_all(command_line.as_bytes())
             .map_err(|e| e.to_string())?;
     }
-    state
-        .sftp_jobs
-        .lock()
+    jobs.lock()
         .map_err(|_| "SFTP manager poisoned")?
         .insert(id.clone(), child);
-    let jobs = Arc::clone(&state.sftp_jobs);
     let job_id = id.clone();
-    let progress_app = app.clone();
     let progress_path = local_path.clone();
     let progress_direction = direction.clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(100));
         if progress_direction == "download" {
             if let Ok(metadata) = std::fs::metadata(&progress_path) {
-                let _ = progress_app.emit(
+                emitter(
                     "sftp-transfer-progress",
                     SftpTransferEvent {
                         id: job_id.clone(),
@@ -1298,7 +1338,7 @@ fn start_sftp_transfer(
             }
             Err(error) => (false, error.to_string()),
         };
-        let _ = app.emit(
+        emitter(
             "sftp-transfer-exit",
             SftpTransferEvent {
                 id: job_id.clone(),
@@ -1319,15 +1359,21 @@ fn cancel_sftp_transfer(
     state: State<'_, TerminalManager>,
     id: String,
 ) -> Result<bool, String> {
-    let mut jobs = state
-        .sftp_jobs
-        .lock()
-        .map_err(|_| "SFTP manager poisoned")?;
+    let emitter: SftpEmitter = Arc::new(move |name, event| {
+        let _ = app.emit(name, event);
+    });
+    cancel_sftp_job(&state.sftp_jobs, &emitter, id)
+}
+
+fn cancel_sftp_job(jobs: &SftpJobs, emitter: &SftpEmitter, id: String) -> Result<bool, String> {
+    let mut jobs = jobs.lock().map_err(|_| "SFTP manager poisoned")?;
     let Some(mut child) = jobs.remove(&id) else {
         return Ok(false);
     };
     child.kill().map_err(|e| e.to_string())?;
-    let _ = app.emit(
+    // Reap the killed process so it does not linger as an open handle.
+    let _ = child.wait();
+    emitter(
         "sftp-transfer-exit",
         SftpTransferEvent {
             id,
@@ -2516,5 +2562,218 @@ mod tests {
         );
         let after = sftp_list(host, user, port, format!("{remote}/d2")).unwrap();
         assert!(!after.contains("up.bin"), "listing after delete: {after}");
+    }
+
+    type Events = std::sync::Arc<std::sync::Mutex<Vec<(String, super::SftpTransferEvent)>>>;
+
+    fn recording_emitter() -> (super::SftpEmitter, Events) {
+        let events: Events = Default::default();
+        let sink = std::sync::Arc::clone(&events);
+        let emitter: super::SftpEmitter = std::sync::Arc::new(move |name, event| {
+            sink.lock().unwrap().push((name.to_string(), event));
+        });
+        (emitter, events)
+    }
+
+    fn wait_for_exit(events: &Events, id: &str) -> super::SftpTransferEvent {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            if let Some((_, event)) = events
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|(name, event)| name == "sftp-transfer-exit" && event.id == id)
+            {
+                return event.clone();
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "timed out waiting for {id}"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+
+    #[test]
+    #[ignore = "needs a disposable sshd; run scripts/disposable_sftp_commands_test.sh"]
+    fn sftp_queued_transfer_resume_and_cancel_against_disposable_server() {
+        use super::{begin_sftp_transfer, cancel_sftp_job, SftpJobs};
+        let port: u16 = std::env::var("MORAXTERM_TEST_SFTP_PORT")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let user = std::env::var("MORAXTERM_TEST_SFTP_USER").unwrap();
+        let remote = std::env::var("MORAXTERM_TEST_SFTP_REMOTE_DIR").unwrap();
+        let local =
+            std::path::PathBuf::from(std::env::var("MORAXTERM_TEST_SFTP_LOCAL_DIR").unwrap());
+        let norm =
+            |p: &std::path::Path| p.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
+        let host = "127.0.0.1".to_string();
+        let jobs: SftpJobs = Default::default();
+        let (emitter, events) = recording_emitter();
+        let payload: Vec<u8> = (0..1_500_000u32)
+            .map(|i| (i.wrapping_mul(31) % 253) as u8)
+            .collect();
+        let full = local.join("q_full.bin");
+        std::fs::write(&full, &payload).unwrap();
+
+        // Plain queued upload, then download, with byte-exact comparison.
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "upload".into(),
+            norm(&full),
+            format!("{remote}/q_remote.bin"),
+            false,
+        )
+        .unwrap();
+        let done = wait_for_exit(&events, &id);
+        assert!(done.success, "upload failed: {}", done.message);
+        let down = local.join("q_down.bin");
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "download".into(),
+            norm(&down),
+            format!("{remote}/q_remote.bin"),
+            false,
+        )
+        .unwrap();
+        let done = wait_for_exit(&events, &id);
+        assert!(done.success, "download failed: {}", done.message);
+        assert_eq!(std::fs::read(&down).unwrap(), payload);
+
+        // Resume download: truncate the local copy, then reget must restore it.
+        std::fs::write(&down, &payload[..400_000]).unwrap();
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "download".into(),
+            norm(&down),
+            format!("{remote}/q_remote.bin"),
+            true,
+        )
+        .unwrap();
+        let done = wait_for_exit(&events, &id);
+        assert!(done.success, "resume download failed: {}", done.message);
+        assert_eq!(std::fs::read(&down).unwrap(), payload);
+
+        // Resume upload: put a truncated file at the remote path, then reput the full one.
+        let partial = local.join("q_partial.bin");
+        std::fs::write(&partial, &payload[..600_000]).unwrap();
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "upload".into(),
+            norm(&partial),
+            format!("{remote}/q_resume.bin"),
+            false,
+        )
+        .unwrap();
+        assert!(wait_for_exit(&events, &id).success);
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "upload".into(),
+            norm(&full),
+            format!("{remote}/q_resume.bin"),
+            true,
+        )
+        .unwrap();
+        let done = wait_for_exit(&events, &id);
+        assert!(done.success, "resume upload failed: {}", done.message);
+        let back = local.join("q_back.bin");
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "download".into(),
+            norm(&back),
+            format!("{remote}/q_resume.bin"),
+            false,
+        )
+        .unwrap();
+        assert!(wait_for_exit(&events, &id).success);
+        assert_eq!(std::fs::read(&back).unwrap(), payload);
+
+        // Failure path: a missing remote file must report success=false, not hang.
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "download".into(),
+            norm(&local.join("q_missing.bin")),
+            format!("{remote}/does-not-exist"),
+            false,
+        )
+        .unwrap();
+        let done = wait_for_exit(&events, &id);
+        assert!(!done.success, "missing remote file reported success");
+
+        // Cancel: throttle the client so the job is still running when we cancel it.
+        std::env::set_var("MORAXTERM_TEST_SFTP_LIMIT_KBIT", "64");
+        let id = begin_sftp_transfer(
+            jobs.clone(),
+            emitter.clone(),
+            host.clone(),
+            user.clone(),
+            port,
+            "upload".into(),
+            norm(&full),
+            format!("{remote}/q_cancel.bin"),
+            false,
+        )
+        .unwrap();
+        std::env::remove_var("MORAXTERM_TEST_SFTP_LIMIT_KBIT");
+        std::thread::sleep(std::time::Duration::from_millis(700));
+        assert!(
+            jobs.lock().unwrap().contains_key(&id),
+            "job finished before cancel"
+        );
+        assert!(cancel_sftp_job(&jobs, &emitter, id.clone()).unwrap());
+        let done = wait_for_exit(&events, &id);
+        assert!(!done.success);
+        assert_eq!(done.message, "transfer cancelled");
+        assert!(!jobs.lock().unwrap().contains_key(&id));
+        assert!(
+            !cancel_sftp_job(&jobs, &emitter, id.clone()).unwrap(),
+            "second cancel must be a no-op"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(400));
+        let exits = events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(n, e)| n == "sftp-transfer-exit" && e.id == id)
+            .count();
+        assert_eq!(exits, 1, "cancelled job emitted {exits} exit events");
+
+        // Download progress events carry observed byte counts and ids stay unique.
+        let ids: std::collections::HashSet<String> = events
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, e)| e.id.clone())
+            .collect();
+        assert!(ids.len() >= 7);
     }
 }

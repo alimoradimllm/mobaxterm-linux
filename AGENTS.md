@@ -147,7 +147,7 @@ Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include
 - Authenticated SSH/SFTP testing against a disposable target.
 - Runtime validation of host-key approval/change warnings and SSH-agent authentication.
 - `scripts/disposable_sftp_runtime_test.sh` passes in Debian WSL (OpenSSH client-level SFTP/SCP/resume/strict-host-key checks against a throwaway loopback sshd); it does not cover the Moraxterm UI or Tauri commands.
-- `scripts/disposable_sftp_commands_test.sh` passes: the real `sftp_list`/`sftp_operation`/`sftp_transfer` bridge functions work against a disposable sshd (tests use `MORAXTERM_TEST_SSH_CONFIG`, test builds only). It uncovered and fixed a delete bug (`rm`+`rmdir` in one batch). Queued `start_sftp_transfer` and the SFTP UI remain untested at runtime.
+- `scripts/disposable_sftp_commands_test.sh` passes: the real `sftp_list`/`sftp_operation`/`sftp_transfer` bridge functions and the queued transfer core (`begin_sftp_transfer`/`cancel_sftp_job`: put/get, `reput`/`reget` resume, failure reporting, cancel) work against a disposable sshd. Test-only env hooks: `MORAXTERM_TEST_SSH_CONFIG`, `MORAXTERM_TEST_SFTP_LIMIT_KBIT` (compiled under `cfg(test)` only). The SFTP UI, Tauri event delivery to the frontend, and upload-byte progress remain untested.
 - Reliable upload-byte progress remains open. Local browser metadata (type, size, modification epoch), bounded local text editing, remote edit-copy workflow, direct-operation SFTP client preflight, and non-resumable SCP fallback are implemented; disposable-target fallback testing remains open.
 - Detached terminal windows.
 - Selective MultiExec stop/status refinements and command-result semantics beyond write acknowledgement.
@@ -177,7 +177,33 @@ After every meaningful change, update this file if any of the following changed:
 - Security or privacy rules.
 - A design decision future agents must preserve.
 
+**Every change, however small, must add an entry to the "Change history" section below in the same commit** (newest first: date, what changed, what was verified, what is still open). The commit hash is added by the next entry, since a commit cannot contain its own hash.
+
 Keep entries factual and concise. Do not record secrets or temporary personal paths. Always commit and push the updated `AGENTS.md` together with the code change.
+
+## Change history
+
+Newest first. Each entry: what changed, what was verified, what is still open. Hashes refer to `origin/main`.
+
+### 2026-10-17 — Queued SFTP transfer core made testable; cancel reaps the process
+- `start_sftp_transfer` / `cancel_sftp_transfer` now delegate to `begin_sftp_transfer` / `cancel_sftp_job`, which take an injectable emitter (`SftpEmitter`) and job map (`SftpJobs`) instead of a Tauri `AppHandle`. Tauri command names, arguments, and event names (`sftp-transfer-progress`, `sftp-transfer-exit`) are unchanged.
+- Job ids now end in an atomic counter (`sftp-<epoch>.<ms>-<n>`) so two jobs started in the same millisecond cannot collide in the job map.
+- Cancelling a job now calls `wait()` after `kill()` so the child process is reaped.
+- New ignored test `sftp_queued_transfer_resume_and_cancel_against_disposable_server` covers upload, download, `reget` resume, `reput` resume, missing-remote-file failure (`success=false`), cancel of a throttled running job (exactly one exit event, job removed, second cancel is a no-op), and id uniqueness. `scripts/disposable_sftp_commands_test.sh` now runs both ignored SFTP tests.
+- Verified: `DISPOSABLE_SFTP_COMMANDS_TEST=PASS` (2 tests) in Debian WSL with Windows `sftp.exe`; `cargo test` 6 passed / 2 ignored; `node --check`, `npm run build`, `cargo check`, `git diff --check` clean.
+- Open: SFTP UI and frontend event handling untested at runtime; upload-byte progress still indeterminate; no installed-app run.
+
+### 2026-10-17 — SFTP delete fix and bridge command test (`09440c8`)
+- Fixed `sftp_operation` delete: `rm` and `rmdir` were sent in one `sftp -b` batch, which aborts on the first failure, so deleting a file or directory always errored. It now runs `rm`, then falls back to `rmdir` (`run_sftp_script`).
+- Added `sftp_batch_command` (shared structured `sftp -b -` builder replacing five duplicated blocks) with a `cfg(test)`-only `MORAXTERM_TEST_SSH_CONFIG` hook so tests never touch the real `~/.ssh`.
+- Added `scripts/disposable_sftp_commands_test.sh` and the ignored test `sftp_commands_roundtrip_against_disposable_server` (list, mkdir, rename, chmod, upload, download byte-exact, delete file and directory).
+- Verified: `DISPOSABLE_SFTP_COMMANDS_TEST=PASS`; the first run failed on the delete bug before the fix.
+- Side effect: the commit included regenerated `tauri-ui/src-tauri/gen/schemas/*.json`; consider git-ignoring them.
+
+### 2026-10-17 — Disposable SFTP/SCP client harness (`b4f9332`)
+- Added `scripts/disposable_sftp_runtime_test.sh`: loopback-only throwaway `sshd` with temporary keys exercising OpenSSH `sftp`/`scp` directly (list, mkdir/rename/chmod, byte-exact upload/download, `reput`/`reget`, delete, `scp` both ways, strict unknown-host rejection).
+- Verified: `DISPOSABLE_SFTP_RUNTIME_TEST=PASS` in Debian WSL. Covers OpenSSH clients only, not Moraxterm code.
+
 
 ## Reporting format
 

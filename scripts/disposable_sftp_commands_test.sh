@@ -65,5 +65,5 @@ export MORAXTERM_TEST_SFTP_LOCAL_DIR="$WIN_DIR_NATIVE/local"
 export WSLENV="MORAXTERM_TEST_SSH_CONFIG:MORAXTERM_TEST_SFTP_PORT:MORAXTERM_TEST_SFTP_USER:MORAXTERM_TEST_SFTP_REMOTE_DIR:MORAXTERM_TEST_SFTP_LOCAL_DIR"
 
 cd "$REPO/tauri-ui/src-tauri"
-cargo.exe test sftp_commands_roundtrip -- --ignored --nocapture
+cargo.exe test sftp_ -- --ignored --nocapture --test-threads=1
 echo 'DISPOSABLE_SFTP_COMMANDS_TEST=PASS'
