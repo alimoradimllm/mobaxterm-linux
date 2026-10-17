@@ -57,7 +57,7 @@ workspace portable across devices and teams.
 | SFTP | Integrated graphical browser | Integrated SFTP | Browser and transfer queue | P0: authenticated disposable-target tests and progress |
 | Multi-execution | Mature | Workspace-oriented | MultiExec with exclusion/status | P0: output routing, stop, failure recovery |
 | SSH tunnels | Graphical manager | Port forwarding | Start/stop manager | P1: profiles, logs, persistence, tests |
-| SSH gateway / ProxyJump | Supported | Supported workflow | Editor gap | P0: add ProxyJump/gateway fields |
+| SSH gateway / ProxyJump | Supported | Supported workflow | Editor and structured planner implemented | P0: disposable gateway runtime test |
 | X11 | Embedded X server | Not the core differentiator | Status detection only | P1: lifecycle and forwarding verification |
 | RDP/VNC/Serial/Telnet | Broad protocol coverage | SSH-centered | Launch paths and editors | P1: runtime verification, better embedding |
 | Snippets/macros | Macros | Snippets/autocomplete | Macros | P1: snippets with scope, search, variables |
@@ -73,12 +73,15 @@ workspace portable across devices and teams.
 - Finish Windows ConPTY behavior: PowerShell, cmd, Bash/Fish, alternate screen,
   vim/top/mc, mouse reporting, resize, Unicode, paste, Ctrl+C/Ctrl+D/Ctrl+Z,
   Ctrl+Break, and long output.
-- Add first-connect SSH host-key approval, changed-key warnings, and clear
-  connection state.
-- Finish Windows Credential Manager and Linux Secret Service flows with masked
-  prompts and no secret logging.
-- Add ProxyJump/gateway fields and structured command planning.
-- Add disposable SSH/SFTP integration tests.
+1. Add first-connect host-key approval, changed-key warnings, and clear
+   connection state. *(Known-host status, fingerprint scan, explicit
+   fingerprint-confirmed approval, removal, and host-key policy controls are
+   implemented; disposable-target runtime verification remains.)*
+2. Finish Windows Credential Manager and Linux Secret Service flows with masked
+   prompts and no secret logging.
+3. Add ProxyJump/gateway fields and structured command planning. *(Implemented;
+   disposable gateway runtime verification remains.)*
+4. Add disposable SSH/SFTP integration tests.
 
 ### P1 — daily operator advantage
 
