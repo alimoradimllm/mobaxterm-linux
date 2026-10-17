@@ -70,7 +70,7 @@ observed behavior, public protocol tooling, and independent code.
 - The local SFTP pane now supports read-only UTF-8 previews capped at 1 MiB; remote preview and editing remain open.
 - Remote SFTP preview now downloads into a temporary file, enforces the same 1 MiB UTF-8 limit, and removes the temporary file after reading; editing remains open.
 - SQLite regression coverage now verifies that legacy session payloads load with current serde defaults for newer fields.
-- SSH session editing now provides a known-hosts presence check, fingerprint scanning, explicit fingerprint-confirmed approval, managed removal, and strict/ask/accept-new host-key policies. Fingerprints are not logged. Disposable-target runtime verification remains open.
+- SSH session editing now provides a known-hosts presence check, fingerprint scanning, explicit fingerprint-confirmed approval, managed removal, and strict/ask/accept-new host-key policies. Fingerprints are not logged. The disposable WSL runtime harness passes unknown-host rejection, approval, changed-key rejection, and equivalent gateway forwarding; literal `-J` remains environment-specific.
 - Session folders now render as indented nested hierarchy headings when folder paths contain `/` or `\\`; drag-and-drop movement, create, rename, and delete controls are implemented.
 - Workspace tabs support drag-and-drop reordering, active-terminal close confirmation, and draggable split-pane boundaries.
 - The source session editor now has functional protocol icons, functional Basic/Advanced/Terminal/Network/Bookmark tabs, selectable themes, terminal keyword highlighting, and SSH-agent monitoring; installed-app runtime verification remains open.

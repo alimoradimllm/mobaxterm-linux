@@ -80,7 +80,7 @@ of full third-party terminal workspace parity.
 - SSH editing now checks whether a host entry exists in `known_hosts` without
   exposing fingerprints. Explicit approval/change-warning UI and updates remain
   open.
-- The SSH Session Editor now provides Check known host, Scan fingerprint, Approve scanned key, and Remove stored key actions. Approval re-scans and compares the exact fingerprint before appending to `known_hosts`; fingerprints are displayed for explicit user confirmation. Strict policy still refuses unknown hosts. Runtime testing against a disposable SSH server remains open.
+- A disposable WSL runtime harness at `scripts/disposable_ssh_runtime_test.sh` now verifies strict unknown-host rejection, fingerprint-approved connection, changed-host-key rejection, and authenticated gateway forwarding. The harness cleans up all temporary processes and keys; this WSL image's literal `-J` path is intercepted by its system SSH wrapper, so the harness uses an explicit equivalent `ProxyCommand` for forwarding.
 - Session folders now render as indented nested headings. Folder drag and
   drop, rename, and movement controls are implemented.
 - Session entries can now be dragged onto persisted folder headings and saved

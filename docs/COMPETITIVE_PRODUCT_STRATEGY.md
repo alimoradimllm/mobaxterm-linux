@@ -80,7 +80,8 @@ workspace portable across devices and teams.
 2. Finish Windows Credential Manager and Linux Secret Service flows with masked
    prompts and no secret logging.
 3. Add ProxyJump/gateway fields and structured command planning. *(Implemented;
-   disposable gateway runtime verification remains.)*
+   disposable runtime forwarding passes through an equivalent explicit
+   `ProxyCommand`; literal `-J` remains environment-specific.)*
 4. Add disposable SSH/SFTP integration tests.
 
 ### P1 — daily operator advantage
