@@ -4,6 +4,29 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::io::{Read, Write};
 
+#[cfg(windows)]
+#[link(name = "kernel32")]
+extern "system" {
+    fn SetConsoleCtrlHandler(
+        handler: Option<unsafe extern "system" fn(u32) -> i32>,
+        add: i32,
+    ) -> i32;
+}
+
+/// Windows stores "ignore Ctrl+C" as an inheritable per-process flag. If whatever launched the
+/// application had it set (some shells, CI runners and automation harnesses do), every terminal
+/// child inherits it and Ctrl+C silently does nothing. Clearing it in this process before a child
+/// is spawned gives each terminal normal Ctrl+C handling regardless of how the app was started.
+#[cfg(windows)]
+fn restore_default_ctrl_c_handling() {
+    unsafe {
+        SetConsoleCtrlHandler(None, 0);
+    }
+}
+
+#[cfg(not(windows))]
+fn restore_default_ctrl_c_handling() {}
+
 pub struct TerminalProcess {
     master: Box<dyn MasterPty + Send>,
     reader: Option<Box<dyn Read + Send>>,
@@ -30,6 +53,7 @@ impl TerminalProcess {
         environment: &std::collections::HashMap<String, String>,
         cwd: Option<&str>,
     ) -> anyhow::Result<Self> {
+        restore_default_ctrl_c_handling();
         let system = native_pty_system();
         let pair = system.openpty(PtySize {
             rows: 24,

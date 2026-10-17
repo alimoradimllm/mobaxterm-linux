@@ -18,16 +18,6 @@ extern "system" {
     ) -> i32;
 }
 
-/// A parent that ran with Ctrl+C ignored (some shells, CI runners and tool
-/// harnesses do) passes that flag to every child, so Ctrl+C would silently do
-/// nothing in the PTY. Clear it so the tests measure Moraxterm, not the launcher.
-fn restore_default_ctrl_c() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| unsafe {
-        SetConsoleCtrlHandler(None, 0);
-    });
-}
-
 struct Session {
     process: Arc<Mutex<TerminalProcess>>,
     output: Arc<Mutex<Vec<u8>>>,
@@ -35,7 +25,6 @@ struct Session {
 
 impl Session {
     fn start(program: &str, args: &[&str], env: &[(&str, &str)]) -> Self {
-        restore_default_ctrl_c();
         let environment: HashMap<String, String> = env
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -232,6 +221,80 @@ fn paste_of_multiple_lines_executes_each_line() {
     s.require("P2_ok", 10);
     s.require("P3_ok", 10);
     s.finish();
+}
+
+#[test]
+fn first_input_after_prompt_is_not_lost() {
+    // Mirrors the desktop flow: start PowerShell with -NoLogo, wait for the prompt to
+    // settle, then type. Nothing may be dropped from the start of the line.
+    let s = Session::start("powershell.exe", &["-NoLogo"], &[]);
+    s.require("PS C:", 20);
+    std::thread::sleep(Duration::from_secs(3));
+    s.send("Write-Output ('FIRST_' + 'OK')\r");
+    s.require("FIRST_OK", 10);
+    assert!(
+        !s.text().contains("is not recognized"),
+        "first character was dropped, PowerShell saw a mangled command: {:?}",
+        s.text().rsplit("PS C:").take(2).collect::<Vec<_>>()
+    );
+    s.finish();
+}
+
+#[test]
+fn ctrl_c_works_even_when_the_parent_process_ignores_ctrl_c() {
+    // A launcher (shell, CI runner, tool harness) can leave "ignore Ctrl+C" set on the app
+    // process; children inherit it and Ctrl+C then silently does nothing in every terminal.
+    // TerminalProcess must give its child default Ctrl+C handling regardless of the parent.
+    // `Session::start` is deliberately not used: it restores the default for the test process.
+    unsafe {
+        SetConsoleCtrlHandler(None, 1); // this process now ignores Ctrl+C, as a bad launcher would
+    }
+    let mut process = TerminalProcess::spawn("cmd.exe", &[]).unwrap();
+    let mut reader = process.take_reader().unwrap();
+    let process = Arc::new(Mutex::new(process));
+    let output = Arc::new(Mutex::new(Vec::new()));
+    let (p, o) = (Arc::clone(&process), Arc::clone(&output));
+    std::thread::spawn(move || {
+        let mut buffer = [0_u8; 8192];
+        loop {
+            let count = match reader.read(&mut buffer) {
+                Ok(0) | Err(_) => return,
+                Ok(count) => count,
+            };
+            let mut out = o.lock().unwrap();
+            out.extend_from_slice(&buffer[..count]);
+            if out.windows(4).any(|w| w == b"[6n") {
+                let _ = p.lock().unwrap().write(b"[1;1R");
+            }
+        }
+    });
+    let wait = |needle: &str, secs: u64| {
+        let end = Instant::now() + Duration::from_secs(secs);
+        while Instant::now() < end {
+            if String::from_utf8_lossy(&output.lock().unwrap()).contains(needle) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        false
+    };
+    process
+        .lock()
+        .unwrap()
+        .write(b"ping -n 60 127.0.0.1\r")
+        .unwrap();
+    assert!(wait("Reply from 127.0.0.1", 15), "ping never started");
+    process.lock().unwrap().write(&[3]).unwrap();
+    let interrupted = wait("Control-C", 10);
+    // Restore the default so the other tests in this binary are unaffected.
+    unsafe {
+        SetConsoleCtrlHandler(None, 0);
+    }
+    let _ = process.lock().unwrap().kill();
+    assert!(
+        interrupted,
+        "Ctrl+C was ignored by the child because the parent ignored it"
+    );
 }
 
 fn vim_path() -> Option<String> {

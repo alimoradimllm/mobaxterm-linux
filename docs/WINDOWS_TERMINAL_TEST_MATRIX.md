@@ -60,3 +60,20 @@ Findings recorded while writing the suite:
 The matrix is intentionally separate from the release checklist: passing the
 basic Local Shell test does not establish full-screen, keyboard, resize, or
 SSH authentication parity.
+
+## Installed-app checks (2026-10-17, built exe, isolated profile)
+
+Run with `scripts/ui_smoke_test.py` against the exe built from `main` plus the fixes in this commit. PowerShell local shell only.
+
+| Check | Result |
+|---|---|
+| Click a session while Settings is open | PASS (after fix) |
+| Typed command runs; first character not dropped | PASS (after fix) |
+| Unicode output rendered | PASS |
+| Ctrl+C interrupts a running command, app launched with Ctrl+C ignored | PASS (after fix) |
+| 3000-line output completes and stays in view | PASS (after fix) |
+| Window resize reaches the shell (114 / 51 columns) | PASS (after fix) |
+| Split view: two independent panes | PASS |
+| Terminal survives opening and closing a panel | PASS (after fix) |
+| MultiExec: both targets show sent and receive text | PASS (text is not auto-executed) |
+| Clipboard paste, mouse reporting in xterm.js, SSH tab, Linux | NOT TESTED |

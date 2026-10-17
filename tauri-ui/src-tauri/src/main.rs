@@ -1740,6 +1740,33 @@ end
 "#
 }
 
+/// ConPTY sends a cursor-position query (`ESC [ 6 n`) at startup and waits for a reply before it
+/// will render. The Rust reader answers it so startup never depends on the webview being ready.
+/// That first query must also be removed from the stream sent to xterm.js: xterm.js answers every
+/// query it sees, and a second reply is delivered to the shell as keyboard input, which swallowed
+/// the first character typed into every new Windows terminal. Later queries (full-screen apps) pass
+/// through untouched so xterm.js can answer them with the real cursor position.
+const CURSOR_POSITION_QUERY: &[u8] = b"\x1b[6n";
+
+fn take_startup_cursor_query(data: &[u8], answered: &mut bool) -> (Vec<u8>, bool) {
+    if *answered {
+        return (data.to_vec(), false);
+    }
+    match data
+        .windows(CURSOR_POSITION_QUERY.len())
+        .position(|window| window == CURSOR_POSITION_QUERY)
+    {
+        Some(index) => {
+            *answered = true;
+            let mut rest = Vec::with_capacity(data.len() - CURSOR_POSITION_QUERY.len());
+            rest.extend_from_slice(&data[..index]);
+            rest.extend_from_slice(&data[index + CURSOR_POSITION_QUERY.len()..]);
+            (rest, true)
+        }
+        None => (data.to_vec(), false),
+    }
+}
+
 #[tauri::command]
 fn start_terminal(
     app: AppHandle,
@@ -2174,6 +2201,7 @@ fn start_terminal(
         "terminal",
         &format!("reader thread starting id={id}"),
     );
+    let mut startup_query_answered = false;
     std::thread::spawn(move || loop {
         let mut buffer = [0_u8; 8192];
         let result = reader
@@ -2182,7 +2210,9 @@ fn start_terminal(
             .map_err(|e| e.to_string());
         match result {
             Ok(data) if !data.is_empty() => {
-                if data.windows(4).any(|window| window == b"\x1b[6n") {
+                let (data, answer_now) =
+                    take_startup_cursor_query(&data, &mut startup_query_answered);
+                if answer_now {
                     if let Ok(mut process) = query_process.lock() {
                         let _ = process.write(b"\x1b[1;1R");
                     }
@@ -2202,6 +2232,9 @@ fn start_terminal(
                         let _ = file.write_all(&data);
                         let _ = file.flush();
                     }
+                }
+                if data.is_empty() {
+                    continue;
                 }
                 let event = TerminalEvent {
                     id: id.clone(),
@@ -2420,8 +2453,36 @@ fn main() {
 mod tests {
     use super::{
         embedded_fish_command_not_found_script, format_socket_address, scan_ports,
-        EMBEDDED_DIG_WRAPPER, EMBEDDED_RUNTIME_ARCHIVE,
+        take_startup_cursor_query, EMBEDDED_DIG_WRAPPER, EMBEDDED_RUNTIME_ARCHIVE,
     };
+
+    #[test]
+    fn startup_cursor_query_is_answered_once_and_removed_from_the_stream() {
+        let mut answered = false;
+        let (rest, answer) = take_startup_cursor_query(b"\x1b[6n\x1b[?9001hHello", &mut answered);
+        assert!(answer && answered);
+        assert_eq!(rest, b"\x1b[?9001hHello");
+        // A later query (for example from vim) must reach xterm.js unchanged.
+        let (rest, answer) = take_startup_cursor_query(b"\x1b[6n", &mut answered);
+        assert!(!answer);
+        assert_eq!(rest, b"\x1b[6n");
+    }
+
+    #[test]
+    fn data_without_a_query_is_untouched_and_does_not_mark_answered() {
+        let mut answered = false;
+        let (rest, answer) = take_startup_cursor_query(b"plain output", &mut answered);
+        assert!(!answer && !answered);
+        assert_eq!(rest, b"plain output");
+    }
+
+    #[test]
+    fn only_the_first_of_two_queries_in_one_chunk_is_consumed() {
+        let mut answered = false;
+        let (rest, answer) = take_startup_cursor_query(b"a\x1b[6nb\x1b[6nc", &mut answered);
+        assert!(answer);
+        assert_eq!(rest, b"ab\x1b[6nc");
+    }
 
     #[test]
     fn missing_command_handler_suggests_ms2_install_syntax() {

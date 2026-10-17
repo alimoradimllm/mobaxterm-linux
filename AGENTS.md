@@ -143,6 +143,7 @@ Treat the implementation as real but keep runtime gaps explicit. Verify behavior
 
 Consult `docs/REMAINING_WORK.md` for the full list. Important open areas include:
 
+- Installed-app UI checks are scripted in `scripts/ui_smoke_test.py` (see the change history for how to run them). Still unverified in the app: clipboard paste, mouse reporting, SSH tabs, Linux.
 - Windows terminal matrix: PTY-level tests now pass for PowerShell, WSL/Bash, Unicode, resize, paste, Ctrl+C, Windows EOF, alternate screen (`vim`, `less`), mouse-reporting enable sequences, and 20000-line output (`rust-core/tests/windows_pty_matrix.rs`). Still open: the same checks in the installed desktop app (xterm.js rendering, keyboard mapping, real paste path), Ctrl+Break, `mc`/`htop`, and a VT conformance run.
 - Authenticated SSH/SFTP testing against a disposable target.
 - Runtime validation of host-key approval/change warnings and SSH-agent authentication.
@@ -185,7 +186,19 @@ Keep entries factual and concise. Do not record secrets or temporary personal pa
 
 Newest first. Each entry: what changed, what was verified, what is still open. Hashes refer to `origin/main`.
 
-### 2026-10-17 — Windows ConPTY behavior matrix as automated tests
+### 2026-10-17 — Installed-app UI testing found and fixed six terminal bugs
+Method: `scripts/ui_launch_test_instance.py` starts the built exe with an isolated `APPDATA`/`LOCALAPPDATA` (never the real profile) and WebView2 remote debugging on port 9333; `scripts/cdp_driver.py` drives it over CDP; `scripts/ui_smoke_test.py` runs the regression scenario. Build the exe with `npm run tauri -- build --no-bundle` first.
+- **Session click ignored while a panel was open.** `openSession` now closes panels, the editor, and notices.
+- **First typed character dropped in every new Windows terminal** (`rite-Output`). The Rust reader answered ConPTY's startup cursor query (`ESC[6n`) and xterm.js answered it too; the second reply reached the shell as input. `take_startup_cursor_query` (tauri main.rs) answers the first query in Rust and removes it from the stream sent to xterm.js; later queries (vim etc.) still reach xterm.js. 3 unit tests.
+- **Ctrl+C silently ignored** when the launcher had Ctrl+C disabled (flag is inherited by every child). `TerminalProcess` (rust-core lib.rs) now clears it before spawning. Test `ctrl_c_works_even_when_the_parent_process_ignores_ctrl_c`. Verified in the exe launched with Ctrl+C ignored: prompt back in 0.2 s.
+- **PTY size never sent to the shell.** First `fit()` ran before the process existed and there was no resize observer. `TerminalPane` now re-sends size after start and on pane resize (debounced). Verified: shell width 114 at a 1500 px window, 51 at 900 px.
+- **Long output grew the pane to ~20000 px and stalled.** Flex/overflow fixes on `.react-panes`, `.react-pane-slot`, `.react-terminal-pane`, `.react-terminal-host`. Verified: 3000 lines complete, last line visible.
+- **Opening any panel (Settings, MultiExec, SFTP, Tools...) or switching tabs unmounted the terminal, which called `close_terminal` and killed the shell**; MultiExec then reported `✕ failed` for every target. All tabs now stay mounted and are hidden with CSS (`.react-terminals`, `overlayOpen`). **Design rule: never unmount a `TerminalPane` to hide it.** Verified: output survives opening/closing MultiExec; broadcast shows `✓ sent` for both targets and the text reaches both terminals; split view shows two independent panes (266x500 each) with no input cross-talk.
+- Also added test `first_input_after_prompt_is_not_lost` (PTY level) for the dropped-character case; matrix is now 14 tests.
+- Verified: `npm run typecheck` and `npm run build` pass; rust-core `cargo test` passes (14 matrix tests); tauri `cargo test` passes (9 + 2 ignored); the rebuilt exe passes `ui_smoke_test.py` (settings-open click, prompt, typed command, Unicode, Ctrl+C, 3000-line output, resize).
+- Open: MultiExec sends the text exactly as typed (no Enter appended; the user must include a newline) and has no Multi-paste / `Ctrl+Shift+Insert` / per-terminal exclude / banner behaviour from the design rules; only Windows `cmd`/PowerShell local shells were driven; clipboard paste, mouse reporting, SSH tabs, and Linux are untested in the app; no clean-machine install test.
+
+### 2026-10-17 — Windows ConPTY behavior matrix as automated tests (`8a30dff`)
 - Added `rust-core/tests/windows_pty_matrix.rs` (Windows only, 12 tests) driving real `cmd.exe`, PowerShell, `vim.exe`, and Debian WSL through `TerminalProcess`: command I/O, PowerShell interactivity, Unicode round trip and input length, 20000-line output (all 20000 lines delivered), resize (including mid-command, and `stty size` in WSL), Ctrl+C in `cmd.exe` and PowerShell, Ctrl+Z+Enter EOF, multi-line paste, `vim` alternate screen plus mouse-reporting enable, and `less` alternate screen over WSL. No production code changed; no bug found in `TerminalProcess`.
 - Verified: plain `cargo test` in `rust-core` passes (12 new tests plus existing suites).
 - Findings to preserve: (1) children inherit a parent's "ignore Ctrl+C" console flag, so Ctrl+C silently does nothing in a terminal if the launcher disabled it; the tests clear the flag via `SetConsoleCtrlHandler`. Check how the installed app is launched before blaming the PTY layer. (2) procps `top` does not use the alternate screen, so use `less`/`vim` for that check. (3) Test markers must not occur in the echoed command, or waits return on the echo.
