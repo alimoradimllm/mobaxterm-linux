@@ -1,0 +1,56 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      EMBEDDED_UNIX_RUNTIME_URL: ${{ vars.MORAXTERM_EMBEDDED_RUNTIME_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-ui/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Stage embedded Unix runtime
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:EMBEDDED_UNIX_RUNTIME_URL)) {
+            throw 'Repository variable MORAXTERM_EMBEDDED_RUNTIME_URL is required.'
+          }
+          python scripts/prepare_embedded_runtime.py `
+            --url $env:EMBEDDED_UNIX_RUNTIME_URL
+
+      - name: Install frontend dependencies
+        working-directory: tauri-ui
+        run: npm ci
+
+      - name: Build Windows installer
+        working-directory: tauri-ui
+        run: npm run tauri -- build
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: moraxterm-windows-${{ github.ref_name }}
+          path: |
+            tauri-ui/src-tauri/target/release/bundle/msi/*.msi
+            tauri-ui/src-tauri/target/release/bundle/nsis/*-setup.exe
