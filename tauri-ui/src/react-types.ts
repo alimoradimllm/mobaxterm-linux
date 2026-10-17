@@ -12,6 +12,8 @@ export interface Session {
   shell?: string;
   remote_shell?: string;
   ssh_agent_forwarding?: boolean;
+  proxy_jump?: string;
+  host_key_policy?: string;
   wsl_user?: string;
   wsl_command?: string;
   serial_baud?: number;

@@ -32,6 +32,9 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
         <div className="react-editor-note">SSH compatibility settings are stored as typed session metadata and passed to the existing Rust bridge.</div>
         <label>Remote shell<select value={draft.remote_shell ?? ''} onChange={event => update('remote_shell', event.target.value || undefined)}><option value="">Server default</option><option value="bash">Bash</option><option value="fish">Fish (requires remote Fish)</option><option value="fish-or-sh">Fish if available, otherwise POSIX sh</option><option value="zsh">Zsh</option><option value="sh">POSIX sh</option></select></label>
         <label className="react-check"><input type="checkbox" checked={draft.ssh_agent_forwarding ?? false} onChange={event => update('ssh_agent_forwarding', event.target.checked)} /> Enable SSH-agent forwarding</label>
+        <label>ProxyJump / gateway<input value={draft.proxy_jump ?? ''} onChange={event => update('proxy_jump', event.target.value || undefined)} placeholder="jump-user@gateway.example.com" /></label>
+        <label>Host-key policy<select value={draft.host_key_policy ?? 'ask'} onChange={event => update('host_key_policy', event.target.value)}><option value="ask">Ask on unknown host</option><option value="strict">Strict: reject unknown host</option><option value="accept-new">Accept new keys, reject changes</option></select></label>
+        <div className="react-editor-note">ProxyJump is passed as a structured OpenSSH argument. Unknown or changed host keys are never silently trusted.</div>
       </>}
       {tab === 'Terminal' && <>
         <label>Local shell<select value={draft.shell ?? ''} onChange={event => update('shell', event.target.value || undefined)}><option value="">System default</option><option value="cmd">Command Prompt</option><option value="powershell">PowerShell</option><option value="bash">Bash</option></select></label>

@@ -53,3 +53,19 @@ fn fish_fallback_uses_remote_posix_probe() {
         ]
     );
 }
+
+#[test]
+fn proxy_jump_and_host_key_policy_are_structured_in_ssh_plan() {
+    let mut session = Session::ssh("test", "target.example", "alice");
+    session.proxy_jump = "jump.example".into();
+    session.host_key_policy = "strict".into();
+    let plan = session.ssh_plan().unwrap();
+    assert!(plan
+        .argv
+        .windows(2)
+        .any(|pair| pair == ["-J", "jump.example"]));
+    assert!(plan
+        .argv
+        .windows(2)
+        .any(|pair| pair == ["-o", "StrictHostKeyChecking=yes"]));
+}
