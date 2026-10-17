@@ -52,11 +52,11 @@ declare global {
   }
 }
 
-export const tauriInvoke = window.__TAURI__?.core?.invoke;
-export const tauriListen = window.__TAURI__?.event?.listen;
+export { invoke as tauriInvoke } from '@tauri-apps/api/core';
+export { listen as tauriListen } from '@tauri-apps/api/event';
 
 export const fallbackSessions: Session[] = [
-  { name: 'Local Shell', session_type: 'Shell' },
+  { name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' },
   { name: 'WSL-Debian', session_type: 'WSL', host: 'Debian' },
 ];
 

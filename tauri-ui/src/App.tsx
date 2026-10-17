@@ -19,9 +19,10 @@ interface Tab {
   id: string;
   session: Session;
   state: 'starting' | 'connected' | 'failed' | 'exited';
+  error?: string;
 }
 
-const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial']);
+const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial', 'Unix']);
 
 function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit, onDuplicate }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void; onDuplicate: () => void }) {
   const items = [
@@ -71,7 +72,7 @@ function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit }: {
   </aside>;
 }
 
-function TerminalPane({ tab, settings, onState, onClose }: { tab: Tab; settings: UiSettings; onState: (state: Tab['state']) => void; onClose: () => void }) {
+function TerminalPane({ tab, settings, onState, onError, onClose }: { tab: Tab; settings: UiSettings; onState: (state: Tab['state']) => void; onError: (error: string) => void; onClose: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   useEffect(() => {
@@ -111,7 +112,7 @@ function TerminalPane({ tab, settings, onState, onClose }: { tab: Tab; settings:
     hostRef.current.addEventListener('contextmenu', context);
     onState('starting');
     const session = remoteTypes.has(tab.session.session_type) ? tab.session : null;
-    tauriInvoke?.('start_terminal', { id, session, program: null }).then(() => onState('connected')).catch(() => onState('failed'));
+    tauriInvoke?.('start_terminal', { id, session, program: null }).then(() => onState('connected')).catch(error => { onError(error instanceof Error ? error.message : String(error)); onState('failed'); });
     return () => {
       resize.dispose(); data.dispose(); selection.dispose();
       hostRef.current?.removeEventListener('contextmenu', context);
@@ -120,20 +121,21 @@ function TerminalPane({ tab, settings, onState, onClose }: { tab: Tab; settings:
       tauriInvoke?.('close_terminal', { id }).catch(() => {});
       terminal.dispose();
     };
-  }, [tab.id, tab.session, onState]);
+  }, []);
   const reconnect = async () => {
     onState('starting');
     try {
       await tauriInvoke?.('close_terminal', { id: tab.id });
       await tauriInvoke?.('start_terminal', { id: tab.id, session: remoteTypes.has(tab.session.session_type) ? tab.session : null, program: null });
       onState('connected');
-    } catch { onState('failed'); }
+    } catch (error) { onError(error instanceof Error ? error.message : String(error)); onState('failed'); }
   };
   const resume = async () => {
     try { await tauriInvoke?.('resume_terminal', { id: tab.id }); onState('connected'); } catch { onState('failed'); }
   };
   return <div className="react-terminal-pane">
     <div className="react-pane-bar"><span><ProtocolIcon type={tab.session.session_type} /> {tab.session.name}</span><span className="react-terminal-actions"><span className={`react-state ${tab.state}`}>{tab.state}</span><button onClick={resume} disabled={tab.state === 'starting'} title="Resume terminal process">Resume</button><button onClick={reconnect} title="Reconnect terminal">Reconnect</button><button onClick={onClose} title="Close terminal">Close</button></span></div>
+    {tab.error && <div className="react-terminal-error" role="alert">{tab.error}</div>}
     <div className="react-terminal-host" ref={hostRef} tabIndex={0} onPointerDown={() => terminalRef.current?.focus()} onKeyDown={() => terminalRef.current?.focus()} />
   </div>;
 }
@@ -199,13 +201,13 @@ export default function App() {
   };
   return <div className="react-app-shell">
     <div className="react-menu-row"><strong>Moraxterm</strong><button>Terminal</button><button onClick={() => setTabs([])}>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button>Help</button></div>
-    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Shell' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} />
+    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} />
     <div className="react-quick-connect"><input aria-label="Quick connect" placeholder="Quick connect..." value={quick} onChange={event => setQuick(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') openQuick(); }} /><button onClick={openQuick}>Connect</button></div>
     <main className="react-main"><nav className="react-rail"><button className="active">★</button><button>⚒</button><button>➤</button><button>◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} />
       <section className="react-workspace">
-        {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} onBroadcast={broadcast} onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Shell' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
+        {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} onBroadcast={broadcast} onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
           <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); closeTab(tab.id); }}>×</b></button>)}</nav>
-          <div className={split ? 'react-panes react-panes-split' : 'react-panes'}>{active && <div className="react-pane-slot"><TerminalPane key={active.id} tab={active} settings={uiSettings} onClose={() => closeTab(active.id)} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state } : item))} /></div>}{split && <><div className="react-pane-divider" aria-hidden="true" /><div className="react-pane-slot"><TerminalPane key={split.id} tab={split} settings={uiSettings} onClose={() => closeTab(split.id)} onState={state => setTabs(current => current.map(item => item.id === split.id ? { ...item, state } : item))} /></div></>}</div>
+          <div className={split ? 'react-panes react-panes-split' : 'react-panes'}>{active && <div className="react-pane-slot"><TerminalPane key={active.id} tab={active} settings={uiSettings} onClose={() => closeTab(active.id)} onError={error => setTabs(current => current.map(item => item.id === active.id ? { ...item, error } : item))} onState={state => setTabs(current => current.map(item => item.id === active.id ? { ...item, state, ...(state === 'starting' ? { error: undefined } : {}) } : item))} /></div>}{split && <><div className="react-pane-divider" aria-hidden="true" /><div className="react-pane-slot"><TerminalPane key={split.id} tab={split} settings={uiSettings} onClose={() => closeTab(split.id)} onError={error => setTabs(current => current.map(item => item.id === split.id ? { ...item, error } : item))} onState={state => setTabs(current => current.map(item => item.id === split.id ? { ...item, state, ...(state === 'starting' ? { error: undefined } : {}) } : item))} /></div></>}</div>
         </>}
         <footer className="react-status"><span>● Ready</span><span>CPU —</span><span>RAM —</span><span>Network —</span><span>Desktop</span></footer>
       </section>

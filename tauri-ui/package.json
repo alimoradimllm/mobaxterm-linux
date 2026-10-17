@@ -1,7 +1,7 @@
 {
   "name": "moraxterm-linux-ui",
   "private": true,
-  "version": "0.1.18",
+  "version": "0.1.22",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   }

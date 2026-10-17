@@ -1850,7 +1850,7 @@ fn start_terminal(
             "MORAXTERM_UNIX_ROOT".into(),
             runtime_root.to_string_lossy().into_owned(),
         );
-        environment.insert("MORAXTERM_HOST_MOUNT".into(), host_mount);
+        environment.insert("MORAXTERM_HOST_MOUNT".into(), host_mount.clone());
         environment.insert("HOME".into(), home.to_string_lossy().into_owned());
         environment.insert("TMPDIR".into(), temp.to_string_lossy().into_owned());
         environment.insert("TEMP".into(), temp.to_string_lossy().into_owned());
@@ -1882,9 +1882,7 @@ fn start_terminal(
             let temp_posix = posix_path(&temp);
             let runtime_posix = posix_path(&runtime_root);
             let host_posix = if cfg!(windows) {
-                posix_path(&PathBuf::from(
-                    &session.unix_host_mount.trim().replace('\\', "/"),
-                ))
+                posix_path(&PathBuf::from(&host_mount.replace('\\', "/")))
             } else {
                 session.unix_host_mount.trim().to_string()
             };
