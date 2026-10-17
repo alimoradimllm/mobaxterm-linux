@@ -81,14 +81,17 @@ Review the security and open-work details in
 
 ## Current release
 
-The latest published release is **v0.1.14**:
+The latest published release is **v0.1.24**:
 
-<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.14>
+<https://github.com/alimoradimllm/moraxterm/releases/tag/v0.1.24>
 
 Published Windows assets include:
 
-- `Moraxterm_0.1.14_x64-setup.exe`
-- `Moraxterm_0.1.14_x64_en-US.msi`
+- `Moraxterm_0.1.24_x64-setup.exe`
+- `Moraxterm_0.1.24_x64_en-US.msi`
+
+The embedded Unix runtime archive is also published as
+`Moraxterm_EmbeddedUnix_x64_0.1.24.tar.xz` and is required for Tauri packaging.
 
 The v0.1.13 release also includes the corrected Tauri event-listener
 permissions. Local Shell and saved SSH sessions can now deliver terminal output
@@ -116,15 +119,17 @@ npm run build
 # Tauri bridge
 cd src-tauri
 cargo check
+cd ../..
+
+# Tauri resource required for desktop packaging
+python scripts/prepare_embedded_runtime.py \
+  --url https://github.com/alimoradimllm/moraxterm/releases/download/v0.1.24/Moraxterm_EmbeddedUnix_x64_0.1.24.tar.xz
+cd tauri-ui
+npm run tauri -- build -- --bundles deb,rpm
 ```
 
 Native Linux packaging requires the Tauri system dependencies documented by
-Tauri for GTK/WebKitGTK. The verified package commands are:
-
-```bash
-cd tauri-ui
-npm run tauri build -- --bundles deb,rpm
-```
+Tauri for GTK/WebKitGTK.
 
 ### Windows
 

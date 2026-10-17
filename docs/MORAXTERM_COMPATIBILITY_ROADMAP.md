@@ -11,7 +11,7 @@ observed behavior, public protocol tooling, and independent code.
 
 - Repository: `alimoradimllm/moraxterm`
 - Branch: `main`
-- Current published release: `v0.1.14` (being prepared for testing)
+- Current published release: `v0.1.24`.
 - Rust core tests: passed.
 - Python suite: 54 tests; 52 pass on Windows, with two platform-specific tests requiring guards or WSL fixtures.
 - Tauri frontend build and Rust bridge check: passed.
