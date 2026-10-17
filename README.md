@@ -197,6 +197,7 @@ release-quality automation.
 
 - Detailed remaining work: [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md)
 - Compatibility roadmap: [`docs/MORAXTERM_COMPATIBILITY_ROADMAP.md`](docs/MORAXTERM_COMPATIBILITY_ROADMAP.md)
+- Competitive product strategy: [`docs/COMPETITIVE_PRODUCT_STRATEGY.md`](docs/COMPETITIVE_PRODUCT_STRATEGY.md)
 - Windows terminal test matrix: [`docs/WINDOWS_TERMINAL_TEST_MATRIX.md`](docs/WINDOWS_TERMINAL_TEST_MATRIX.md)
 - UI preview: [`docs/screenshots/moraxterm-linux-ui-preview.svg`](docs/screenshots/moraxterm-linux-ui-preview.svg)
 
