@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Session, SessionType } from './react-types';
+import { tauriInvoke } from './react-types';
 
 interface SessionEditorProps {
   session: Session;
@@ -12,10 +13,41 @@ const protocols: SessionType[] = ['SSH', 'Telnet', 'Rdp', 'Vnc', 'WSL', 'Shell',
 export default function SessionEditor({ session, onSave, onCancel }: SessionEditorProps) {
   const [draft, setDraft] = useState<Session>(session);
   const [tab, setTab] = useState<'Basic' | 'SSH' | 'Terminal' | 'Protocol'>('Basic');
+  const [knownHostsStatus, setKnownHostsStatus] = useState('Not checked');
+  const [fingerprint, setFingerprint] = useState('');
+  const [trustBusy, setTrustBusy] = useState(false);
   useEffect(() => setDraft(session), [session]);
   const update = <K extends keyof Session>(key: K, value: Session[K]) => setDraft(current => ({ ...current, [key]: value }));
   const isSsh = draft.session_type === 'SSH';
   const isProtocol = ['WSL', 'Serial', 'Telnet', 'Rdp', 'Vnc', 'Unix'].includes(draft.session_type);
+  const checkKnownHost = async () => {
+    if (!draft.host?.trim() || !draft.port) { setKnownHostsStatus('Enter a host and valid port first.'); return; }
+    setTrustBusy(true);
+    try { setKnownHostsStatus(await tauriInvoke<string>('ssh_known_hosts_status', { host: draft.host.trim(), port: draft.port })); }
+    catch (error) { setKnownHostsStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setTrustBusy(false); }
+  };
+  const scanKnownHost = async () => {
+    if (!draft.host?.trim() || !draft.port) { setKnownHostsStatus('Enter a host and valid port first.'); return; }
+    setTrustBusy(true); setFingerprint('');
+    try { setFingerprint(await tauriInvoke<string>('ssh_known_hosts_scan', { host: draft.host.trim(), port: draft.port })); setKnownHostsStatus('Fingerprint scanned. Confirm it before approval.'); }
+    catch (error) { setKnownHostsStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setTrustBusy(false); }
+  };
+  const approveKnownHost = async () => {
+    if (!draft.host?.trim() || !draft.port || !fingerprint) return;
+    setTrustBusy(true);
+    try { setKnownHostsStatus(await tauriInvoke<string>('ssh_known_hosts_add', { host: draft.host.trim(), port: draft.port, expectedFingerprint: fingerprint })); }
+    catch (error) { setKnownHostsStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setTrustBusy(false); }
+  };
+  const removeKnownHost = async () => {
+    if (!draft.host?.trim() || !draft.port) return;
+    setTrustBusy(true);
+    try { setKnownHostsStatus(await tauriInvoke<string>('ssh_known_hosts_remove', { host: draft.host.trim(), port: draft.port })); setFingerprint(''); }
+    catch (error) { setKnownHostsStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setTrustBusy(false); }
+  };
   useEffect(() => { if (tab === 'Protocol' && !isProtocol) setTab('Basic'); }, [isProtocol, tab]);
   return <section className="react-editor" aria-label="Session editor">
     <header className="react-editor-header"><div><span className="react-editor-kicker">SESSION EDITOR</span><h2>{draft.name || 'New session'}</h2></div><button onClick={onCancel} aria-label="Close session editor">×</button></header>
@@ -35,6 +67,8 @@ export default function SessionEditor({ session, onSave, onCancel }: SessionEdit
         <label>ProxyJump / gateway<input value={draft.proxy_jump ?? ''} onChange={event => update('proxy_jump', event.target.value || undefined)} placeholder="jump-user@gateway.example.com" /></label>
         <label>Host-key policy<select value={draft.host_key_policy ?? 'ask'} onChange={event => update('host_key_policy', event.target.value)}><option value="ask">Ask on unknown host</option><option value="strict">Strict: reject unknown host</option><option value="accept-new">Accept new keys, reject changes</option></select></label>
         <div className="react-editor-note">ProxyJump is passed as a structured OpenSSH argument. Unknown or changed host keys are never silently trusted.</div>
+        <div className="react-editor-note"><strong>Host-key trust</strong><br />{knownHostsStatus}{fingerprint && <><br /><code>{fingerprint}</code></>}</div>
+        <div className="react-editor-actions"><button disabled={trustBusy} onClick={checkKnownHost}>Check known host</button><button disabled={trustBusy} onClick={scanKnownHost}>Scan fingerprint</button><button disabled={trustBusy || !fingerprint} onClick={approveKnownHost}>Approve scanned key</button><button disabled={trustBusy} onClick={removeKnownHost}>Remove stored key</button></div>
       </>}
       {tab === 'Terminal' && <>
         <label>Local shell<select value={draft.shell ?? ''} onChange={event => update('shell', event.target.value || undefined)}><option value="">System default</option><option value="cmd">Command Prompt</option><option value="powershell">PowerShell</option><option value="bash">Bash</option></select></label>

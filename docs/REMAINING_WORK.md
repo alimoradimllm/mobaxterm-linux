@@ -80,9 +80,7 @@ of full third-party terminal workspace parity.
 - SSH editing now checks whether a host entry exists in `known_hosts` without
   exposing fingerprints. Explicit approval/change-warning UI and updates remain
   open.
-- Strict SSH sessions now refuse launch when no matching `known_hosts` entry is
-  present. Native approval and changed-key warning UI remain delegated to
-  OpenSSH; managed in-app approval/update UI remains open.
+- The SSH Session Editor now provides Check known host, Scan fingerprint, Approve scanned key, and Remove stored key actions. Approval re-scans and compares the exact fingerprint before appending to `known_hosts`; fingerprints are displayed for explicit user confirmation. Strict policy still refuses unknown hosts. Runtime testing against a disposable SSH server remains open.
 - Session folders now render as indented nested headings. Folder drag and
   drop, rename, and movement controls are implemented.
 - Session entries can now be dragged onto persisted folder headings and saved
