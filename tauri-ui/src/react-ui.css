@@ -18,6 +18,8 @@ button { cursor: pointer; }
 .react-tool.primary { box-shadow: inset 0 -2px #35a7e8; }
 .react-toolbar-spacer { flex: 1; }
 .react-quick-connect { display: flex; gap: 6px; height: 38px; padding: 5px 12px; background: #161b20; border-bottom: 1px solid #303b45; }
+.react-action-notice { display: flex; align-items: center; gap: 10px; min-height: 30px; padding: 5px 12px; color: #e8f5ff; background: #21445a; border-bottom: 1px solid #4f91b5; }
+.react-action-notice button { margin-left: auto; color: inherit; background: transparent; border: 0; font-size: 18px; cursor: pointer; }
 .react-quick-connect input, .react-side-search input, .react-home > input { color: #edf3f7; background: #0d1115; border: 1px solid #43515c; border-radius: 4px; padding: 6px 10px; }
 .react-quick-connect input { width: 360px; }
 .react-quick-connect button, .react-home button.primary { color: #fff; background: #247fb3; border: 1px solid #55b9eb; border-radius: 4px; padding: 4px 18px; }

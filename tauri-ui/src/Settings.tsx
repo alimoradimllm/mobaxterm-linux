@@ -20,19 +20,28 @@ export const defaultUiSettings: UiSettings = {
 
 export default function Settings({ value, onSave, onCancel }: SettingsProps) {
   const [draft, setDraft] = useState(value);
+  const [tab, setTab] = useState<'Appearance' | 'Terminal' | 'Behavior'>('Appearance');
   const update = <K extends keyof UiSettings>(key: K, next: UiSettings[K]) => setDraft(current => ({ ...current, [key]: next }));
   return <section className="react-editor" aria-label="Application settings">
     <header className="react-editor-header"><div><span className="react-editor-kicker">APPLICATION SETTINGS</span><h2>Settings</h2></div><button onClick={onCancel} aria-label="Close settings">×</button></header>
-    <nav className="react-editor-tabs"><button className="selected">Appearance</button><button>Terminal</button><button>Behavior</button></nav>
+    <nav className="react-editor-tabs"><button className={tab === 'Appearance' ? 'selected' : ''} onClick={() => setTab('Appearance')}>Appearance</button><button className={tab === 'Terminal' ? 'selected' : ''} onClick={() => setTab('Terminal')}>Terminal</button><button className={tab === 'Behavior' ? 'selected' : ''} onClick={() => setTab('Behavior')}>Behavior</button></nav>
     <div className="react-editor-form">
-      <h3 className="react-settings-heading">Appearance</h3>
-      <label>Application theme<select value={draft.appTheme} onChange={event => update('appTheme', event.target.value as UiSettings['appTheme'])}><option value="mobaxterm">MobaXterm</option><option value="midnight">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label>
-      <label>Terminal theme<select value={draft.terminalTheme} onChange={event => update('terminalTheme', event.target.value as UiSettings['terminalTheme'])}><option value="mobaxterm">MobaXterm</option><option value="dark">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label>
-      <h3 className="react-settings-heading">Terminal behavior</h3>
-      <label>Font size<input type="number" min="10" max="28" value={draft.fontSize} onChange={event => update('fontSize', Number(event.target.value) || 13)} /></label>
-      <label className="react-check"><input type="checkbox" checked={draft.cursorBlink} onChange={event => update('cursorBlink', event.target.checked)} /> Blink terminal cursor</label>
-      <label className="react-check"><input type="checkbox" checked={draft.highlightKeywords} onChange={event => update('highlightKeywords', event.target.checked)} /> Highlight terminal keywords</label>
-      <div className="react-editor-note">Settings are stored locally in this profile. Credentials and private keys are not stored here.</div>
+      {tab === 'Appearance' && <>
+        <h3 className="react-settings-heading">Appearance</h3>
+        <label>Application theme<select value={draft.appTheme} onChange={event => update('appTheme', event.target.value as UiSettings['appTheme'])}><option value="mobaxterm">MobaXterm</option><option value="midnight">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label>
+        <div className="react-editor-note">Application theme selection is stored locally and applied to the workspace on the next UI theme pass.</div>
+      </>}
+      {tab === 'Terminal' && <>
+        <h3 className="react-settings-heading">Terminal</h3>
+        <label>Terminal theme<select value={draft.terminalTheme} onChange={event => update('terminalTheme', event.target.value as UiSettings['terminalTheme'])}><option value="mobaxterm">MobaXterm</option><option value="dark">Midnight</option><option value="light">Light</option><option value="amber">Amber</option><option value="neon">Neon</option></select></label>
+        <label>Font size<input type="number" min="10" max="28" value={draft.fontSize} onChange={event => update('fontSize', Number(event.target.value) || 13)} /></label>
+        <label className="react-check"><input type="checkbox" checked={draft.cursorBlink} onChange={event => update('cursorBlink', event.target.checked)} /> Blink terminal cursor</label>
+      </>}
+      {tab === 'Behavior' && <>
+        <h3 className="react-settings-heading">Behavior</h3>
+        <label className="react-check"><input type="checkbox" checked={draft.highlightKeywords} onChange={event => update('highlightKeywords', event.target.checked)} /> Highlight terminal keywords</label>
+        <div className="react-editor-note">Selection copies automatically and right-click pastes through the normal terminal input path. Credentials and private keys are never stored here.</div>
+      </>}
     </div>
     <footer className="react-editor-footer"><button onClick={onCancel}>Cancel</button><button className="primary" onClick={() => onSave(draft)}>Save settings</button></footer>
   </section>;

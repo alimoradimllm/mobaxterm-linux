@@ -24,19 +24,19 @@ interface Tab {
 
 const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial', 'Unix', 'Shell']);
 
-function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit, onDuplicate }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void; onDuplicate: () => void }) {
+function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit, onDuplicate, onTools, onView, onTunnel, onHelp, onXserver }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void; onDuplicate: () => void; onTools: () => void; onView: () => void; onTunnel: () => void; onHelp: () => void; onXserver: () => void }) {
   const items = [
-    ['▣', 'Session', onNewShell], ['✣', 'Servers', onHome], ['⚒', 'Tools', undefined],
-    ['★', 'Sessions', onEdit], ['▣', 'View', undefined], ['▤', 'Split', onSplit],
-    ['⧉', 'Duplicate', onDuplicate], ['⇄', 'MultiExec', onMultiExec], ['⇆', 'Tunneling', undefined],
-    ['⇅', 'Packages', onSftp], ['⚙', 'Settings', onSettings], ['?', 'Help', undefined],
+    ['▣', 'Session', onNewShell], ['✣', 'Servers', onHome], ['⚒', 'Tools', onTools],
+    ['★', 'Sessions', onEdit], ['▣', 'View', onView], ['▤', 'Split', onSplit],
+    ['⧉', 'Duplicate', onDuplicate], ['⇄', 'MultiExec', onMultiExec], ['⇆', 'Tunneling', onTunnel],
+    ['⇅', 'Packages', onSftp], ['⚙', 'Settings', onSettings], ['?', 'Help', onHelp],
   ] as const;
   return <div className="react-toolbar">
     {items.map(([symbol, label, action]) => <button key={label} className={label === 'Session' ? 'react-tool primary' : 'react-tool'} onClick={action} title={label}>
       <span aria-hidden="true">{symbol}</span><small>{label}</small>
     </button>)}
     <span className="react-toolbar-spacer" />
-    <button className="react-tool" title="X server"><span>⚔</span><small>X server</small></button>
+    <button className="react-tool" title="X server" onClick={onXserver}><span>⚔</span><small>X server</small></button>
     <button className="react-tool" title="Exit" onClick={() => window.close()}><span>⏻</span><small>Exit</small></button>
   </div>;
 }
@@ -45,8 +45,8 @@ function ProtocolIcon({ type }: { type: string }) {
   return <span className="react-protocol-icon" dangerouslySetInnerHTML={{ __html: iconFor(type) }} />;
 }
 
-function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit }: {
-  sessions: Session[]; activeId?: string; onOpen: (session: Session) => void; onHome: () => void; onEdit: (session: Session) => void;
+function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit, onTools, onMacros, onNotice }: {
+  sessions: Session[]; activeId?: string; onOpen: (session: Session) => void; onHome: () => void; onEdit: (session: Session) => void; onTools: () => void; onMacros: () => void; onNotice: (message: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const visible = useMemo(() => sessions.filter(session => JSON.stringify(session).toLowerCase().includes(query.toLowerCase())), [sessions, query]);
@@ -56,9 +56,9 @@ function SessionSidebar({ sessions, activeId, onOpen, onHome, onEdit }: {
     return groups;
   }, {}), [visible]);
   return <aside className="react-sidebar">
-    <div className="react-side-tabs"><button className="selected" onClick={onHome}>Sessions</button><button>Tools</button><button>Macros</button></div>
+    <div className="react-side-tabs"><button className="selected" onClick={onHome}>Sessions</button><button onClick={onTools}>Tools</button><button onClick={onMacros}>Macros</button></div>
     <div className="react-side-search"><input aria-label="Quick find sessions" placeholder="Quick find sessions" value={query} onChange={event => setQuery(event.target.value)} /></div>
-    <div className="react-tree-header"><strong>★ User sessions</strong><button title="New folder">📁＋</button><button title="Edit selected session" onClick={() => { const selected = sessions.find(session => session.name === activeId); if (selected) onEdit(selected); }}>✎</button><button title="Refresh sessions" onClick={onHome}>↻</button></div>
+    <div className="react-tree-header"><strong>★ User sessions</strong><button title="New folder" onClick={() => onNotice('Folder management is not available in the React workspace yet.')}>📁＋</button><button title="Edit selected session" onClick={() => { const selected = sessions.find(session => session.name === activeId); if (selected) onEdit(selected); else onNotice('Select a session before editing it.'); }}>✎</button><button title="Refresh sessions" onClick={onHome}>↻</button></div>
     <div className="react-session-list">
       {Object.entries(grouped).map(([group, entries]) => <section key={group}>
         <h3>{group}</h3>
@@ -147,6 +147,7 @@ export default function App() {
   const [splitId, setSplitId] = useState<string>();
   const [editorSession, setEditorSession] = useState<Session>();
   const [panel, setPanel] = useState<'settings' | 'macros' | 'multiexec' | 'sftp'>();
+  const [notice, setNotice] = useState<string>();
   const [uiSettings, setUiSettings] = useState<UiSettings>(() => { try { return { ...defaultUiSettings, ...JSON.parse(localStorage.getItem('moraxterm-settings') || '{}') }; } catch { return defaultUiSettings; } });
   const [quick, setQuick] = useState('');
   useEffect(() => {
@@ -199,11 +200,20 @@ export default function App() {
     setTabs(current => [...current, copy]);
     setActiveId(copy.id);
   };
+  const showNotice = (message: string) => { setNotice(message); setEditorSession(undefined); };
+  const openTools = () => showNotice('Tools panel is not implemented in the React workspace yet. Use Packages for SFTP or MultiExec for synchronized terminal input.');
+  const openView = () => { if (active) splitWorkspace(); else showNotice('Open a terminal before using View or Split.'); };
+  const openTunnel = () => showNotice('Tunneling profiles are implemented in the native bridge, but the React tunnel manager is not wired yet.');
+  const openHelp = () => showNotice('Shortcuts: Enter executes terminal input, R reconnects, S resumes, and the toolbar opens Sessions, Split, Duplicate, MultiExec, Packages, and Settings.');
+  const openXserver = async () => {
+    try { showNotice(await tauriInvoke<string>('xserver_status')); }
+    catch (error) { showNotice(`X server status failed: ${error instanceof Error ? error.message : String(error)}`); }
+  };
   return <div className="react-app-shell">
-    <div className="react-menu-row"><strong>Moraxterm</strong><button>Terminal</button><button onClick={() => setTabs([])}>Sessions</button><button>View</button><button>X server</button><button>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button>Help</button></div>
-    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} />
-    <div className="react-quick-connect"><input aria-label="Quick connect" placeholder="Quick connect..." value={quick} onChange={event => setQuick(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') openQuick(); }} /><button onClick={openQuick}>Connect</button></div>
-    <main className="react-main"><nav className="react-rail"><button className="active">★</button><button>⚒</button><button>➤</button><button>◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} />
+    <div className="react-menu-row"><strong>Moraxterm</strong><button onClick={() => showNotice('Use Session or Start local terminal to open a terminal.')}>Terminal</button><button onClick={() => { setTabs([]); setPanel(undefined); }}>Sessions</button><button onClick={openView}>View</button><button onClick={openXserver}>X server</button><button onClick={openTools}>Tools</button><button onClick={() => setPanel('settings')}>Settings</button><button onClick={() => setPanel('macros')}>Macros</button><button onClick={openHelp}>Help</button></div>
+    <Toolbar onNewShell={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })} onHome={() => { setActiveId(undefined); setEditorSession(undefined); setPanel(undefined); }} onEdit={() => { if (active) setEditorSession(active.session); else if (sessions[0]) setEditorSession(sessions[0]); }} onSettings={() => setPanel('settings')} onMacros={() => setPanel('macros')} onMultiExec={() => setPanel('multiexec')} onSftp={() => setPanel('sftp')} onSplit={splitWorkspace} onDuplicate={duplicateActive} onTools={openTools} onView={openView} onTunnel={openTunnel} onHelp={openHelp} onXserver={openXserver} />
+    {notice && <div className="react-action-notice" role="status">{notice}<button aria-label="Dismiss notice" onClick={() => setNotice(undefined)}>×</button></div>}
+    <main className="react-main"><nav className="react-rail"><button className="active" onClick={() => setActiveId(undefined)} title="Home">★</button><button onClick={openTools} title="Tools">⚒</button><button onClick={openTunnel} title="Tunneling">➤</button><button onClick={openView} title="View">◆</button></nav><SessionSidebar sessions={sessions} activeId={active?.session.name} onOpen={openSession} onHome={() => setActiveId(undefined)} onEdit={setEditorSession} onTools={openTools} onMacros={() => setPanel('macros')} onNotice={showNotice} />
       <section className="react-workspace">
         {editorSession ? <SessionEditor session={editorSession} onSave={saveSession} onCancel={() => setEditorSession(undefined)} /> : panel === 'settings' ? <Settings value={uiSettings} onSave={saveSettings} onCancel={() => setPanel(undefined)} /> : panel === 'macros' ? <MacroManager activeTerminalId={active?.id} onPlay={playMacro} onClose={() => setPanel(undefined)} /> : panel === 'multiexec' ? <MultiExecManager targets={tabs.map(tab => ({ id: tab.id, name: tab.session.name, type: tab.session.session_type, state: tab.state }))} onBroadcast={broadcast} onClose={() => setPanel(undefined)} /> : panel === 'sftp' ? <SftpPane session={active?.session || sessions.find(item => item.session_type === 'SSH')} onClose={() => setPanel(undefined)} /> : !tabs.length || !active ? <div className="react-home"><div className="react-home-mark">▣</div><h1>Moraxterm</h1><p>Your terminal workspace</p><div><button className="primary" onClick={() => openSession({ name: 'Local Shell', session_type: 'Unix', host: '', username: '', port: 0, unix_shell: 'fish' })}>＋ Start local terminal</button><button onClick={() => setActiveId(undefined)}>↻ Recover previous sessions</button></div><input aria-label="Find existing session or server name" placeholder="Find existing session or server name..." /><h2>Recent sessions</h2><div className="react-recent">{sessions.slice(0, 6).map(session => <button key={session.name} onClick={() => openSession(session)}><ProtocolIcon type={session.session_type} /><span>{session.name}<small>{session.host || session.session_type}</small></span></button>)}</div></div> : <>
           <nav className="react-tabs">{tabs.map(tab => <button key={tab.id} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}><ProtocolIcon type={tab.session.session_type} />{tab.session.name}<span className={`dot ${tab.state}`} /><b onClick={event => { event.stopPropagation(); closeTab(tab.id); }}>×</b></button>)}</nav>
