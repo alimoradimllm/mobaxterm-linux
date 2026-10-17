@@ -1577,6 +1577,32 @@ fn stop_recording(state: State<'_, TerminalManager>, id: String) -> Result<bool,
         .is_some())
 }
 
+fn embedded_fish_command_not_found_script() -> &'static str {
+    r#"
+function fish_command_not_found
+    set -l missing $argv[1]
+    echo "fish: Unknown command: $missing"
+    switch $missing
+        case apt apt-get
+            if test "$argv[2]" = install; and test "$argv[3]" = dig
+                echo "This embedded Unix runtime uses MSYS2, not Debian/Ubuntu."
+                echo "Install DNS tools with: pacman -S bind"
+                echo "Then run: dig example.com"
+            else
+                echo "This embedded Unix runtime uses MSYS2, not apt."
+                echo "Install syntax: pacman -S <package-name>"
+            end
+        case dig nslookup host
+            echo "Install '$missing' with: pacman -S bind"
+            echo "Syntax: $missing example.com"
+        case '*'
+            echo "Find the package: pacman -F /usr/bin/$missing.exe"
+            echo "Install syntax: pacman -S <package-name>"
+    end
+end
+"#
+}
+
 #[tauri::command]
 fn start_terminal(
     app: AppHandle,
@@ -1887,13 +1913,14 @@ fn start_terminal(
                 session.unix_host_mount.trim().to_string()
             };
             let init = format!(
-                "set -gx HOME {}; set -gx TMPDIR {}; set -gx TEMP {}; set -gx TMP {}; set -gx MORAXTERM_UNIX_ROOT {}; set -gx MORAXTERM_HOST_MOUNT {};",
+                "set -gx HOME {}; set -gx TMPDIR {}; set -gx TEMP {}; set -gx TMP {}; set -gx MORAXTERM_UNIX_ROOT {}; set -gx MORAXTERM_HOST_MOUNT {};\n{}",
                 fish_quote(&home_posix),
                 fish_quote(&temp_posix),
                 fish_quote(&temp_posix),
                 fish_quote(&temp_posix),
                 fish_quote(&runtime_posix),
-                fish_quote(&host_posix)
+                fish_quote(&host_posix),
+                embedded_fish_command_not_found_script()
             );
             args.extend(["-C".into(), init]);
         }
@@ -2245,7 +2272,15 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_socket_address, scan_ports};
+    use super::{embedded_fish_command_not_found_script, format_socket_address, scan_ports};
+
+    #[test]
+    fn missing_command_handler_suggests_ms2_install_syntax() {
+        let script = embedded_fish_command_not_found_script();
+        assert!(script.contains("pacman -S bind"));
+        assert!(script.contains("pacman -S <package-name>"));
+        assert!(script.contains("dig example.com"));
+    }
 
     #[test]
     fn formats_ipv4_socket_addresses() {
