@@ -81,6 +81,7 @@ of full third-party terminal workspace parity.
   exposing fingerprints. Explicit approval/change-warning UI and updates remain
   open.
 - A disposable WSL runtime harness at `scripts/disposable_ssh_runtime_test.sh` now verifies strict unknown-host rejection, fingerprint-approved connection, changed-host-key rejection, and authenticated gateway forwarding. The harness cleans up all temporary processes and keys; this WSL image's literal `-J` path is intercepted by its system SSH wrapper, so the harness uses an explicit equivalent `ProxyCommand` for forwarding.
+- A disposable WSL harness at `scripts/disposable_sftp_runtime_test.sh` now verifies, against a loopback-only throwaway `sshd` with temporary keys, the OpenSSH batch operations Moraxterm's SFTP layer drives: list, mkdir/rename/chmod, byte-exact upload and download, `reput`/`reget` resume, delete, `scp` fallback in both directions, and strict unknown-host rejection (`DISPOSABLE_SFTP_RUNTIME_TEST=PASS` in Debian WSL). It exercises the OpenSSH clients directly, not the Moraxterm UI or Tauri commands, so installed-app authenticated transfer testing remains open.
 - Session folders now render as indented nested headings. Folder drag and
   drop, rename, and movement controls are implemented.
 - Session entries can now be dragged onto persisted folder headings and saved
