@@ -22,7 +22,7 @@ interface Tab {
   error?: string;
 }
 
-const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial', 'Unix']);
+const remoteTypes = new Set(['SSH', 'TELNET', 'RDP', 'Rdp', 'VNC', 'Vnc', 'WSL', 'Serial', 'Unix', 'Shell']);
 
 function Toolbar({ onNewShell, onHome, onEdit, onSettings, onMacros, onMultiExec, onSftp, onSplit, onDuplicate }: { onNewShell: () => void; onHome: () => void; onEdit: () => void; onSettings: () => void; onMacros: () => void; onMultiExec: () => void; onSftp: () => void; onSplit: () => void; onDuplicate: () => void }) {
   const items = [
